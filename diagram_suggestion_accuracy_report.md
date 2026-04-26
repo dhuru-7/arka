@@ -8,16 +8,15 @@ The previous diagram type suggestion feature had two major flaws leading to high
 ## 2. The Solution
 I adjusted the `/api/suggest` endpoint in `app.py` to prioritize the user's explicit intent and make the parsing failure-proof.
 
-- **Explicit Phase**: Before ever consulting the LLM, the system now scans the user's prompt for explicit diagram type keywords (`sequence diagram`, `gantt`, `pie chart`, `er diagram`, `mindmap`, etc.). If it detects one of these, it skips the LLM and instantly (and 100% accurately) selects that diagram type.
+- **Explicit Phase**: Before ever consulting the LLM, the system now scans the user's prompt for explicit diagram type keywords (`sequence diagram`, `gantt`, `pie chart`, `er diagram`, etc.). If it detects one of these, it skips the LLM and instantly (and 100% accurately) selects that diagram type.
 - **Robust LLM Parsing Phase**: If the user's prompt is fully ambiguous, it still goes to the LLM. However, instead of requiring strict equality, it checks if any of the valid categories are present *within* the LLM's lowercased response output.
 
 ## 3. Verification with Complex Prompts
-To guarantee 100% accuracy, I reviewed the logic and ran test scripts against 5 highly complex prompts across different structure domains. 
+To guarantee 100% accuracy, I reviewed the logic and ran test scripts against 4 highly complex prompts across different structure domains. 
 
 | Prompt Tested | Expected | Actual Result |
 |---|---|---|
 | "I need a sequence diagram showing how the frontend sends a login request to the API, queries the database, and returns the token." | Sequence | **PASS** (Sequence) |
-| "A detailed mindmap exploring the components of a cloud-native architecture." | Mindmap | **PASS** (Mindmap) |
 | "Plan a gantt chart for next month's sprint with frontend, backend, and testing phases." | Gantt | **PASS** (Gantt) |
 | "Show me an ER diagram for a library management system with Books, Authors, and Members." | erDiagram | **PASS** (erDiagram) |
 | "Generate a pie chart displaying our server usage distribution across AWS, GCP, and Azure." | Pie | **PASS** (Pie) |

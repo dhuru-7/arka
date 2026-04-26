@@ -21,7 +21,6 @@ KNOWLEDGE_FILES = {
     "architecture": "architecture.md",
     "xy": "xy_chart.md",
     "pie": "pie_chart.md",
-    "mindmap": "mindmap.md",
     "sequence": "sequence.md",
     "erDiagram": "er_diagram.md",
     "gantt": "gantt.md"
@@ -58,8 +57,7 @@ def suggest_diagram():
     
     system_prompt = (
         "You are an expert architect. Given a user prompt describing a system or process, "
-        "classify it into exactly one of these categories: 'flowchart', 'architecture', 'xy', 'pie', 'mindmap', 'sequence', 'erDiagram', or 'gantt'. "
-        "Use 'mindmap' for brainstorming, topic breakdowns, concept maps, or hierarchical idea exploration. "
+        "classify it into exactly one of these categories: 'flowchart', 'architecture', 'xy', 'pie', 'sequence', 'erDiagram', or 'gantt'. "
         "Use 'sequence' for interaction flows between systems/actors/APIs showing step-by-step message exchanges. "
         "Use 'erDiagram' for database schemas, data models, entity relationships, or table structures. "
         "Use 'gantt' for project timelines, schedules, sprint plans, roadmaps, or task scheduling. "
@@ -87,8 +85,6 @@ def suggest_diagram():
             explicit_category = 'erDiagram'
         elif 'gantt' in user_lower or 'timeline' in user_lower or 'roadmap' in user_lower:
             explicit_category = 'gantt'
-        elif 'mindmap' in user_lower or 'mind map' in user_lower:
-            explicit_category = 'mindmap'
         elif 'pie chart' in user_lower or 'distribution' in user_lower:
             explicit_category = 'pie'
         elif 'xy chart' in user_lower or 'bar chart' in user_lower or 'line chart' in user_lower:
@@ -116,7 +112,6 @@ def suggest_diagram():
             'architecture': 'architecture',
             'xy': 'xy',
             'pie': 'pie',
-            'mindmap': 'mindmap',
             'sequence': 'sequence',
             'erdiagram': 'erDiagram',
             'er_diagram': 'erDiagram',
@@ -280,26 +275,6 @@ def generate_diagram():
             "- Keep between 4-15 nodes max unless the prompt explicitly asks for high detail.\n"
             "- Node IDs MUST be simple contiguous alphanumeric strings (e.g. gateway1, authService). NEVER use spaces in Node IDs.\n"
         )
-    elif diagram_type == "mindmap":
-        system_prompt = (
-            "You are an expert knowledge organizer generating Mermaid JS mindmap diagrams.\n\n"
-            "KNOWLEDGE BANK RULES (you MUST follow these):\n"
-            f"{knowledge_rules}\n\n"
-            "CRITICAL INSTRUCTIONS:\n"
-            "- Output ONLY valid Mermaid JS mindmap code.\n"
-            "- Do NOT wrap in markdown code blocks (no ```mermaid).\n"
-            "- Do NOT include any explanation or text before/after the code.\n"
-            "- First line MUST be 'mindmap'.\n"
-            "- Root node on second line with 2 spaces indent, using ((text)) shape.\n"
-            "- Use 2 spaces per indent level. Be consistent.\n"
-            "- NO arrows, NO connections — relationships are defined by indentation ONLY.\n"
-            "- NO empty lines between nodes.\n"
-            "- NO style directives.\n"
-            "- Keep 3-6 main branches from root.\n"
-            "- Max 3-4 levels deep.\n"
-            "- Each branch: 3-7 children max.\n"
-            "- Use concise labels (2-4 words).\n"
-        )
     elif diagram_type == "sequence":
         system_prompt = (
             "You are an expert system interaction designer generating Mermaid JS sequence diagrams.\n\n"
@@ -422,16 +397,14 @@ def generate_diagram():
 
         # GLOBAL SYNTAX FIXES
         # 1. Strip internal LLM tags if they leak (e.g., <tool_call>)
-        # Only for non-mindmap types since mindmaps don't use tags
         # 1. Strip internal LLM tags if they leak - specifically target common ones
         # to avoid stripping technical labels like "<100ms"
-        if diagram_type != 'mindmap':
-            content = re.sub(r'<(?:thought|tool_call|debug|internal)[^>]*>.*?</(?:thought|tool_call|debug|internal)>', '', content, flags=re.DOTALL)
-            content = re.sub(r'<(?:thought|tool_call|debug|internal)[^>]*>', '', content)
+        content = re.sub(r'<(?:thought|tool_call|debug|internal)[^>]*>.*?</(?:thought|tool_call|debug|internal)>', '', content, flags=re.DOTALL)
+        content = re.sub(r'<(?:thought|tool_call|debug|internal)[^>]*>', '', content)
 
         # 2. Remove duplicate diagram headers (LLM sometimes outputs two 'flowchart TD' etc.)
         lines = content.split('\n')
-        header_keywords = ['flowchart ', 'sequenceDiagram', 'erDiagram', 'gantt', 'pie', 'xychart-beta', 'mindmap']
+        header_keywords = ['flowchart ', 'sequenceDiagram', 'erDiagram', 'gantt', 'pie', 'xychart-beta']
         header_count = 0
         cleaned_lines = []
         for line in lines:
@@ -444,15 +417,6 @@ def generate_diagram():
             cleaned_lines.append(line)
         content = '\n'.join(cleaned_lines)
         
-        # MINDMAP: ensure proper first line and clean whitespace
-        if diagram_type == 'mindmap':
-            lines = content.split('\n')
-            # Ensure first line is exactly 'mindmap'
-            if lines and lines[0].strip() != 'mindmap':
-                lines = ['mindmap'] + [l for l in lines if l.strip() != 'mindmap']
-            # Remove empty lines between nodes
-            lines = [l for l in lines if l.strip()]
-            content = '\n'.join(lines)
 
         # PIE CHART SYNTAX FIXES
         if diagram_type == 'pie':
@@ -665,18 +629,6 @@ def generate_diagram():
                 "    \"Category C\" : 20\n"
                 "    \"Category D\" : 10"
             ),
-            "mindmap": (
-                "mindmap\n"
-                "  root((Topic))\n"
-                "    Branch A\n"
-                "      Sub-topic 1\n"
-                "      Sub-topic 2\n"
-                "    Branch B\n"
-                "      Sub-topic 3\n"
-                "      Sub-topic 4\n"
-                "    Branch C\n"
-                "      Sub-topic 5"
-            ),
             "sequence": (
                 "sequenceDiagram\n"
                 "    actor User\n"
@@ -792,12 +744,11 @@ def refine_diagram():
         content = content.strip()
 
         # Strip internal LLM tags
-        if diagram_type != 'mindmap':
-            content = re.sub(r'<[^>]+>', '', content)
+        content = re.sub(r'<[^>]+>', '', content)
 
         # Remove duplicate diagram headers
         lines = content.split('\n')
-        header_keywords = ['flowchart ', 'sequenceDiagram', 'erDiagram', 'gantt', 'pie', 'xychart-beta', 'mindmap']
+        header_keywords = ['flowchart ', 'sequenceDiagram', 'erDiagram', 'gantt', 'pie', 'xychart-beta']
         header_count = 0
         cleaned_lines = []
         for line in lines:

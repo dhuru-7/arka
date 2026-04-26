@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Trash2, Plus, User, Download, Palette, MousePointer2, Move, Undo, Redo, ZoomIn, ZoomOut, Maximize, X, Check, ChevronDown, Image, FileCode, FileText, FileImage, Code2, Plus as PlusIcon, Minus, Cpu, Square, Circle, Hexagon, Database, MessageSquare, Diamond, Box, ArrowRight, Eye, RefreshCw, Loader2, Brush } from 'lucide-react';
+import { Trash2, Plus, User, Download, Palette, MousePointer2, Move, Undo, Redo, ZoomIn, ZoomOut, Maximize, X, Check, ChevronDown, Image, FileCode, FileText, FileImage, Code2, Plus as PlusIcon, Minus, Cpu, Square, Circle, Hexagon, Database, MessageSquare, Box, ArrowRight, Eye, RefreshCw, Loader2, Brush } from './googleIcons';
 import { motion, AnimatePresence } from 'framer-motion';
 import './Arena.css';
 
@@ -159,13 +159,19 @@ const TrapezoidIcon = ({ size = 16 }) => (
     <path d="M6 6L18 6L22 18L2 18L6 6Z" />
   </svg>
 );
+const DecisionIcon = ({ size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 3.5L20.5 12L12 20.5L3.5 12L12 3.5Z" />
+  </svg>
+);
+const BetaBadge = () => <span className="popup-beta-badge">Beta</span>;
 
 const SHAPES = [
   { id: 'rect', label: 'Rectangle', icon: Square, wrap: (t) => `[${t}]` },
   { id: 'round', label: 'Rounded', icon: RoundedIcon, wrap: (t) => `(${t})` },
   { id: 'stadium', label: 'Stadium', icon: StadiumIcon, wrap: (t) => `([${t}])` },
   { id: 'subroutine', label: 'Subroutine', icon: SubroutineIcon, wrap: (t) => `[[${t}]]` },
-  { id: 'diamond', label: 'Decision', icon: Diamond, wrap: (t) => `{${t}}` },
+  { id: 'diamond', label: 'Decision', icon: DecisionIcon, wrap: (t) => `{${t}}` },
   { id: 'hex', label: 'Hexagon', icon: Hexagon, wrap: (t) => `{{${t}}}` },
   { id: 'circle', label: 'Circle', icon: Circle, wrap: (t) => `((${t}))` },
   { id: 'database', label: 'Database', icon: Database, wrap: (t) => `[(${t})]` },
@@ -274,7 +280,7 @@ const Arena = ({ prompt, diagramType, onBack, onShowHistory }) => {
     for (const line of lines.slice(0, 5)) {
       if (line.toLowerCase().startsWith('diagram type:')) {
         const typeStr = line.split(':')[1].trim().toLowerCase();
-        const supported = ['flowchart', 'architecture', 'xy', 'pie', 'mindmap', 'sequence', 'erDiagram', 'gantt'];
+        const supported = ['flowchart', 'architecture', 'xy', 'pie', 'sequence', 'erDiagram', 'gantt'];
         if (supported.includes(typeStr)) {
           extractedType = typeStr;
         } else if (typeStr === 'er diagram') {
@@ -333,7 +339,6 @@ const Arena = ({ prompt, diagramType, onBack, onShowHistory }) => {
       gantt: 'gantt\n    title Project Timeline\n    dateFormat YYYY-MM-DD\n    section Planning\n    Requirements : done, req1, 2024-01-01, 2024-01-10\n    Design : active, des1, after req1, 10d\n    section Development\n    Backend : dev1, after des1, 21d',
       pie: 'pie\n    title Distribution\n    "Category A" : 40\n    "Category B" : 30\n    "Category C" : 20\n    "Category D" : 10',
       xy: 'xychart-beta\n    title "Data Overview"\n    x-axis ["Q1", "Q2", "Q3", "Q4"]\n    y-axis "Value" 0 --> 100\n    bar [30, 55, 72, 90]',
-      mindmap: 'mindmap\n  root((Topic))\n    Branch A\n      Sub-topic 1\n      Sub-topic 2\n    Branch B\n      Sub-topic 3\n      Sub-topic 4',
     };
 
     const gen = async () => {
@@ -1069,7 +1074,7 @@ ${mermaidCode}`;
                 onMouseLeave={() => setIsNavHovered(false)}
               >
                 <button className="nav-btn-main" onClick={onBack} title="New Diagram">
-                  <Plus size={16} />
+                  <Plus size={20} />
                 </button>
                 <button className="nav-btn-secondary" onClick={onShowHistory}>
                   History
@@ -1086,7 +1091,7 @@ ${mermaidCode}`;
                   border: '1px solid #e5e7eb'
                 }}
               >
-                <Eye size={16} />
+                <Eye size={18} />
               </button>
             </>
           )}
@@ -1172,7 +1177,7 @@ ${mermaidCode}`;
                         <div style={{ marginBottom: '16px' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                             <div style={{ display: 'flex', alignItems: 'center' }}>
-                              <h4 style={{ margin: 0, fontSize: '10px', fontWeight: 800, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.1em' }}>AI Suggestions</h4>
+                              <h4 style={{ margin: 0, fontSize: '10px', fontWeight: 800, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>AI Suggestions <BetaBadge /></h4>
                             </div>
                             <div style={{ display: 'flex', gap: '4px' }}>
                               <button 
@@ -1180,14 +1185,14 @@ ${mermaidCode}`;
                                 disabled={currentSugIdx === 0}
                                 onClick={() => setCurrentSugIdx(Math.max(0, currentSugIdx - 1))}
                               >
-                                <ChevronDown size={14} style={{ transform: 'rotate(90deg)' }} />
+                                <ChevronDown size={18} style={{ transform: 'rotate(90deg)' }} />
                               </button>
                               <button 
                                 className="sug-nav-btn" 
                                 disabled={currentSugIdx === suggestions.length - 1}
                                 onClick={() => setCurrentSugIdx(Math.min(suggestions.length - 1, currentSugIdx + 1))}
                               >
-                                <ChevronDown size={14} style={{ transform: 'rotate(-90deg)' }} />
+                                <ChevronDown size={18} style={{ transform: 'rotate(-90deg)' }} />
                               </button>
                             </div>
                           </div>
@@ -1246,14 +1251,14 @@ ${mermaidCode}`;
             {/* Export */}
             <div className="export-dropdown-container">
               <button className="export-btn" onClick={() => { setIsExportOpen(!isExportOpen); setPngBgChoice(null); setIsRefineOpen(false); }}>
-                <span>Export</span><Download size={14} />
+                <span>Export</span><Download size={18} />
               </button>
               <AnimatePresence>
                 {isExportOpen && (
                   <motion.div className="export-menu" initial={{ opacity: 0, y: -8, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8, scale: 0.95 }} transition={{ duration: 0.12 }}>
                     <div className="export-item-group">
                       <div className="export-item" onClick={() => setPngBgChoice(pngBgChoice === 'png' ? null : 'png')}>
-                        <FileImage size={14} /><span>PNG Image</span><ChevronDown size={12} className={`export-chevron ${pngBgChoice === 'png' ? 'rotated' : ''}`} />
+                        <FileImage size={18} /><span>PNG Image</span><ChevronDown size={16} className={`export-chevron ${pngBgChoice === 'png' ? 'rotated' : ''}`} />
                       </div>
                       <AnimatePresence>
                         {pngBgChoice === 'png' && (
@@ -1268,7 +1273,7 @@ ${mermaidCode}`;
                     </div>
                     <div className="export-item-group">
                       <div className="export-item" onClick={() => setPngBgChoice(pngBgChoice === 'jpg' ? null : 'jpg')}>
-                        <Image size={14} /><span>JPG Image</span><ChevronDown size={12} className={`export-chevron ${pngBgChoice === 'jpg' ? 'rotated' : ''}`} />
+                        <Image size={18} /><span>JPG Image</span><ChevronDown size={16} className={`export-chevron ${pngBgChoice === 'jpg' ? 'rotated' : ''}`} />
                       </div>
                       <AnimatePresence>
                         {pngBgChoice === 'jpg' && (
@@ -1279,16 +1284,16 @@ ${mermaidCode}`;
                         )}
                       </AnimatePresence>
                     </div>
-                    <div className="export-item" onClick={() => handleExport('svg')}><FileCode size={14} /><span>SVG Vector</span></div>
+                    <div className="export-item" onClick={() => handleExport('svg')}><FileCode size={18} /><span>SVG Vector</span></div>
                     <div className="export-divider" />
-                    <div className="export-item" onClick={() => handleExport('code')}><FileCode size={14} /><span>Mermaid Code</span></div>
-                    <div className="export-item" onClick={() => handleExport('json')}><FileText size={14} /><span>JSON Config</span></div>
+                    <div className="export-item" onClick={() => handleExport('code')}><FileCode size={18} /><span>Mermaid Code</span></div>
+                    <div className="export-item" onClick={() => handleExport('json')}><FileText size={18} /><span>JSON Config</span></div>
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
             
-            <button className="profile-btn"><User size={14} /></button>
+            <button className="profile-btn"><User size={19} /></button>
           </div>
         )}
       </div>
@@ -1303,14 +1308,59 @@ ${mermaidCode}`;
         {/* Brush Overlay */}
         {isBrushing && brushPath.length > 1 && (
           <svg className="brush-drawing-overlay" style={{ position: 'absolute', inset: 0, zIndex: 10, pointerEvents: 'none', width: '100%', height: '100%' }}>
+            <defs>
+              <linearGradient id="brush-magic-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#38bdf8" />
+                <stop offset="42%" stopColor="#60a5fa" />
+                <stop offset="72%" stopColor="#a78bfa" />
+                <stop offset="100%" stopColor="#22d3ee" />
+              </linearGradient>
+              <filter id="brush-magic-glow" x="-40%" y="-40%" width="180%" height="180%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feColorMatrix
+                  in="blur"
+                  type="matrix"
+                  values="0 0 0 0 0.10 0 0 0 0 0.55 0 0 0 0 1 0 0 0 0.95 0"
+                  result="glow"
+                />
+                <feMerge>
+                  <feMergeNode in="glow" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
             <polyline
               points={brushPath.map(p => `${p.x},${p.y}`).join(' ')}
               fill="none"
-              stroke="#3b82f6"
-              strokeWidth="2"
-              strokeDasharray="5 5"
-              strokeOpacity="0.6"
+              stroke="url(#brush-magic-gradient)"
+              strokeWidth="10"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeOpacity="0.18"
+              filter="url(#brush-magic-glow)"
             />
+            <polyline
+              points={brushPath.map(p => `${p.x},${p.y}`).join(' ')}
+              fill="none"
+              stroke="url(#brush-magic-gradient)"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeDasharray="12 9"
+              strokeOpacity="0.95"
+              filter="url(#brush-magic-glow)"
+            />
+            {brushPath.filter((_, idx) => idx % 6 === 0).map((p, idx) => (
+              <circle
+                key={`${p.x}-${p.y}-${idx}`}
+                cx={p.x}
+                cy={p.y}
+                r={idx % 2 === 0 ? 2.4 : 1.4}
+                fill={idx % 2 === 0 ? '#e0f2fe' : '#93c5fd'}
+                opacity="0.8"
+                filter="url(#brush-magic-glow)"
+              />
+            ))}
           </svg>
         )}
         {/* Canvas is ALWAYS mounted so canvasRef is always valid */}
@@ -1326,7 +1376,7 @@ ${mermaidCode}`;
           {renderError && (
             <div className="render-error-badge" style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px 20px', borderRadius: '16px', maxWidth: '300px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <X size={14} /> <span>{diagramType === 'xy' ? 'Modern Browser Required' : 'Render Error'}</span>
+                <X size={18} /> <span>{diagramType === 'xy' ? 'Modern Browser Required' : 'Render Error'}</span>
               </div>
               {diagramType === 'xy' && (
                 <span style={{ fontSize: '0.7rem', opacity: 0.8, lineHeight: 1.4 }}>
@@ -1359,7 +1409,7 @@ ${mermaidCode}`;
             transition={{ type: 'spring', stiffness: 400, damping: 35 }}>
             <div className="popover-header">
               <span className="popover-title">{editPopover.type === 'add' ? 'Add Node' : 'Edit Node'}</span>
-              <button className="popover-close" onClick={clearSelection}><X size={14} /></button>
+              <button className="popover-close" onClick={clearSelection}><X size={18} /></button>
             </div>
 
             {editPopover.type === 'node' && selectedNode && (
@@ -1408,9 +1458,9 @@ ${mermaidCode}`;
                   </div>
                 </div>
                 <div className="sidebar-footer-actions">
-                  <button className="popover-apply-btn" onClick={applyNodeEdit}><Check size={14} /> Update Node</button>
+                  <button className="popover-apply-btn" onClick={applyNodeEdit}><Check size={17} /> Update Node</button>
                   <button className="popover-delete-btn" onClick={deleteNode} title="Delete Node">
-                    <Trash2 size={14} />
+                    <Trash2 size={17} />
                     <span>Delete</span>
                   </button>
                 </div>
@@ -1441,7 +1491,7 @@ ${mermaidCode}`;
                     onKeyDown={e => e.key === 'Enter' && addNewNode()} />
                 </div>
                 <button className="popover-apply-btn" onClick={addNewNode} disabled={!addNodeText.trim()}>
-                  <Check size={14} /> Add Node
+                  <Check size={17} /> Add Node
                 </button>
               </>
             )}
@@ -1454,7 +1504,7 @@ ${mermaidCode}`;
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}>
             <div className="popover-header">
               <span className="popover-title">Edge Style</span>
-              <button className="popover-close" onClick={clearSelection}><X size={14} /></button>
+              <button className="popover-close" onClick={clearSelection}><X size={18} /></button>
             </div>
             <div className="popover-section">
               <label className="popover-label-mini">Color</label>
@@ -1477,7 +1527,7 @@ ${mermaidCode}`;
                 </button>
               </div>
             </div>
-            <button className="popover-apply-btn" onClick={clearSelection}><Check size={14} /> Done</button>
+            <button className="popover-apply-btn" onClick={clearSelection}><Check size={17} /> Done</button>
           </motion.div>
         )}
       </AnimatePresence>
@@ -1506,9 +1556,9 @@ ${mermaidCode}`;
               initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.1, type: 'spring', stiffness: 350, damping: 28 }}>
               <div className="zoom-tray-controls">
-                <button className="zoom-action-btn" onClick={handleZoomOut} title="Zoom Out"><Minus size={14} /></button>
+                <button className="zoom-action-btn" onClick={handleZoomOut} title="Zoom Out"><Minus size={17} /></button>
                 <span className="zoom-percentage-readout">{Math.round(zoom * 100)}%</span>
-                <button className="zoom-action-btn" onClick={handleZoomIn} title="Zoom In"><PlusIcon size={14} /></button>
+                <button className="zoom-action-btn" onClick={handleZoomIn} title="Zoom In"><PlusIcon size={17} /></button>
               </div>
               <button className="tool-btn" onClick={handleFitView} title="Fit View"><Maximize size={18} /></button>
             </motion.div>
@@ -1524,7 +1574,7 @@ ${mermaidCode}`;
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}>
             <div className="template-panel-header">
               <span>DESIGN CENTER</span>
-              <button className="template-close-btn" onClick={() => setShowTemplates(false)}><X size={16} /></button>
+              <button className="template-close-btn" onClick={() => setShowTemplates(false)}><X size={18} /></button>
             </div>
 
             <div className="template-scroll-area">
@@ -1555,13 +1605,13 @@ ${mermaidCode}`;
               initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }} transition={{ duration: 0.15 }}>
               <div className="code-editor-header">
-                <div className="code-editor-title"><Code2 size={16} /><span>Mermaid Code</span></div>
+                <div className="code-editor-title"><Code2 size={18} /><span>Mermaid Code</span></div>
               </div>
               <textarea className="code-editor-textarea" value={codeEditorValue}
                 onChange={e => setCodeEditorValue(e.target.value)} spellCheck={false} />
               <div className="code-editor-actions">
                 <button className="code-editor-cancel" onClick={() => setShowCodeEditor(false)}>Cancel</button>
-                <button className="popover-apply-btn" onClick={applyCodeEdit}><Check size={14} /> Apply Changes</button>
+                <button className="popover-apply-btn" onClick={applyCodeEdit}><Check size={17} /> Apply Changes</button>
               </div>
             </motion.div>
           </motion.div>
@@ -1578,7 +1628,7 @@ ${mermaidCode}`;
               initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }} transition={{ duration: 0.15 }}>
               <div className="code-editor-header">
-                <div className="code-editor-title"><Eye size={16} /><span>Your Vision</span></div>
+                <div className="code-editor-title"><Eye size={18} /><span>Your Vision</span><BetaBadge /></div>
                 <button 
                   className="popover-close" 
                   style={{ 
@@ -1642,7 +1692,7 @@ ${mermaidCode}`;
                         borderColor: (visionPrompt === originalVisionPrompt || isVisionLoading) ? '#e5e7eb' : '#000'
                       }}
                     >
-                      {isVisionLoading ? <Loader2 className="animate-spin" size={14} /> : <RefreshCw size={14} />}
+                      {isVisionLoading ? <Loader2 className="animate-spin" size={17} /> : <RefreshCw size={17} />}
                       <span style={{ marginLeft: '8px' }}>Regenerate</span>
                     </button>
                   </div>

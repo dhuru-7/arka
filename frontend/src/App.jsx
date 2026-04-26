@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, User, ArrowUp, Layout, Zap, Boxes, Plus, Network, Layers, LineChart, PieChart, ChevronLeft, Grid, Paintbrush, ImagePlus, Paperclip, GitBranch, Image as ImageIcon, PenTool, SlidersHorizontal, ArrowDown, History, X, MessageSquareDot, Table2, CalendarRange } from 'lucide-react';
+import { Search, User, ArrowUp, Send, Layout, Zap, Boxes, Plus, Network, Layers, LineChart, PieChart, ChevronLeft, Grid, Paintbrush, Paperclip, GitBranch, Image as ImageIcon, PenTool, SlidersHorizontal, ArrowDown, History, X, MessageSquareDot, Table2, CalendarRange } from './googleIcons';
 import Arena from './Arena';
 
 
@@ -47,11 +47,13 @@ const DiagramsPage = () => {
   const [prompt, setPrompt] = useState('');
   const [isHovered, setIsHovered] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showPinNotice, setShowPinNotice] = useState(false);
   const [viewState, setViewState] = useState('input'); // 'input', 'loading', 'result', 'arena'
   const [suggestedType, setSuggestedType] = useState(null);
   const [showAll, setShowAll] = useState(false);
   const [placeholderText, setPlaceholderText] = useState('Describe your flowchart...');
   const textareaRef = useRef(null);
+  const pinNoticeTimerRef = useRef(null);
 
   const diagramTypes = [
     { id: 'flowchart', label: 'Flowcharts', icon: Network, color: '#000000' },
@@ -60,9 +62,16 @@ const DiagramsPage = () => {
     { id: 'erDiagram', label: 'ER Diagrams', icon: Table2, color: '#000000' },
     { id: 'gantt', label: 'Gantt Charts', icon: CalendarRange, color: '#000000' },
     { id: 'xy', label: 'XY Charts', icon: LineChart, color: '#000000' },
-    { id: 'pie', label: 'Pie Charts', icon: PieChart, color: '#000000' },
-    { id: 'mindmap', label: 'Mindmaps', icon: GitBranch, color: '#000000' }
+    { id: 'pie', label: 'Pie Charts', icon: PieChart, color: '#000000' }
   ];
+
+  const isBetaDiagram = (id) => id !== 'flowchart' && id !== 'architecture';
+
+  const openPinNotice = () => {
+    setShowPinNotice(true);
+    window.clearTimeout(pinNoticeTimerRef.current);
+    pinNoticeTimerRef.current = window.setTimeout(() => setShowPinNotice(false), 2600);
+  };
 
   // Auto-resize textarea
   useEffect(() => {
@@ -107,6 +116,10 @@ const DiagramsPage = () => {
 
     typingTimeout = setTimeout(typePlaceholder, 100);
     return () => clearTimeout(typingTimeout);
+  }, []);
+
+  useEffect(() => {
+    return () => window.clearTimeout(pinNoticeTimerRef.current);
   }, []);
 
   const handleSubmit = async () => {
@@ -222,7 +235,7 @@ const DiagramsPage = () => {
                       className="nav-btn-main" 
                       onClick={viewState === 'result' || viewState === 'loading' ? handleReset : undefined}
                       >
-                      {viewState === 'result' || viewState === 'loading' ? <ChevronLeft size={16} /> : <Plus size={16} />}
+                      {viewState === 'result' || viewState === 'loading' ? <ChevronLeft size={20} /> : <Plus size={20} />}
                     </button>
                     
                     <button className="nav-btn-secondary" onClick={() => setIsSidebarOpen(true)}>
@@ -253,11 +266,11 @@ const DiagramsPage = () => {
                         pointerEvents: viewState === 'loading' ? 'none' : 'auto'
                       }}
                     >
-                      <Grid size={15} /> {showAll ? "Hide All" : "Show all diagrams"}
+                      <Grid size={18} /> {showAll ? "Hide All" : "Show all diagrams"}
                     </button>
                   ) : (
                     <button className="profile-btn">
-                      <User size={14} />
+                      <User size={19} />
                     </button>
                   )}
               </div>
@@ -350,12 +363,27 @@ const DiagramsPage = () => {
                                  
                                  <div className="prompt-bottom-toolbar">
                                     <div className="toolbar-left" style={{ display: 'flex', gap: '0.25rem' }}>
-                                       <button className="tool-icon-btn" title="Upload Image or Diagram">
-                                          <ImagePlus size={20} />
-                                       </button>
-                                       <button className="tool-icon-btn" title="Attach context">
+                                       <button
+                                         className="tool-icon-btn"
+                                         title="Attach context"
+                                         type="button"
+                                         onClick={openPinNotice}
+                                       >
                                           <Paperclip size={20} />
                                        </button>
+                                       <AnimatePresence>
+                                         {showPinNotice && (
+                                           <motion.div
+                                             className="pin-notice-popover"
+                                             initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                                             animate={{ opacity: 1, y: 0, scale: 1 }}
+                                             exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                                             transition={{ duration: 0.16 }}
+                                           >
+                                             This feature is under development.
+                                           </motion.div>
+                                         )}
+                                       </AnimatePresence>
                                     </div>
                                     <motion.button 
                                       onClick={handleSubmit}
@@ -363,7 +391,7 @@ const DiagramsPage = () => {
                                       disabled={!hasText}
                                       className={`submit-btn ${hasText ? 'active' : 'inactive'}`}
                                     >
-                                      <ArrowUp size={20} strokeWidth={2.5} />
+                                      <Send size={22} />
                                     </motion.button>
                                  </div>
                                </div>
@@ -396,7 +424,6 @@ const DiagramsPage = () => {
                                       <span className="marquee-item">Gantt</span>
                                       <span className="marquee-item">Requirement</span>
                                       <span className="marquee-item">Gitgraph</span>
-                                      <span className="marquee-item">Mindmap</span>
                                       <span className="marquee-item">Timeline</span>
                                       <span className="marquee-item">C4 Model</span>
                                       <span className="marquee-item">Quadrant</span>
@@ -411,7 +438,6 @@ const DiagramsPage = () => {
                                       <span className="marquee-item">Gantt</span>
                                       <span className="marquee-item">Requirement</span>
                                       <span className="marquee-item">Gitgraph</span>
-                                      <span className="marquee-item">Mindmap</span>
                                       <span className="marquee-item">Timeline</span>
                                       <span className="marquee-item">C4 Model</span>
                                       <span className="marquee-item">Quadrant</span>
@@ -517,7 +543,12 @@ const DiagramsPage = () => {
                               <div className="icon-box-static" style={{ color: diagramTypes.find(t => t.id === suggestedType)?.color }}>
                                  {(() => {
                                     const Icon = diagramTypes.find(t => t.id === suggestedType)?.icon;
-                                    return Icon ? <Icon size={40} strokeWidth={1.2} /> : null;
+                                    return Icon ? (
+                                      <>
+                                        <Icon size={40} strokeWidth={1.2} />
+                                        {isBetaDiagram(suggestedType) && <span className="beta-icon-badge">Beta</span>}
+                                      </>
+                                    ) : null;
                                  })()}
                               </div>
                               <span className="type-label">{diagramTypes.find(t => t.id === suggestedType)?.label}</span>
@@ -541,6 +572,7 @@ const DiagramsPage = () => {
                             >
                                <div className="icon-box-static" style={{ color: type.color }}>
                                  <type.icon size={32} strokeWidth={1.5} />
+                                 {isBetaDiagram(type.id) && <span className="beta-icon-badge">Beta</span>}
                                </div>
                                <span className="type-label">{type.label}</span>
                             </motion.div>

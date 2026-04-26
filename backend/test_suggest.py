@@ -3,7 +3,6 @@ import time
 
 prompts = [
     "I need a sequence diagram showing how the frontend sends a login request to the API, queries the database, and returns the token.",
-    "A detailed mindmap exploring the components of a cloud-native architecture.",
     "Plan a gantt chart for next month's sprint with frontend, backend, and testing phases.",
     "Show me an ER diagram for a library management system with Books, Authors, and Members.",
     "Generate a pie chart displaying our server usage distribution across AWS, GCP, and Azure."
@@ -11,13 +10,12 @@ prompts = [
 
 expected = [
     "sequence",
-    "mindmap",
     "gantt",
     "erDiagram",
     "pie"
 ]
 
-print("Testing 5 complex prompts on /api/suggest...")
+print("Testing 4 complex prompts on /api/suggest...")
 success = 0
 for idx, (prompt, exp) in enumerate(zip(prompts, expected)):
     try:
