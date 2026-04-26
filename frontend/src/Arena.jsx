@@ -414,6 +414,7 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
       } catch (err) {
         if (cancelled || err.name === 'AbortError') return;
         console.error("Generation Error:", err);
+        alert(`AI Generation Failed: ${err.message || 'Unknown Error'}\nFalling back to default diagrams. Please check your API key if using BYOK.`);
         const fallback = FALLBACK_DIAGRAMS[diagramType] || FALLBACK_DIAGRAMS.flowchart;
         setMermaidCode(fallback);
         setHistory([fallback]);
