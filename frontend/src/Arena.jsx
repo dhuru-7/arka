@@ -226,6 +226,7 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
   const [visionPrompt, setVisionPrompt] = useState('');
   const [originalVisionPrompt, setOriginalVisionPrompt] = useState('');
   const [isVisionLoading, setIsVisionLoading] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
 
   // Node/Edge selection
@@ -1052,8 +1053,7 @@ ${mermaidCode}`;
   /* ─── Export ─── */
   const handleExport = (format, bgOpt) => {
     if (!auth?.currentUser) {
-      alert("Please sign in or sign up to download diagrams!");
-      navigate('/auth');
+      setShowAuthModal(true);
       return;
     }
     
@@ -1767,6 +1767,66 @@ ${mermaidCode}`;
                     </button>
                   </div>
                 </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Auth Requirement Modal */}
+      <AnimatePresence>
+        {showAuthModal && (
+          <motion.div 
+            className="auth-modal-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowAuthModal(false)}
+            style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >
+            <motion.div 
+              className="auth-modal-card"
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -20, scale: 0.95 }}
+              onClick={e => e.stopPropagation()}
+              style={{ background: '#fff', border: '3px solid #000', borderRadius: '12px', padding: '32px', maxWidth: '420px', width: '90%', position: 'relative', boxShadow: '8px 8px 0px #000' }}
+            >
+              <button 
+                onClick={() => setShowAuthModal(false)} 
+                style={{ position: 'absolute', top: '16px', right: '16px', background: 'transparent', border: '2px solid transparent', borderRadius: '50%', cursor: 'pointer', padding: '4px', transition: 'all 0.2s' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#000'; e.currentTarget.style.background = '#f1f5f9'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.background = 'transparent'; }}
+              >
+                <X size={20} color="#0f172a" />
+              </button>
+              
+              <div style={{ width: '52px', height: '52px', background: '#fef2f2', border: '3px solid #000', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px', boxShadow: '4px 4px 0 #000' }}>
+                <User size={26} color="#000" />
+              </div>
+              
+              <h2 style={{ fontSize: '1.6rem', fontWeight: 800, margin: '0 0 12px 0', color: '#0f172a', letterSpacing: '-0.02em' }}>Authentication Required</h2>
+              <p style={{ color: '#475569', fontSize: '0.95rem', lineHeight: 1.6, margin: '0 0 28px 0', fontWeight: 500 }}>
+                You need to be signed in to download and export diagrams. Join now to access all export formats including PNG, SVG, and Mermaid code!
+              </p>
+              
+              <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
+                <button 
+                  onClick={() => setShowAuthModal(false)}
+                  style={{ flex: 1, padding: '14px', background: '#fff', border: '3px solid #e2e8f0', borderRadius: '8px', fontWeight: 700, color: '#64748b', cursor: 'pointer', transition: 'all 0.2s' }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#000'; e.currentTarget.style.color = '#000'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.color = '#64748b'; }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={() => navigate('/auth')}
+                  style={{ flex: 2, padding: '14px', background: '#e11d48', border: '3px solid #000', borderRadius: '8px', fontWeight: 800, color: '#fff', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '4px 4px 0px #000' }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = 'translate(-2px, -2px)'; e.currentTarget.style.boxShadow = '6px 6px 0px #000'; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = 'translate(0, 0)'; e.currentTarget.style.boxShadow = '4px 4px 0px #000'; }}
+                >
+                  Sign In / Sign Up
+                </button>
               </div>
             </motion.div>
           </motion.div>
