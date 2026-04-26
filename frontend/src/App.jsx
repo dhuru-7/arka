@@ -1,59 +1,41 @@
 import { useState, useRef, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, User, ArrowUp, Send, Layout, Zap, Boxes, Plus, Network, Layers, LineChart, PieChart, ChevronLeft, Grid, Paintbrush, Paperclip, GitBranch, Image as ImageIcon, PenTool, SlidersHorizontal, ArrowDown, History, X, MessageSquareDot, Table2, CalendarRange } from './googleIcons';
+import { Search, User, ArrowUp, Send, Layout, Zap, Boxes, Plus, Network, Layers, LineChart, PieChart, ChevronLeft, Grid, Paintbrush, Paperclip, GitBranch, Image as ImageIcon, PenTool, SlidersHorizontal, ArrowDown, History, X, MessageSquareDot, Table2, CalendarRange, Trash2 } from './googleIcons';
 import Arena from './Arena';
+import Auth from './Auth';
+import Settings from './Settings';
+import Help from './Help';
+import Docs from './Docs';
+import ProfileDropdown from './ProfileDropdown';
+import { auth, db } from './firebase';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { collection, query, orderBy, limit, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
+import { isBYOK, hasCredits, incrementCredits, suggestDiagramType, getSettings, getCreditsInfo } from './aiService';
 
 
-const Lander = () => {
-  const [compatWarning, setCompatWarning] = useState(null);
-
-  useEffect(() => {
-    const ua = navigator.userAgent;
-    const isIE = ua.indexOf('MSIE ') > -1 || ua.indexOf('Trident/') > -1;
-    const isSafari = /^((?!chrome|android).)*safari/i.test(ua);
-    
-    if (isIE) {
-      setCompatWarning("Internet Explorer is not supported. Please use Chrome, Edge, or Firefox.");
-    } else if (isSafari && !ua.includes('Version/16') && !ua.includes('Version/17')) {
-      setCompatWarning("Your version of Safari may have issues rendering complex diagrams. Chrome or Edge is recommended.");
-    }
-  }, []);
-
-  return (
-    <div className="lander-container minimalist">
-      {compatWarning && (
-        <motion.div initial={{ y: -50 }} animate={{ y: 0 }} className="compat-banner unsupported">
-          <Zap size={16} /> {compatWarning}
-        </motion.div>
-      )}
-      <main className="lander-minimalist">
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
-        >
-          <Link to="/diagrams" className="lander-link" id="lander-entry">
-             ARKA DIAGRAMS
-             <ArrowUp size={28} className="link-icon" />
-          </Link>
-        </motion.div>
-      </main>
-    </div>
-  );
-};
-
+// Lander import removed
 const DiagramsPage = () => {
-  const [prompt, setPrompt] = useState('');
+  const [prompt, setPrompt] = useState(() => localStorage.getItem('arka_prompt') || '');
   const [isHovered, setIsHovered] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showPinNotice, setShowPinNotice] = useState(false);
-  const [viewState, setViewState] = useState('input'); // 'input', 'loading', 'result', 'arena'
-  const [suggestedType, setSuggestedType] = useState(null);
+  const [viewState, setViewState] = useState(() => localStorage.getItem('arka_viewState') || 'input'); // 'input', 'loading', 'result', 'arena'
+  const [suggestedType, setSuggestedType] = useState(() => localStorage.getItem('arka_diagramType') || null);
   const [showAll, setShowAll] = useState(false);
   const [placeholderText, setPlaceholderText] = useState('Describe your flowchart...');
   const textareaRef = useRef(null);
   const pinNoticeTimerRef = useRef(null);
+  const [historyItems, setHistoryItems] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [currentDiagramId, setCurrentDiagramId] = useState(() => localStorage.getItem('arka_diagramId') || null);
+
+  useEffect(() => {
+    localStorage.setItem('arka_prompt', prompt);
+    localStorage.setItem('arka_viewState', viewState);
+    if (suggestedType) localStorage.setItem('arka_diagramType', suggestedType);
+    if (currentDiagramId) localStorage.setItem('arka_diagramId', currentDiagramId);
+  }, [prompt, viewState, suggestedType, currentDiagramId]);
 
   const diagramTypes = [
     { id: 'flowchart', label: 'Flowcharts', icon: Network, color: '#000000' },
@@ -122,28 +104,75 @@ const DiagramsPage = () => {
     return () => window.clearTimeout(pinNoticeTimerRef.current);
   }, []);
 
+  useEffect(() => {
+    if (!auth?.currentUser) return;
+    
+    setHistoryLoading(true);
+    const q = query(collection(db, 'users', auth.currentUser.uid, 'diagrams'), orderBy('updatedAt', 'desc'), limit(50));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setHistoryItems(items);
+      setHistoryLoading(false);
+    }, (error) => {
+      console.error("Error fetching history real-time:", error);
+      setHistoryLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [isSidebarOpen, auth?.currentUser]);
+
+  const [showLimitModal, setShowLimitModal] = useState(false);
+  const settingsNav = useNavigate();
+
   const handleSubmit = async () => {
     if (!prompt.trim() || viewState !== 'input') return;
     
+    if (auth?.currentUser && historyItems.length >= 50) {
+      alert("You have reached the 50 diagram limit. Please delete some diagrams from History to save new ones.");
+      return;
+    }
+
+    // Credit gate: if free tier and no credits left, show limit modal
+    const settings = getSettings();
+    if (settings.providerType === 'free') {
+      const canGenerate = await hasCredits();
+      if (!canGenerate) {
+        setShowLimitModal(true);
+        return;
+      }
+    }
+
+    setCurrentDiagramId(Date.now().toString());
+    localStorage.removeItem('arka_last_mermaid_code');
+    localStorage.removeItem('arka_vision_prompt');
     setViewState('loading');
     
     try {
+      // Try BYOK suggest first
+      const byokResult = await suggestDiagramType(prompt);
+      if (byokResult) {
+        // BYOK path — got result directly
+        setSuggestedType(byokResult.category || 'flowchart');
+        setViewState('result');
+        return;
+      }
+
+      // Free tier path — use backend
       const response = await fetch('/api/suggest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt })
       });
 
-      if (!response.ok) {
-        console.error('Suggest API returned error status:', response.status);
-        throw new Error(`API error: ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`API error: ${response.status}`);
 
       const data = await response.json();
-      const category = data.category || 'flowchart';
-      
-      setSuggestedType(category);
+      setSuggestedType(data.category || 'flowchart');
       setViewState('result');
+      
+      // Increment credits for free tier
+      await incrementCredits();
       
     } catch (error) {
       console.error("AI Error:", error);
@@ -153,9 +182,43 @@ const DiagramsPage = () => {
   };
 
   const handleReset = () => {
+    setPrompt('');
     setViewState('input');
     setSuggestedType(null);
+    setCurrentDiagramId(null);
     setShowAll(false);
+    localStorage.removeItem('arka_prompt');
+    localStorage.removeItem('arka_last_mermaid_code');
+    localStorage.removeItem('arka_diagramId');
+    localStorage.removeItem('arka_viewState');
+    localStorage.removeItem('arka_diagramType');
+  };
+
+  const loadHistoryItem = (item) => {
+    localStorage.setItem('arka_last_mermaid_code', item.code);
+    localStorage.setItem('arka_prompt', item.prompt);
+    localStorage.setItem('arka_vision_prompt', item.visionPrompt || '');
+    setPrompt(item.prompt);
+    setSuggestedType(item.diagramType);
+    setCurrentDiagramId(item.id);
+    setViewState('arena');
+    setIsSidebarOpen(false);
+  };
+
+  const handleDeleteHistoryItem = async (e, id) => {
+    e.stopPropagation();
+    if (!auth?.currentUser) return;
+    try {
+      await deleteDoc(doc(db, 'users', auth.currentUser.uid, 'diagrams', id));
+      setHistoryItems(prev => prev.filter(item => item.id !== id));
+    } catch (err) {
+      console.error("Error deleting history item:", err);
+    }
+  };
+
+  const getDiagramIcon = (type) => {
+    const dType = diagramTypes.find(d => d.id === type);
+    return dType ? <dType.icon size={24} /> : <Network size={24} />;
   };
 
   const fastTransition = { type: "spring", stiffness: 450, damping: 30 };
@@ -163,6 +226,45 @@ const DiagramsPage = () => {
 
   return (
     <div className="diagrams-container">
+      {/* ─── Credit Limit Modal ─── */}
+      <AnimatePresence>
+        {showLimitModal && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+            onClick={() => setShowLimitModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              style={{ background: '#fff', borderRadius: '1.25rem', padding: '2rem', maxWidth: '420px', width: '100%', textAlign: 'center', border: '1px solid #e5e7eb' }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>⚡</div>
+              <h3 style={{ fontFamily: 'var(--font-sans)', fontSize: '1.25rem', fontWeight: 800, marginBottom: '0.5rem' }}>Free Credits Used Up</h3>
+              <p style={{ color: '#6b7280', fontSize: '0.85rem', lineHeight: 1.6, marginBottom: '1.5rem', fontFamily: 'var(--font-mono)' }}>
+                You've used all 3 free generations. Add your own API key (Gemini or Sarvam) or run a local model to keep generating — unlimited.
+              </p>
+              <div style={{ display: 'flex', gap: '0.75rem', flexDirection: 'column' }}>
+                <button onClick={() => { setShowLimitModal(false); settingsNav('/settings'); }} style={{
+                  padding: '0.85rem', borderRadius: '0.75rem', background: '#000', color: '#fff', border: 'none',
+                  fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer', fontFamily: 'var(--font-sans)'
+                }}>
+                  Add API Key →
+                </button>
+                {!auth?.currentUser && (
+                  <button onClick={() => { setShowLimitModal(false); settingsNav('/auth'); }} style={{
+                    padding: '0.75rem', borderRadius: '0.75rem', background: '#f3f4f6', color: '#000', border: '1px solid #e5e7eb',
+                    fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'var(--font-sans)'
+                  }}>
+                    Sign in first
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Sidebar Overlay */}
       <div 
         className={`sidebar-overlay ${isSidebarOpen ? 'active' : ''}`} 
@@ -180,20 +282,30 @@ const DiagramsPage = () => {
           </button>
         </div>
         <div className="history-content">
-          <div className="history-item">
-            <p className="history-item-time">Today, 10:42 AM</p>
-            <h4 className="history-item-title">AWS Microservices Architecture</h4>
-            <div className="history-item-preview">
-              <Network size={24} />
-            </div>
-          </div>
-          <div className="history-item">
-            <p className="history-item-time">Yesterday</p>
-            <h4 className="history-item-title">User Auth Flowchart</h4>
-            <div className="history-item-preview">
-              <GitBranch size={24} />
-            </div>
-          </div>
+          {historyLoading ? (
+            <div className="history-loading">Loading...</div>
+          ) : historyItems.length === 0 ? (
+            <div className="history-empty">No diagrams saved yet.</div>
+          ) : (
+            historyItems.map(item => (
+              <div key={item.id} className="history-item" onClick={() => loadHistoryItem(item)}>
+                <p className="history-item-time">
+                  {item.updatedAt?.toDate ? item.updatedAt.toDate().toLocaleString() : new Date().toLocaleString()}
+                </p>
+                <h4 className="history-item-title">{item.prompt || 'Untitled Diagram'}</h4>
+                <div className="history-item-preview">
+                  {getDiagramIcon(item.diagramType)}
+                </div>
+                <button 
+                  className="history-item-delete" 
+                  onClick={(e) => handleDeleteHistoryItem(e, item.id)}
+                  title="Delete diagram"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ))
+          )}
         </div>
       </aside>
 
@@ -210,6 +322,7 @@ const DiagramsPage = () => {
              <Arena 
                prompt={prompt} 
                diagramType={suggestedType} 
+               diagramId={currentDiagramId}
                onBack={handleReset} 
                onShowHistory={() => setIsSidebarOpen(true)}
              />
@@ -226,22 +339,19 @@ const DiagramsPage = () => {
             <header className="fixed-navbar">
               <div className="nav-left-group">
                  
-                 {/* Expandable Add/History Split Pill Group */}
-                 <div className="nav-expandable-group"
-                      onMouseEnter={() => setIsHovered(true)}
-                      onMouseLeave={() => setIsHovered(false)}
-                 >
-                    <button 
-                      className="nav-btn-main" 
-                      onClick={viewState === 'result' || viewState === 'loading' ? handleReset : undefined}
-                      >
-                      {viewState === 'result' || viewState === 'loading' ? <ChevronLeft size={20} /> : <Plus size={20} />}
-                    </button>
-                    
-                    <button className="nav-btn-secondary" onClick={() => setIsSidebarOpen(true)}>
-                      History
-                    </button>
-                 </div>
+                 {/* No button on left for prompt area */}
+                 {viewState === 'input' ? null : (
+                   <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <button 
+                        className="nav-btn-main" 
+                        onClick={viewState === 'result' || viewState === 'loading' || viewState === 'arena' ? handleReset : undefined}
+                        title="New Diagram"
+                        style={{ borderRadius: '50%', height: '38px', border: '1px solid #e5e7eb' }}
+                        >
+                        <ChevronLeft size={20} />
+                      </button>
+                   </div>
+                 )}
                  
                   {/* Logo or Suggestion Title */}
                   {viewState === 'result' || viewState === 'loading' ? (
@@ -269,9 +379,7 @@ const DiagramsPage = () => {
                       <Grid size={18} /> {showAll ? "Hide All" : "Show all diagrams"}
                     </button>
                   ) : (
-                    <button className="profile-btn">
-                      <User size={19} />
-                    </button>
+                    <ProfileDropdown />
                   )}
               </div>
             </header>
@@ -404,122 +512,7 @@ const DiagramsPage = () => {
                       </div>
                     </div>
 
-                    {/* ONLY shown when actively taking prompt input - scrolls down perfectly */}
-                    {viewState === 'input' && (
-                       <motion.div 
-                         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                         className="lander-features-wrapper"
-                       >
-                          {/* DIAGRAM SUPPORT MARQUEE */}
-                          <section className="marquee-section">
-                              <p className="marquee-title">The Complete Toolset</p>
-                              <div className="marquee-container">
-                                  <div className="marquee-content">
-                                      {/* Set 1 */}
-                                      <span className="marquee-item"><div className="marquee-dot"></div> Sequence</span>
-                                      <span className="marquee-item">State</span>
-                                      <span className="marquee-item">Class</span>
-                                      <span className="marquee-item">Entity-Relationship</span>
-                                      <span className="marquee-item">User Journey</span>
-                                      <span className="marquee-item">Gantt</span>
-                                      <span className="marquee-item">Requirement</span>
-                                      <span className="marquee-item">Gitgraph</span>
-                                      <span className="marquee-item">Timeline</span>
-                                      <span className="marquee-item">C4 Model</span>
-                                      <span className="marquee-item">Quadrant</span>
-                                      <span className="marquee-item">ZenUML</span>
-                                      <span className="marquee-item">Sankey</span>
-                                      {/* Duplicate Set for smooth infinite loop */}
-                                      <span className="marquee-item"><div className="marquee-dot"></div> Sequence</span>
-                                      <span className="marquee-item">State</span>
-                                      <span className="marquee-item">Class</span>
-                                      <span className="marquee-item">Entity-Relationship</span>
-                                      <span className="marquee-item">User Journey</span>
-                                      <span className="marquee-item">Gantt</span>
-                                      <span className="marquee-item">Requirement</span>
-                                      <span className="marquee-item">Gitgraph</span>
-                                      <span className="marquee-item">Timeline</span>
-                                      <span className="marquee-item">C4 Model</span>
-                                      <span className="marquee-item">Quadrant</span>
-                                      <span className="marquee-item">ZenUML</span>
-                                      <span className="marquee-item">Sankey</span>
-                                  </div>
-                              </div>
-                          </section>
 
-                          {/* FEATURES SECTION (Bento Box Style) */}
-                          <section className="bento-section">
-                              <div className="bento-header">
-                                  <h3>From thought to visualization.</h3>
-                                  <p>Powered by advanced AI and native Mermaid engine, Arka understands your intent, sketches, and manual edits to create flawless technical architecture.</p>
-                              </div>
-
-                              <div className="bento-grid">
-                                  {/* Feature 1 */}
-                                  <div className="bento-card col-span-2">
-                                      <div className="bento-icon-wrapper"><Zap size={24} /></div>
-                                      <h4>The Optimized Core</h4>
-                                      <p>While we support the entire Mermaid library, we've fine-tuned our AI to generate structural perfection for the four most critical diagrams used by engineering teams.</p>
-                                      <div className="bento-tags">
-                                          <div className="bento-tag"><GitBranch size={16} /> Flowcharts</div>
-                                          <div className="bento-tag"><Network size={16} /> Architecture</div>
-                                          <div className="bento-tag"><PieChart size={16} /> Pie Charts</div>
-                                          <div className="bento-tag"><LineChart size={16} /> XY Charts</div>
-                                      </div>
-                                  </div>
-
-                                  {/* Feature 2 */}
-                                  <div className="bento-card">
-                                      <h4 style={{textAlign: 'center', marginBottom: '1.5rem'}}>How It Generates</h4>
-                                      <div className="process-flow">
-                                          <div className="process-step">1. User Prompt</div>
-                                          <ArrowDown className="process-arrow" size={16} />
-                                          <div className="process-step">2. AI Intent Engine</div>
-                                          <ArrowDown className="process-arrow" size={16} style={{ animationDelay: '0.5s' }} />
-                                          <div className="process-step">3. Syntax Builder</div>
-                                          <ArrowDown className="process-arrow" size={16} style={{ animationDelay: '1s' }} />
-                                          <div className="process-step dark">4. Rendered Chart</div>
-                                      </div>
-                                  </div>
-
-                                  {/* Feature 3 */}
-                                  <div className="bento-card">
-                                      <div className="bento-icon-wrapper"><ImageIcon size={24} /></div>
-                                      <h4>Sketch to Diagram</h4>
-                                      <p>Upload a whiteboard photo or hand-drawn sketch. Add an optional prompt, and watch the AI instantly convert it into a clean, editable digital diagram.</p>
-                                  </div>
-
-                                  {/* Feature 4 */}
-                                  <div className="bento-card">
-                                      <div className="bento-icon-wrapper"><PenTool size={24} /></div>
-                                      <h4>Draw & Co-create</h4>
-                                      <p>Start drawing manually on our canvas. If you get stuck midway, our AI can analyze your progress and automatically complete the structure for you.</p>
-                                  </div>
-
-                                  {/* Feature 5 */}
-                                  <div className="bento-card">
-                                      <div className="bento-icon-wrapper"><SlidersHorizontal size={24} /></div>
-                                      <h4>Infinite Editing</h4>
-                                      <p>Generation is just the beginning. Manually tweak nodes, reroute connections, or prompt the AI to make specific localized adjustments to your chart.</p>
-                                  </div>
-                              </div>
-                          </section>
-
-                          {/* Footer */}
-                          <footer className="lander-footer">
-                              <div className="footer-content">
-                                  <div className="footer-logo">ARKA <span className="logo-diagrams" style={{fontSize: '0.5rem', marginLeft: '0.2rem'}}>DIAGRAMS</span></div>
-                                  <div className="footer-copy">&copy; 2024. All rights reserved.</div>
-                                  <div className="footer-links">
-                                      <a href="#">Documentation</a>
-                                      <a href="#">Mermaid Guide</a>
-                                      <a href="#">Support</a>
-                                  </div>
-                              </div>
-                          </footer>
-
-                       </motion.div>
-                    )}
                   </motion.div>
                 ) : (
                   <motion.div 
@@ -591,15 +584,26 @@ const DiagramsPage = () => {
   );
 };
 
+function AnimatedRoutes() {
+  const location = useLocation();
+  return (
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        <Route path="/" element={<Navigate to="/diagrams" replace />} />
+        <Route path="/diagrams" element={<DiagramsPage />} />
+        <Route path="/auth" element={<Auth />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/help" element={<Help />} />
+        <Route path="/docs" element={<Docs />} />
+      </Routes>
+    </AnimatePresence>
+  );
+}
+
 function App() {
   return (
     <BrowserRouter>
-      <AnimatePresence mode="wait">
-        <Routes>
-          <Route path="/" element={<Lander />} />
-          <Route path="/diagrams" element={<DiagramsPage />} />
-        </Routes>
-      </AnimatePresence>
+      <AnimatedRoutes />
     </BrowserRouter>
   );
 }

@@ -1048,5 +1048,51 @@ def interpret_refine():
         })
 
 
+@app.route('/api/generate-byok', methods=['POST'])
+def generate_byok():
+    """Proxy endpoint for BYOK Sarvam API calls. The user's API key is passed in the
+    request body and forwarded to Sarvam — never stored on the server."""
+    data = request.json
+    user_api_key = data.get('apiKey', '')
+    model = data.get('model', 'sarvam-105b')
+    system_prompt = data.get('systemPrompt', '')
+    user_message = data.get('userMessage', '')
+    temperature = data.get('temperature', 0.2)
+    max_tokens = data.get('maxTokens', 2500)
+
+    if not user_api_key or not user_message:
+        return jsonify({"error": "Missing apiKey or userMessage"}), 400
+
+    headers = {
+        "Authorization": f"Bearer {user_api_key}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_message}
+        ],
+        "temperature": temperature,
+        "max_tokens": max_tokens
+    }
+
+    try:
+        response = requests.post(
+            "https://api.sarvam.ai/v1/chat/completions",
+            headers=headers,
+            json=payload,
+            timeout=30
+        )
+        response.raise_for_status()
+        result = response.json()
+        content = result['choices'][0]['message']['content'].strip()
+        return jsonify({"content": content})
+    except Exception as e:
+        print(f"BYOK proxy error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

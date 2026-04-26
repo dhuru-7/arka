@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Trash2, Plus, User, Download, Palette, MousePointer2, Move, Undo, Redo, ZoomIn, ZoomOut, Maximize, X, Check, ChevronDown, Image, FileCode, FileText, FileImage, Code2, Plus as PlusIcon, Minus, Cpu, Square, Circle, Hexagon, Database, MessageSquare, Box, ArrowRight, Eye, RefreshCw, Loader2, Brush } from './googleIcons';
+import { useNavigate } from 'react-router-dom';
+import { History, Trash2, Plus, User, Download, Palette, MousePointer2, Move, Undo, Redo, ZoomIn, ZoomOut, Maximize, X, Check, ChevronDown, Image, FileCode, FileText, FileImage, Code2, Plus as PlusIcon, Minus, Cpu, Square, Circle, Hexagon, Database, MessageSquare, Box, ArrowRight, Eye, RefreshCw, Loader2, Brush } from './googleIcons';
 import { motion, AnimatePresence } from 'framer-motion';
+import ProfileDropdown from './ProfileDropdown';
+import { auth, db } from './firebase';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { isBYOK, generateDiagram, refineDiagram, getProviderLabel } from './aiService';
 import './Arena.css';
 
 let mermaidPromise = null;
@@ -179,7 +184,8 @@ const SHAPES = [
   { id: 'trapezoid', label: 'Trapezoid', icon: TrapezoidIcon, wrap: (t) => `[/${t}\\]` },
 ];
 
-const Arena = ({ prompt, diagramType, onBack, onShowHistory }) => {
+const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
+  const navigate = useNavigate();
   const [mermaidCode, setMermaidCode] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isExportOpen, setIsExportOpen] = useState(false);
@@ -344,34 +350,65 @@ const Arena = ({ prompt, diagramType, onBack, onShowHistory }) => {
     const gen = async () => {
       setIsLoading(true);
       setRenderError(null);
-      try {
-        const res = await fetch('/api/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt, diagramType }),
-          signal: abortController.signal
-        });
-        if (cancelled) return;
 
-        if (!res.ok) {
-          console.error('Generate API returned error status:', res.status);
-          throw new Error(`API error: ${res.status}`);
-        }
+      const savedCode = localStorage.getItem('arka_last_mermaid_code');
+      const savedVision = localStorage.getItem('arka_vision_prompt');
 
-        const data = await res.json();
-        if (cancelled) return;
-        const code = data.mermaid_code || '';
-
-        if (!code.trim()) {
-          console.warn('API returned empty mermaid_code, using fallback');
-          const fallback = FALLBACK_DIAGRAMS[diagramType] || FALLBACK_DIAGRAMS.flowchart;
-          setMermaidCode(fallback);
-          setHistory([fallback]);
-          setHistoryIndex(0);
+      if (savedCode) {
+        setMermaidCode(savedCode);
+        setHistory([savedCode]);
+        setHistoryIndex(0);
+        if (savedVision) {
+          setVisionPrompt(savedVision);
+          setOriginalVisionPrompt(savedVision);
         } else {
-          setMermaidCode(code);
-          setHistory([code]);
-          setHistoryIndex(0);
+          setVisionPrompt('');
+          setOriginalVisionPrompt('');
+        }
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        // Try BYOK first
+        const byokResult = await generateDiagram(prompt, diagramType, abortController.signal);
+        if (cancelled) return;
+
+        if (byokResult) {
+          // BYOK path succeeded
+          const code = byokResult.mermaid_code || '';
+          if (code.trim()) {
+            setMermaidCode(code);
+            setHistory([code]);
+            setHistoryIndex(0);
+          } else {
+            throw new Error('Empty response from BYOK');
+          }
+        } else {
+          // Free tier — use backend
+          const res = await fetch('/api/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt, diagramType }),
+            signal: abortController.signal
+          });
+          if (cancelled) return;
+          if (!res.ok) throw new Error(`API error: ${res.status}`);
+
+          const data = await res.json();
+          if (cancelled) return;
+          const code = data.mermaid_code || '';
+
+          if (!code.trim()) {
+            const fallback = FALLBACK_DIAGRAMS[diagramType] || FALLBACK_DIAGRAMS.flowchart;
+            setMermaidCode(fallback);
+            setHistory([fallback]);
+            setHistoryIndex(0);
+          } else {
+            setMermaidCode(code);
+            setHistory([code]);
+            setHistoryIndex(0);
+          }
         }
       } catch (err) {
         if (cancelled || err.name === 'AbortError') return;
@@ -390,7 +427,22 @@ const Arena = ({ prompt, diagramType, onBack, onShowHistory }) => {
       cancelled = true;
       abortController.abort();
     };
-  }, [prompt, diagramType]);
+  }, [prompt, diagramType, diagramId]);
+
+  useEffect(() => {
+    if (mermaidCode) {
+      localStorage.setItem('arka_last_mermaid_code', mermaidCode);
+      if (auth?.currentUser && db && diagramId) {
+        setDoc(doc(db, 'users', auth.currentUser.uid, 'diagrams', diagramId), {
+          prompt: prompt || '',
+          visionPrompt: originalVisionPrompt || '',
+          diagramType: diagramType || '',
+          code: mermaidCode,
+          updatedAt: serverTimestamp()
+        }).catch(err => console.error("Firebase save error", err));
+      }
+    }
+  }, [mermaidCode, prompt, diagramType, diagramId]);
 
   /* ─── Render Mermaid ─── */
   const [renderKey, setRenderKey] = useState(0);
@@ -880,25 +932,37 @@ const Arena = ({ prompt, diagramType, onBack, onShowHistory }) => {
     if (!finalPrompt.trim()) return;
     setIsRefining(true);
     try {
-      const res = await fetch('http://localhost:5000/api/refine', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: finalPrompt, mermaid_code: mermaidCode, diagramType })
-      });
-      const data = await res.json();
-      if (data.mermaid_code) {
-        pushHistory(data.mermaid_code);
+      // Try BYOK refine first
+      const byokResult = await refineDiagram(finalPrompt, mermaidCode, diagramType);
+      let resultCode = null;
+
+      if (byokResult) {
+        resultCode = byokResult.mermaid_code;
+      } else {
+        // Free tier — use backend
+        const res = await fetch('/api/refine', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: finalPrompt, mermaid_code: mermaidCode, diagramType })
+        });
+        const data = await res.json();
+        resultCode = data.mermaid_code;
+        if (!resultCode) {
+          alert("Failed to refine: " + (data.error || "Unknown error"));
+          return;
+        }
+      }
+
+      if (resultCode) {
+        pushHistory(resultCode);
         setIsRefineOpen(false);
         setRefinePrompt('');
-        setSelectedContext([]); // Clear brush selection context
-        // Clear visual classes
+        setSelectedContext([]);
         if (canvasRef.current) {
           canvasRef.current.querySelectorAll('.node-brush-selected, .edge-brush-highlight').forEach(el => {
             el.classList.remove('node-brush-selected', 'edge-brush-highlight');
           });
         }
-      } else {
-        alert("Failed to refine: " + (data.error || "Unknown error"));
       }
     } catch (err) {
       console.error("Refine Error:", err);
@@ -914,7 +978,7 @@ const Arena = ({ prompt, diagramType, onBack, onShowHistory }) => {
     setIsInterpreting(true);
     setInterpretation(null);
     try {
-      const res = await fetch('http://localhost:5000/api/interpret_refine', {
+      const res = await fetch('/api/interpret_refine', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -952,7 +1016,7 @@ ${mermaidCode}`;
     if (mermaidCode === lastSuggestedCode) return;
     setIsSugLoading(true);
     try {
-      const res = await fetch('http://localhost:5000/api/suggest_improvements', {
+      const res = await fetch('/api/suggest_improvements', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -987,6 +1051,12 @@ ${mermaidCode}`;
 
   /* ─── Export ─── */
   const handleExport = (format, bgOpt) => {
+    if (!auth?.currentUser) {
+      alert("Please sign in or sign up to download diagrams!");
+      navigate('/auth');
+      return;
+    }
+    
     setIsExportOpen(false); setPngBgChoice(null);
     const svgEl = canvasRef.current?.querySelector('svg');
     if (!svgEl) return;
@@ -1069,15 +1139,15 @@ ${mermaidCode}`;
           {!isLoading && (
             <>
               <div 
-                className="nav-expandable-group" 
-                onMouseEnter={() => setIsNavHovered(true)} 
+                className="nav-expandable-group"
+                onMouseEnter={() => setIsNavHovered(true)}
                 onMouseLeave={() => setIsNavHovered(false)}
               >
                 <button className="nav-btn-main" onClick={onBack} title="New Diagram">
                   <Plus size={20} />
                 </button>
-                <button className="nav-btn-secondary" onClick={onShowHistory}>
-                  History
+                <button className={`nav-btn-secondary ${isNavHovered ? 'visible' : ''}`} onClick={onShowHistory} title="History">
+                  HISTORY
                 </button>
               </div>
 
@@ -1293,7 +1363,7 @@ ${mermaidCode}`;
               </AnimatePresence>
             </div>
             
-            <button className="profile-btn"><User size={19} /></button>
+            <ProfileDropdown />
           </div>
         )}
       </div>
