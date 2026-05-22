@@ -25,14 +25,10 @@ export const CLOUD_PROVIDERS = {
   gemini: {
     name: 'Google Gemini',
     models: [
-      { id: 'gemini-combo-3', label: 'Gemini 3 Combo', desc: 'Flash classifies, Pro generates. Best of both.', suggestModel: 'gemini-3.0-flash', generateModel: 'gemini-3.0-pro', badge: 'Recommended' },
-      { id: 'gemini-combo-2.5', label: 'Gemini 2.5 Combo', desc: '2.5 Flash + 2.5 Pro. Proven and stable.', suggestModel: 'gemini-2.5-flash', generateModel: 'gemini-2.5-pro' },
-      { id: 'gemini-combo-cross', label: 'Cross-Gen Combo', desc: '2 Flash (fastest) + 3 Flash. Low token cost.', suggestModel: 'gemini-2.0-flash', generateModel: 'gemini-3.0-flash' },
-      { id: 'gemini-3-pro', label: 'Gemini 3 Pro', desc: 'Most powerful Gemini. Complex tasks.', suggestModel: 'gemini-3.0-pro', generateModel: 'gemini-3.0-pro' },
-      { id: 'gemini-3-flash', label: 'Gemini 3 Flash', desc: 'Fast and very capable.', suggestModel: 'gemini-3.0-flash', generateModel: 'gemini-3.0-flash' },
-      { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', desc: 'Previous gen flagship.', suggestModel: 'gemini-2.5-pro', generateModel: 'gemini-2.5-pro' },
-      { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', desc: 'Good cost/performance ratio.', suggestModel: 'gemini-2.5-flash', generateModel: 'gemini-2.5-flash' },
-      { id: 'gemini-2-flash', label: 'Gemini 2 Flash', desc: 'Fastest, most affordable.', suggestModel: 'gemini-2.0-flash', generateModel: 'gemini-2.0-flash' },
+      { id: 'gemini-combo-1.5', label: 'Gemini 1.5 Combo', desc: 'Flash classifies, Pro generates. Best of both.', suggestModel: 'gemini-1.5-flash', generateModel: 'gemini-1.5-pro', badge: 'Recommended' },
+      { id: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro', desc: 'Most powerful Gemini. Complex tasks.', suggestModel: 'gemini-1.5-pro', generateModel: 'gemini-1.5-pro' },
+      { id: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash', desc: 'Fast and very capable.', suggestModel: 'gemini-1.5-flash', generateModel: 'gemini-1.5-flash' },
+      { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', desc: 'Latest generation flash model.', suggestModel: 'gemini-2.0-flash', generateModel: 'gemini-2.0-flash' },
     ]
   }
 };
@@ -55,7 +51,7 @@ export function getSettings() {
   return {
     providerType: localStorage.getItem('arka_provider_type') || 'free', // 'free' | 'cloud' | 'local'
     cloudProvider: localStorage.getItem('arka_cloud_provider') || 'gemini',
-    cloudModel: localStorage.getItem('arka_cloud_model') || 'gemini-combo-3',
+    cloudModel: localStorage.getItem('arka_cloud_model') || 'gemini-combo-1.5',
     apiKey: localStorage.getItem('arka_api_key') || '',
     localUrl: localStorage.getItem('arka_local_url') || 'http://localhost:11434',
     localModel: localStorage.getItem('arka_local_model') || 'gemma3:12b',
