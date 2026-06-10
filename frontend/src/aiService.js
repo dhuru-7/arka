@@ -8,8 +8,7 @@
  * API keys are NEVER stored on the server. They live in localStorage only.
  */
 
-import { auth, db } from './firebase';
-import { doc, getDoc, setDoc, increment } from 'firebase/firestore';
+
 
 // ─── Model Definitions ───
 
@@ -30,10 +29,22 @@ export const CLOUD_PROVIDERS = {
       { id: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash', desc: 'Fast and very capable.', suggestModel: 'gemini-1.5-flash', generateModel: 'gemini-1.5-flash' },
       { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', desc: 'Latest generation flash model.', suggestModel: 'gemini-2.0-flash', generateModel: 'gemini-2.0-flash' },
     ]
+  },
+  groq: {
+    name: 'Groq',
+    models: [
+      { id: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B', desc: 'Meta Llama 3.1 8B. Super fast.', suggestModel: 'llama-3.1-8b-instant', generateModel: 'llama-3.1-8b-instant', badge: 'Recommended' },
+      { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B', desc: 'Meta Llama 3.3 70B. High quality.', suggestModel: 'llama-3.3-70b-versatile', generateModel: 'llama-3.3-70b-versatile' },
+      { id: 'gemma-2-2b-it', label: 'Gemma 2 2B', desc: 'Google Gemma 2 2B (if available).', suggestModel: 'gemma-2-2b-it', generateModel: 'gemma-2-2b-it' },
+      { id: 'gemma4:2b', label: 'Gemma 4 2B', desc: 'Gemma 4 2B (Custom).', suggestModel: 'gemma4:2b', generateModel: 'gemma4:2b' }
+    ]
   }
 };
 
 export const LOCAL_MODELS = [
+  { id: 'gemma4:e2b', label: 'Gemma 4 e2b', desc: "User's local Gemma model.", size: '7.2GB' },
+  { id: 'gemma2:2b', label: 'Gemma 2 2B', desc: "Google's lightweight 2B model.", size: '2B' },
+  { id: 'gemma:2b', label: 'Gemma 2B', desc: "Google's lightweight 2B model (v1).", size: '2B' },
   { id: 'gemma3:27b', label: 'Gemma 3 27B', desc: "Google's best local model.", size: '27B' },
   { id: 'gemma3:12b', label: 'Gemma 3 12B', desc: 'Good balance of speed and quality.', size: '12B' },
   { id: 'gemma3:4b', label: 'Gemma 3 4B', desc: 'Lightweight, runs on most hardware.', size: '4B' },
@@ -48,8 +59,10 @@ export const LOCAL_MODELS = [
 // ─── Settings helpers ───
 
 export function getSettings() {
+  const type = localStorage.getItem('arka_provider_type');
+  const providerType = (type && type !== 'free') ? type : 'cloud';
   return {
-    providerType: localStorage.getItem('arka_provider_type') || 'free', // 'free' | 'cloud' | 'local'
+    providerType,
     cloudProvider: localStorage.getItem('arka_cloud_provider') || 'gemini',
     cloudModel: localStorage.getItem('arka_cloud_model') || 'gemini-combo-1.5',
     apiKey: localStorage.getItem('arka_api_key') || '',
@@ -67,40 +80,7 @@ export function saveSettings(settings) {
   if (settings.localModel) localStorage.setItem('arka_local_model', settings.localModel);
 }
 
-// ─── Credit tracking ───
 
-const FREE_LIMIT = 3;
-
-export async function getCreditsUsed() {
-  if (auth?.currentUser) {
-    try {
-      const snap = await getDoc(doc(db, 'users', auth.currentUser.uid));
-      return snap.exists() ? (snap.data().creditsUsed || 0) : 0;
-    } catch { return parseInt(localStorage.getItem('arka_credits_used') || '0'); }
-  }
-  return parseInt(localStorage.getItem('arka_credits_used') || '0');
-}
-
-export async function incrementCredits() {
-  const current = parseInt(localStorage.getItem('arka_credits_used') || '0');
-  localStorage.setItem('arka_credits_used', String(current + 1));
-  if (auth?.currentUser) {
-    try {
-      await setDoc(doc(db, 'users', auth.currentUser.uid), { creditsUsed: increment(1) }, { merge: true });
-    } catch (e) { console.error('Credit increment error:', e); }
-  }
-}
-
-export async function hasCredits() {
-  const settings = getSettings();
-  if (settings.providerType !== 'free') return true; // BYOK/local = unlimited
-  const used = await getCreditsUsed();
-  return used < FREE_LIMIT;
-}
-
-export function getCreditsInfo() {
-  return { used: parseInt(localStorage.getItem('arka_credits_used') || '0'), total: FREE_LIMIT };
-}
 
 // ─── Resolve which model IDs to use ───
 
@@ -109,14 +89,10 @@ function resolveModels(purpose) {
   if (s.providerType === 'local') {
     return { provider: 'local', model: s.localModel, url: s.localUrl };
   }
-  if (s.providerType === 'cloud') {
-    const providerDef = CLOUD_PROVIDERS[s.cloudProvider];
-    const modelDef = providerDef?.models.find(m => m.id === s.cloudModel) || providerDef?.models[0];
-    const model = purpose === 'suggest' ? modelDef.suggestModel : modelDef.generateModel;
-    return { provider: s.cloudProvider, model, apiKey: s.apiKey };
-  }
-  // Free tier → backend
-  return { provider: 'free' };
+  const providerDef = CLOUD_PROVIDERS[s.cloudProvider];
+  const modelDef = providerDef?.models.find(m => m.id === s.cloudModel) || providerDef?.models[0];
+  const model = purpose === 'suggest' ? modelDef.suggestModel : modelDef.generateModel;
+  return { provider: s.cloudProvider, model, apiKey: s.apiKey };
 }
 
 // ─── Gemini direct call ───
@@ -152,6 +128,20 @@ async function callSarvam(apiKey, model, systemPrompt, userMessage, temperature 
     signal
   });
   if (!res.ok) throw new Error(`Sarvam proxy error: ${res.status}`);
+  const data = await res.json();
+  return data.content || '';
+}
+
+// ─── Groq direct call (via backend proxy for CORS) ───
+
+async function callGroq(apiKey, model, systemPrompt, userMessage, temperature = 0.2, maxTokens = 2500, signal) {
+  const res = await fetch('/api/generate-byok', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ apiKey, model, provider: 'groq', systemPrompt, userMessage, temperature, maxTokens }),
+    signal
+  });
+  if (!res.ok) throw new Error(`Groq proxy error: ${res.status}`);
   const data = await res.json();
   return data.content || '';
 }
@@ -192,6 +182,9 @@ async function callModel(purpose, systemPrompt, userMessage, options = {}) {
   if (resolved.provider === 'sarvam') {
     return callSarvam(resolved.apiKey, resolved.model, systemPrompt, userMessage, temperature, maxTokens, signal);
   }
+  if (resolved.provider === 'groq') {
+    return callGroq(resolved.apiKey, resolved.model, systemPrompt, userMessage, temperature, maxTokens, signal);
+  }
   if (resolved.provider === 'local') {
     return callOllama(resolved.url, resolved.model, systemPrompt, userMessage, signal);
   }
@@ -224,8 +217,8 @@ export async function suggestDiagramType(prompt, signal) {
   const result = await callModel('suggest', systemPrompt, prompt, { temperature: 0.1, maxTokens: 20, signal });
   if (result === null) return null; // free tier
   const lower = result.toLowerCase().trim();
-  const map = { flowchart:'flowchart', architecture:'architecture', xy:'xy', pie:'pie', sequence:'sequence', erdiagram:'erDiagram', er_diagram:'erDiagram', gantt:'gantt' };
-  for (const [k,v] of Object.entries(map)) { if (lower.includes(k)) return { category: v }; }
+  const map = { flowchart: 'flowchart', architecture: 'architecture', xy: 'xy', pie: 'pie', sequence: 'sequence', erdiagram: 'erDiagram', er_diagram: 'erDiagram', gantt: 'gantt' };
+  for (const [k, v] of Object.entries(map)) { if (lower.includes(k)) return { category: v }; }
   return { category: 'architecture' };
 }
 

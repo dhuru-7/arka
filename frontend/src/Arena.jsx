@@ -25,108 +25,134 @@ const loadMermaid = () => {
 const TEMPLATES = {
   midnight: {
     name: 'Midnight', preview: 'linear-gradient(135deg, #0f0f23, #1a1a3e, #2d1b69)',
-    config: { theme: 'base', themeVariables: {
-      darkMode: true, background: 'transparent', primaryColor: '#7c3aed', primaryTextColor: '#f0e6ff', primaryBorderColor: '#a78bfa', secondaryColor: '#1e1b4b', secondaryTextColor: '#c4b5fd', secondaryBorderColor: '#6d28d9', tertiaryColor: '#312e81', tertiaryTextColor: '#e0e7ff', tertiaryBorderColor: '#818cf8', lineColor: '#a78bfa', textColor: '#e2e8f0', mainBkg: '#1e1b4b', nodeBorder: '#7c3aed', clusterBkg: 'rgba(124,58,237,0.08)', clusterBorder: 'rgba(167,139,250,0.3)', titleColor: '#c4b5fd', edgeLabelBackground: '#1e1b4b', nodeTextColor: '#f0e6ff', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#1e1b4b',
-      pieTitleTextColor: '#e2e8f0', pieSectionTextColor: '#ffffff', pieLegendTextColor: '#c4b5fd', pie1: '#7c3aed', pie2: '#f59e0b', pie3: '#10b981', pie4: '#ef4444', pie5: '#06b6d4', pie6: '#f97316', pie7: '#ec4899', pie8: '#84cc16',
-      xyChart: { backgroundColor: 'transparent', titleColor: '#c4b5fd', xAxisLabelColor: '#a78bfa', yAxisLabelColor: '#a78bfa', xAxisTitleColor: '#c4b5fd', yAxisTitleColor: '#c4b5fd', xAxisTickColor: '#6d28d9', yAxisTickColor: '#6d28d9', xAxisLineColor: '#4c1d95', yAxisLineColor: '#4c1d95', plotColorPalette: '#7c3aed,#a78bfa,#c4b5fd,#8b5cf6,#6d28d9' }
-    }}
+    config: {
+      theme: 'base', themeVariables: {
+        darkMode: true, background: 'transparent', primaryColor: '#7c3aed', primaryTextColor: '#f0e6ff', primaryBorderColor: '#a78bfa', secondaryColor: '#1e1b4b', secondaryTextColor: '#c4b5fd', secondaryBorderColor: '#6d28d9', tertiaryColor: '#312e81', tertiaryTextColor: '#e0e7ff', tertiaryBorderColor: '#818cf8', lineColor: '#a78bfa', textColor: '#e2e8f0', mainBkg: '#1e1b4b', nodeBorder: '#7c3aed', clusterBkg: 'rgba(124,58,237,0.08)', clusterBorder: 'rgba(167,139,250,0.3)', titleColor: '#c4b5fd', edgeLabelBackground: '#1e1b4b', nodeTextColor: '#f0e6ff', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#1e1b4b',
+        pieTitleTextColor: '#e2e8f0', pieSectionTextColor: '#ffffff', pieLegendTextColor: '#c4b5fd', pie1: '#7c3aed', pie2: '#f59e0b', pie3: '#10b981', pie4: '#ef4444', pie5: '#06b6d4', pie6: '#f97316', pie7: '#ec4899', pie8: '#84cc16',
+        xyChart: { backgroundColor: 'transparent', titleColor: '#c4b5fd', xAxisLabelColor: '#a78bfa', yAxisLabelColor: '#a78bfa', xAxisTitleColor: '#c4b5fd', yAxisTitleColor: '#c4b5fd', xAxisTickColor: '#6d28d9', yAxisTickColor: '#6d28d9', xAxisLineColor: '#4c1d95', yAxisLineColor: '#4c1d95', plotColorPalette: '#7c3aed,#a78bfa,#c4b5fd,#8b5cf6,#6d28d9' }
+      }
+    }
   },
   obsidian: {
     name: 'Obsidian', preview: 'linear-gradient(135deg, #000000, #141414, #262626)',
-    config: { theme: 'base', themeVariables: {
-      darkMode: true, background: 'transparent', primaryColor: '#262626', primaryTextColor: '#ffffff', primaryBorderColor: '#525252', secondaryColor: '#171717', secondaryTextColor: '#e5e5e5', secondaryBorderColor: '#404040', tertiaryColor: '#0a0a0a', tertiaryTextColor: '#d4d4d4', tertiaryBorderColor: '#262626', lineColor: '#737373', textColor: '#ffffff', mainBkg: '#171717', nodeBorder: '#404040', clusterBkg: 'rgba(38,38,38,0.3)', clusterBorder: 'rgba(82,82,82,0.5)', titleColor: '#ffffff', edgeLabelBackground: '#171717', nodeTextColor: '#ffffff', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#171717',
-      pieTitleTextColor: '#ffffff', pieSectionTextColor: '#000000', pieLegendTextColor: '#e5e5e5', pie1: '#ffffff', pie2: '#f59e0b', pie3: '#10b981', pie4: '#ef4444', pie5: '#3b82f6', pie6: '#ec4899', pie7: '#a78bfa', pie8: '#06b6d4',
-      xyChart: { backgroundColor: 'transparent', titleColor: '#ffffff', xAxisLabelColor: '#737373', yAxisLabelColor: '#737373', xAxisTitleColor: '#ffffff', yAxisTitleColor: '#ffffff', xAxisTickColor: '#525252', yAxisTickColor: '#525252', xAxisLineColor: '#262626', yAxisLineColor: '#262626', plotColorPalette: '#ffffff,#a3a3a3,#737373,#525252,#262626' }
-    }}
+    config: {
+      theme: 'base', themeVariables: {
+        darkMode: true, background: 'transparent', primaryColor: '#262626', primaryTextColor: '#ffffff', primaryBorderColor: '#525252', secondaryColor: '#171717', secondaryTextColor: '#e5e5e5', secondaryBorderColor: '#404040', tertiaryColor: '#0a0a0a', tertiaryTextColor: '#d4d4d4', tertiaryBorderColor: '#262626', lineColor: '#737373', textColor: '#ffffff', mainBkg: '#171717', nodeBorder: '#404040', clusterBkg: 'rgba(38,38,38,0.3)', clusterBorder: 'rgba(82,82,82,0.5)', titleColor: '#ffffff', edgeLabelBackground: '#171717', nodeTextColor: '#ffffff', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#171717',
+        pieTitleTextColor: '#ffffff', pieSectionTextColor: '#000000', pieLegendTextColor: '#e5e5e5', pie1: '#ffffff', pie2: '#f59e0b', pie3: '#10b981', pie4: '#ef4444', pie5: '#3b82f6', pie6: '#ec4899', pie7: '#a78bfa', pie8: '#06b6d4',
+        xyChart: { backgroundColor: 'transparent', titleColor: '#ffffff', xAxisLabelColor: '#737373', yAxisLabelColor: '#737373', xAxisTitleColor: '#ffffff', yAxisTitleColor: '#ffffff', xAxisTickColor: '#525252', yAxisTickColor: '#525252', xAxisLineColor: '#262626', yAxisLineColor: '#262626', plotColorPalette: '#ffffff,#a3a3a3,#737373,#525252,#262626' }
+      }
+    }
   },
   emerald: {
     name: 'Emerald City', preview: 'linear-gradient(135deg, #064e3b, #059669, #34d399)',
-    config: { theme: 'base', themeVariables: {
-      darkMode: true, background: 'transparent', primaryColor: '#059669', primaryTextColor: '#ecfdf5', primaryBorderColor: '#34d399', secondaryColor: '#064e3b', secondaryTextColor: '#6ee7b7', secondaryBorderColor: '#10b981', tertiaryColor: '#022c22', tertiaryTextColor: '#a7f3d0', tertiaryBorderColor: '#047857', lineColor: '#34d399', textColor: '#ecfdf5', mainBkg: '#064e3b', nodeBorder: '#10b981', clusterBkg: 'rgba(5,150,105,0.1)', clusterBorder: 'rgba(52,211,153,0.3)', titleColor: '#34d399', edgeLabelBackground: '#064e3b', nodeTextColor: '#ffffff', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#064e3b',
-      pieTitleTextColor: '#ecfdf5', pieSectionTextColor: '#022c22', pieLegendTextColor: '#6ee7b7', pie1: '#10b981', pie2: '#f59e0b', pie3: '#ef4444', pie4: '#3b82f6', pie5: '#a78bfa', pie6: '#ec4899', pie7: '#06b6d4', pie8: '#f97316',
-      xyChart: { backgroundColor: 'transparent', titleColor: '#10b981', xAxisLabelColor: '#6ee7b7', yAxisLabelColor: '#6ee7b7', xAxisTitleColor: '#10b981', yAxisTitleColor: '#10b981', xAxisTickColor: '#047857', yAxisTickColor: '#047857', xAxisLineColor: '#022c22', yAxisLineColor: '#022c22', plotColorPalette: '#10b981,#34d399,#6ee7b7,#a7f3d0,#059669' }
-    }}
+    config: {
+      theme: 'base', themeVariables: {
+        darkMode: true, background: 'transparent', primaryColor: '#059669', primaryTextColor: '#ecfdf5', primaryBorderColor: '#34d399', secondaryColor: '#064e3b', secondaryTextColor: '#6ee7b7', secondaryBorderColor: '#10b981', tertiaryColor: '#022c22', tertiaryTextColor: '#a7f3d0', tertiaryBorderColor: '#047857', lineColor: '#34d399', textColor: '#ecfdf5', mainBkg: '#064e3b', nodeBorder: '#10b981', clusterBkg: 'rgba(5,150,105,0.1)', clusterBorder: 'rgba(52,211,153,0.3)', titleColor: '#34d399', edgeLabelBackground: '#064e3b', nodeTextColor: '#ffffff', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#064e3b',
+        pieTitleTextColor: '#ecfdf5', pieSectionTextColor: '#022c22', pieLegendTextColor: '#6ee7b7', pie1: '#10b981', pie2: '#f59e0b', pie3: '#ef4444', pie4: '#3b82f6', pie5: '#a78bfa', pie6: '#ec4899', pie7: '#06b6d4', pie8: '#f97316',
+        xyChart: { backgroundColor: 'transparent', titleColor: '#10b981', xAxisLabelColor: '#6ee7b7', yAxisLabelColor: '#6ee7b7', xAxisTitleColor: '#10b981', yAxisTitleColor: '#10b981', xAxisTickColor: '#047857', yAxisTickColor: '#047857', xAxisLineColor: '#022c22', yAxisLineColor: '#022c22', plotColorPalette: '#10b981,#34d399,#6ee7b7,#a7f3d0,#059669' }
+      }
+    }
   },
   crimson: {
     name: 'Crimson Tide', preview: 'linear-gradient(135deg, #450a0a, #991b1b, #ef4444)',
-    config: { theme: 'base', themeVariables: {
-      darkMode: true, background: 'transparent', primaryColor: '#dc2626', primaryTextColor: '#fef2f2', primaryBorderColor: '#f87171', secondaryColor: '#7f1d1d', secondaryTextColor: '#fca5a5', secondaryBorderColor: '#ef4444', tertiaryColor: '#450a0a', tertiaryTextColor: '#fecaca', tertiaryBorderColor: '#b91c1c', lineColor: '#f87171', textColor: '#fef2f2', mainBkg: '#7f1d1d', nodeBorder: '#ef4444', clusterBkg: 'rgba(220,38,38,0.1)', clusterBorder: 'rgba(248,113,113,0.3)', titleColor: '#f87171', edgeLabelBackground: '#7f1d1d', nodeTextColor: '#ffffff', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#7f1d1d',
-      pieTitleTextColor: '#fef2f2', pieSectionTextColor: '#450a0a', pieLegendTextColor: '#fca5a5', pie1: '#ef4444', pie2: '#3b82f6', pie3: '#f59e0b', pie4: '#10b981', pie5: '#a78bfa', pie6: '#06b6d4', pie7: '#ec4899', pie8: '#84cc16',
-      xyChart: { backgroundColor: 'transparent', titleColor: '#ef4444', xAxisLabelColor: '#fca5a5', yAxisLabelColor: '#fca5a5', xAxisTitleColor: '#ef4444', yAxisTitleColor: '#ef4444', xAxisTickColor: '#b91c1c', yAxisTickColor: '#b91c1c', xAxisLineColor: '#450a0a', yAxisLineColor: '#450a0a', plotColorPalette: '#ef4444,#f87171,#fca5a5,#fecaca,#dc2626' }
-    }}
+    config: {
+      theme: 'base', themeVariables: {
+        darkMode: true, background: 'transparent', primaryColor: '#dc2626', primaryTextColor: '#fef2f2', primaryBorderColor: '#f87171', secondaryColor: '#7f1d1d', secondaryTextColor: '#fca5a5', secondaryBorderColor: '#ef4444', tertiaryColor: '#450a0a', tertiaryTextColor: '#fecaca', tertiaryBorderColor: '#b91c1c', lineColor: '#f87171', textColor: '#fef2f2', mainBkg: '#7f1d1d', nodeBorder: '#ef4444', clusterBkg: 'rgba(220,38,38,0.1)', clusterBorder: 'rgba(248,113,113,0.3)', titleColor: '#f87171', edgeLabelBackground: '#7f1d1d', nodeTextColor: '#ffffff', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#7f1d1d',
+        pieTitleTextColor: '#fef2f2', pieSectionTextColor: '#450a0a', pieLegendTextColor: '#fca5a5', pie1: '#ef4444', pie2: '#3b82f6', pie3: '#f59e0b', pie4: '#10b981', pie5: '#a78bfa', pie6: '#06b6d4', pie7: '#ec4899', pie8: '#84cc16',
+        xyChart: { backgroundColor: 'transparent', titleColor: '#ef4444', xAxisLabelColor: '#fca5a5', yAxisLabelColor: '#fca5a5', xAxisTitleColor: '#ef4444', yAxisTitleColor: '#ef4444', xAxisTickColor: '#b91c1c', yAxisTickColor: '#b91c1c', xAxisLineColor: '#450a0a', yAxisLineColor: '#450a0a', plotColorPalette: '#ef4444,#f87171,#fca5a5,#fecaca,#dc2626' }
+      }
+    }
   },
   ocean: {
     name: 'Deep Ocean', preview: 'linear-gradient(135deg, #0f172a, #1e3a8a, #3b82f6)',
-    config: { theme: 'base', themeVariables: {
-      darkMode: true, background: 'transparent', primaryColor: '#2563eb', primaryTextColor: '#eff6ff', primaryBorderColor: '#60a5fa', secondaryColor: '#1e3a8a', secondaryTextColor: '#93c5fd', secondaryBorderColor: '#3b82f6', tertiaryColor: '#0f172a', tertiaryTextColor: '#bfdbfe', tertiaryBorderColor: '#1d4ed8', lineColor: '#60a5fa', textColor: '#eff6ff', mainBkg: '#1e3a8a', nodeBorder: '#3b82f6', clusterBkg: 'rgba(37,99,235,0.1)', clusterBorder: 'rgba(96,165,250,0.3)', titleColor: '#60a5fa', edgeLabelBackground: '#1e3a8a', nodeTextColor: '#ffffff', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#1e3a8a',
-      pieTitleTextColor: '#eff6ff', pieSectionTextColor: '#0f172a', pieLegendTextColor: '#93c5fd', pie1: '#3b82f6', pie2: '#f59e0b', pie3: '#ef4444', pie4: '#10b981', pie5: '#ec4899', pie6: '#a78bfa', pie7: '#06b6d4', pie8: '#f97316',
-      xyChart: { backgroundColor: 'transparent', titleColor: '#3b82f6', xAxisLabelColor: '#93c5fd', yAxisLabelColor: '#93c5fd', xAxisTitleColor: '#3b82f6', yAxisTitleColor: '#3b82f6', xAxisTickColor: '#1d4ed8', yAxisTickColor: '#1d4ed8', xAxisLineColor: '#0f172a', yAxisLineColor: '#0f172a', plotColorPalette: '#3b82f6,#60a5fa,#93c5fd,#bfdbfe,#2563eb' }
-    }}
+    config: {
+      theme: 'base', themeVariables: {
+        darkMode: true, background: 'transparent', primaryColor: '#2563eb', primaryTextColor: '#eff6ff', primaryBorderColor: '#60a5fa', secondaryColor: '#1e3a8a', secondaryTextColor: '#93c5fd', secondaryBorderColor: '#3b82f6', tertiaryColor: '#0f172a', tertiaryTextColor: '#bfdbfe', tertiaryBorderColor: '#1d4ed8', lineColor: '#60a5fa', textColor: '#eff6ff', mainBkg: '#1e3a8a', nodeBorder: '#3b82f6', clusterBkg: 'rgba(37,99,235,0.1)', clusterBorder: 'rgba(96,165,250,0.3)', titleColor: '#60a5fa', edgeLabelBackground: '#1e3a8a', nodeTextColor: '#ffffff', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#1e3a8a',
+        pieTitleTextColor: '#eff6ff', pieSectionTextColor: '#0f172a', pieLegendTextColor: '#93c5fd', pie1: '#3b82f6', pie2: '#f59e0b', pie3: '#ef4444', pie4: '#10b981', pie5: '#ec4899', pie6: '#a78bfa', pie7: '#06b6d4', pie8: '#f97316',
+        xyChart: { backgroundColor: 'transparent', titleColor: '#3b82f6', xAxisLabelColor: '#93c5fd', yAxisLabelColor: '#93c5fd', xAxisTitleColor: '#3b82f6', yAxisTitleColor: '#3b82f6', xAxisTickColor: '#1d4ed8', yAxisTickColor: '#1d4ed8', xAxisLineColor: '#0f172a', yAxisLineColor: '#0f172a', plotColorPalette: '#3b82f6,#60a5fa,#93c5fd,#bfdbfe,#2563eb' }
+      }
+    }
   },
   amber: {
     name: 'Amber Glow', preview: 'linear-gradient(135deg, #451a03, #92400e, #f59e0b)',
-    config: { theme: 'base', themeVariables: {
-      darkMode: true, background: 'transparent', primaryColor: '#f59e0b', primaryTextColor: '#fffbeb', primaryBorderColor: '#fbbf24', secondaryColor: '#78350f', secondaryTextColor: '#fde68a', secondaryBorderColor: '#d97706', tertiaryColor: '#451a03', tertiaryTextColor: '#fef3c7', tertiaryBorderColor: '#b45309', lineColor: '#fbbf24', textColor: '#fffbeb', mainBkg: '#78350f', nodeBorder: '#d97706', clusterBkg: 'rgba(245,158,11,0.1)', clusterBorder: 'rgba(251,191,36,0.3)', titleColor: '#fbbf24', edgeLabelBackground: '#78350f', nodeTextColor: '#ffffff', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#78350f',
-      pieTitleTextColor: '#fffbeb', pieSectionTextColor: '#451a03', pieLegendTextColor: '#fde68a', pie1: '#f59e0b', pie2: '#3b82f6', pie3: '#ef4444', pie4: '#10b981', pie5: '#a78bfa', pie6: '#ec4899', pie7: '#06b6d4', pie8: '#84cc16',
-      xyChart: { backgroundColor: 'transparent', titleColor: '#fbbf24', xAxisLabelColor: '#fde68a', yAxisLabelColor: '#fde68a', xAxisTitleColor: '#fbbf24', yAxisTitleColor: '#fbbf24', xAxisTickColor: '#b45309', yAxisTickColor: '#b45309', xAxisLineColor: '#451a03', yAxisLineColor: '#451a03', plotColorPalette: '#f59e0b,#fbbf24,#fde68a,#d97706,#b45309' }
-    }}
+    config: {
+      theme: 'base', themeVariables: {
+        darkMode: true, background: 'transparent', primaryColor: '#f59e0b', primaryTextColor: '#fffbeb', primaryBorderColor: '#fbbf24', secondaryColor: '#78350f', secondaryTextColor: '#fde68a', secondaryBorderColor: '#d97706', tertiaryColor: '#451a03', tertiaryTextColor: '#fef3c7', tertiaryBorderColor: '#b45309', lineColor: '#fbbf24', textColor: '#fffbeb', mainBkg: '#78350f', nodeBorder: '#d97706', clusterBkg: 'rgba(245,158,11,0.1)', clusterBorder: 'rgba(251,191,36,0.3)', titleColor: '#fbbf24', edgeLabelBackground: '#78350f', nodeTextColor: '#ffffff', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#78350f',
+        pieTitleTextColor: '#fffbeb', pieSectionTextColor: '#451a03', pieLegendTextColor: '#fde68a', pie1: '#f59e0b', pie2: '#3b82f6', pie3: '#ef4444', pie4: '#10b981', pie5: '#a78bfa', pie6: '#ec4899', pie7: '#06b6d4', pie8: '#84cc16',
+        xyChart: { backgroundColor: 'transparent', titleColor: '#fbbf24', xAxisLabelColor: '#fde68a', yAxisLabelColor: '#fde68a', xAxisTitleColor: '#fbbf24', yAxisTitleColor: '#fbbf24', xAxisTickColor: '#b45309', yAxisTickColor: '#b45309', xAxisLineColor: '#451a03', yAxisLineColor: '#451a03', plotColorPalette: '#f59e0b,#fbbf24,#fde68a,#d97706,#b45309' }
+      }
+    }
   },
   slate: {
     name: 'Slate Steel', preview: 'linear-gradient(135deg, #0f172a, #334155, #64748b)',
-    config: { theme: 'base', themeVariables: {
-      darkMode: true, background: 'transparent', primaryColor: '#475569', primaryTextColor: '#f8fafc', primaryBorderColor: '#94a3b8', secondaryColor: '#1e293b', secondaryTextColor: '#cbd5e1', secondaryBorderColor: '#64748b', tertiaryColor: '#0f172a', tertiaryTextColor: '#e2e8f0', tertiaryBorderColor: '#334155', lineColor: '#94a3b8', textColor: '#f8fafc', mainBkg: '#1e293b', nodeBorder: '#64748b', clusterBkg: 'rgba(71,85,105,0.1)', clusterBorder: 'rgba(148,163,184,0.3)', titleColor: '#94a3b8', edgeLabelBackground: '#1e293b', nodeTextColor: '#f8fafc', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#1e293b',
-      pieTitleTextColor: '#f8fafc', pieSectionTextColor: '#0f172a', pieLegendTextColor: '#cbd5e1', pie1: '#64748b', pie2: '#f59e0b', pie3: '#ef4444', pie4: '#10b981', pie5: '#3b82f6', pie6: '#ec4899', pie7: '#a78bfa', pie8: '#06b6d4',
-      xyChart: { backgroundColor: 'transparent', titleColor: '#94a3b8', xAxisLabelColor: '#cbd5e1', yAxisLabelColor: '#cbd5e1', xAxisTitleColor: '#94a3b8', yAxisTitleColor: '#94a3b8', xAxisTickColor: '#334155', yAxisTickColor: '#334155', xAxisLineColor: '#0f172a', yAxisLineColor: '#0f172a', plotColorPalette: '#64748b,#94a3b8,#cbd5e1,#475569,#334155' }
-    }}
+    config: {
+      theme: 'base', themeVariables: {
+        darkMode: true, background: 'transparent', primaryColor: '#475569', primaryTextColor: '#f8fafc', primaryBorderColor: '#94a3b8', secondaryColor: '#1e293b', secondaryTextColor: '#cbd5e1', secondaryBorderColor: '#64748b', tertiaryColor: '#0f172a', tertiaryTextColor: '#e2e8f0', tertiaryBorderColor: '#334155', lineColor: '#94a3b8', textColor: '#f8fafc', mainBkg: '#1e293b', nodeBorder: '#64748b', clusterBkg: 'rgba(71,85,105,0.1)', clusterBorder: 'rgba(148,163,184,0.3)', titleColor: '#94a3b8', edgeLabelBackground: '#1e293b', nodeTextColor: '#f8fafc', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#1e293b',
+        pieTitleTextColor: '#f8fafc', pieSectionTextColor: '#0f172a', pieLegendTextColor: '#cbd5e1', pie1: '#64748b', pie2: '#f59e0b', pie3: '#ef4444', pie4: '#10b981', pie5: '#3b82f6', pie6: '#ec4899', pie7: '#a78bfa', pie8: '#06b6d4',
+        xyChart: { backgroundColor: 'transparent', titleColor: '#94a3b8', xAxisLabelColor: '#cbd5e1', yAxisLabelColor: '#cbd5e1', xAxisTitleColor: '#94a3b8', yAxisTitleColor: '#94a3b8', xAxisTickColor: '#334155', yAxisTickColor: '#334155', xAxisLineColor: '#0f172a', yAxisLineColor: '#0f172a', plotColorPalette: '#64748b,#94a3b8,#cbd5e1,#475569,#334155' }
+      }
+    }
   },
   // ─── White BG friendly templates ───
   paper: {
     name: 'Paper Minimal', preview: 'linear-gradient(135deg, #ffffff, #f0f0f0, #e0e0e0)',
-    config: { theme: 'base', themeVariables: {
-      darkMode: false, background: 'transparent', primaryColor: '#f4f4f5', primaryTextColor: '#000000', primaryBorderColor: '#a1a1aa', secondaryColor: '#ffffff', secondaryTextColor: '#3f3f46', secondaryBorderColor: '#d4d4d8', tertiaryColor: '#fafafa', tertiaryTextColor: '#27272a', tertiaryBorderColor: '#e4e4e7', lineColor: '#525252', textColor: '#000000', mainBkg: '#ffffff', nodeBorder: '#525252', clusterBkg: 'rgba(0,0,0,0.02)', clusterBorder: 'rgba(0,0,0,0.15)', titleColor: '#000000', edgeLabelBackground: '#ffffff', nodeTextColor: '#000000', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#ffffff',
-      pieTitleTextColor: '#000000', pieSectionTextColor: '#ffffff', pieLegendTextColor: '#3f3f46', pie1: '#18181b', pie2: '#ef4444', pie3: '#3b82f6', pie4: '#f59e0b', pie5: '#10b981', pie6: '#a78bfa', pie7: '#ec4899', pie8: '#06b6d4',
-      xyChart: { backgroundColor: 'transparent', titleColor: '#000000', xAxisLabelColor: '#3f3f46', yAxisLabelColor: '#3f3f46', xAxisTitleColor: '#000000', yAxisTitleColor: '#000000', xAxisTickColor: '#d4d4d8', yAxisTickColor: '#d4d4d8', xAxisLineColor: '#a1a1aa', yAxisLineColor: '#a1a1aa', plotColorPalette: '#000000,#3f3f46,#525252,#71717a,#a1a1aa' }
-    }}
+    config: {
+      theme: 'base', themeVariables: {
+        darkMode: false, background: 'transparent', primaryColor: '#f4f4f5', primaryTextColor: '#000000', primaryBorderColor: '#a1a1aa', secondaryColor: '#ffffff', secondaryTextColor: '#3f3f46', secondaryBorderColor: '#d4d4d8', tertiaryColor: '#fafafa', tertiaryTextColor: '#27272a', tertiaryBorderColor: '#e4e4e7', lineColor: '#525252', textColor: '#000000', mainBkg: '#ffffff', nodeBorder: '#525252', clusterBkg: 'rgba(0,0,0,0.02)', clusterBorder: 'rgba(0,0,0,0.15)', titleColor: '#000000', edgeLabelBackground: '#ffffff', nodeTextColor: '#000000', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#ffffff',
+        pieTitleTextColor: '#000000', pieSectionTextColor: '#ffffff', pieLegendTextColor: '#3f3f46', pie1: '#18181b', pie2: '#ef4444', pie3: '#3b82f6', pie4: '#f59e0b', pie5: '#10b981', pie6: '#a78bfa', pie7: '#ec4899', pie8: '#06b6d4',
+        xyChart: { backgroundColor: 'transparent', titleColor: '#000000', xAxisLabelColor: '#3f3f46', yAxisLabelColor: '#3f3f46', xAxisTitleColor: '#000000', yAxisTitleColor: '#000000', xAxisTickColor: '#d4d4d8', yAxisTickColor: '#d4d4d8', xAxisLineColor: '#a1a1aa', yAxisLineColor: '#a1a1aa', plotColorPalette: '#000000,#3f3f46,#525252,#71717a,#a1a1aa' }
+      }
+    }
   },
   frost: {
     name: 'Frostbite', preview: 'linear-gradient(135deg, #e0f2fe, #bae6fd, #7dd3fc)',
-    config: { theme: 'base', themeVariables: {
-      darkMode: false, background: 'transparent', primaryColor: '#38bdf8', primaryTextColor: '#ffffff', primaryBorderColor: '#0284c7', secondaryColor: '#e0f2fe', secondaryTextColor: '#0c4a6e', secondaryBorderColor: '#7dd3fc', tertiaryColor: '#f0f9ff', tertiaryTextColor: '#075985', tertiaryBorderColor: '#bae6fd', lineColor: '#0369a1', textColor: '#0f172a', mainBkg: '#e0f2fe', nodeBorder: '#0284c7', clusterBkg: 'rgba(56,189,248,0.08)', clusterBorder: 'rgba(2,132,199,0.25)', titleColor: '#0369a1', edgeLabelBackground: '#ffffff', nodeTextColor: '#0f172a', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#ffffff',
-      pieTitleTextColor: '#0f172a', pieSectionTextColor: '#ffffff', pieLegendTextColor: '#0c4a6e', pie1: '#0ea5e9', pie2: '#ef4444', pie3: '#f59e0b', pie4: '#10b981', pie5: '#a78bfa', pie6: '#ec4899', pie7: '#f97316', pie8: '#84cc16',
-      xyChart: { backgroundColor: 'transparent', titleColor: '#0f172a', xAxisLabelColor: '#0c4a6e', yAxisLabelColor: '#0c4a6e', xAxisTitleColor: '#0f172a', yAxisTitleColor: '#0f172a', xAxisTickColor: '#bae6fd', yAxisTickColor: '#bae6fd', xAxisLineColor: '#7dd3fc', yAxisLineColor: '#7dd3fc', plotColorPalette: '#0ea5e9,#38bdf8,#7dd3fc,#0284c7,#0369a1' }
-    }}
+    config: {
+      theme: 'base', themeVariables: {
+        darkMode: false, background: 'transparent', primaryColor: '#38bdf8', primaryTextColor: '#ffffff', primaryBorderColor: '#0284c7', secondaryColor: '#e0f2fe', secondaryTextColor: '#0c4a6e', secondaryBorderColor: '#7dd3fc', tertiaryColor: '#f0f9ff', tertiaryTextColor: '#075985', tertiaryBorderColor: '#bae6fd', lineColor: '#0369a1', textColor: '#0f172a', mainBkg: '#e0f2fe', nodeBorder: '#0284c7', clusterBkg: 'rgba(56,189,248,0.08)', clusterBorder: 'rgba(2,132,199,0.25)', titleColor: '#0369a1', edgeLabelBackground: '#ffffff', nodeTextColor: '#0f172a', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#ffffff',
+        pieTitleTextColor: '#0f172a', pieSectionTextColor: '#ffffff', pieLegendTextColor: '#0c4a6e', pie1: '#0ea5e9', pie2: '#ef4444', pie3: '#f59e0b', pie4: '#10b981', pie5: '#a78bfa', pie6: '#ec4899', pie7: '#f97316', pie8: '#84cc16',
+        xyChart: { backgroundColor: 'transparent', titleColor: '#0f172a', xAxisLabelColor: '#0c4a6e', yAxisLabelColor: '#0c4a6e', xAxisTitleColor: '#0f172a', yAxisTitleColor: '#0f172a', xAxisTickColor: '#bae6fd', yAxisTickColor: '#bae6fd', xAxisLineColor: '#7dd3fc', yAxisLineColor: '#7dd3fc', plotColorPalette: '#0ea5e9,#38bdf8,#7dd3fc,#0284c7,#0369a1' }
+      }
+    }
   },
   blossom: {
     name: 'Sakura Blossom', preview: 'linear-gradient(135deg, #fce7f3, #fbcfe8, #f472b6)',
-    config: { theme: 'base', themeVariables: {
-      darkMode: false, background: 'transparent', primaryColor: '#ec4899', primaryTextColor: '#ffffff', primaryBorderColor: '#be185d', secondaryColor: '#fce7f3', secondaryTextColor: '#831843', secondaryBorderColor: '#fbcfe8', tertiaryColor: '#fdf2f8', tertiaryTextColor: '#9d174d', tertiaryBorderColor: '#f9a8d4', lineColor: '#9d174d', textColor: '#111827', mainBkg: '#fce7f3', nodeBorder: '#be185d', clusterBkg: 'rgba(236,72,153,0.08)', clusterBorder: 'rgba(190,24,93,0.25)', titleColor: '#be185d', edgeLabelBackground: '#ffffff', nodeTextColor: '#111827', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#ffffff',
-      pieTitleTextColor: '#111827', pieSectionTextColor: '#ffffff', pieLegendTextColor: '#831843', pie1: '#ec4899', pie2: '#3b82f6', pie3: '#f59e0b', pie4: '#10b981', pie5: '#ef4444', pie6: '#a78bfa', pie7: '#06b6d4', pie8: '#84cc16',
-      xyChart: { backgroundColor: 'transparent', titleColor: '#111827', xAxisLabelColor: '#831843', yAxisLabelColor: '#831843', xAxisTitleColor: '#111827', yAxisTitleColor: '#111827', xAxisTickColor: '#f9a8d4', yAxisTickColor: '#f9a8d4', xAxisLineColor: '#fbcfe8', yAxisLineColor: '#fbcfe8', plotColorPalette: '#db2777,#ec4899,#f472b6,#be185d,#9d174d' }
-    }}
+    config: {
+      theme: 'base', themeVariables: {
+        darkMode: false, background: 'transparent', primaryColor: '#ec4899', primaryTextColor: '#ffffff', primaryBorderColor: '#be185d', secondaryColor: '#fce7f3', secondaryTextColor: '#831843', secondaryBorderColor: '#fbcfe8', tertiaryColor: '#fdf2f8', tertiaryTextColor: '#9d174d', tertiaryBorderColor: '#f9a8d4', lineColor: '#9d174d', textColor: '#111827', mainBkg: '#fce7f3', nodeBorder: '#be185d', clusterBkg: 'rgba(236,72,153,0.08)', clusterBorder: 'rgba(190,24,93,0.25)', titleColor: '#be185d', edgeLabelBackground: '#ffffff', nodeTextColor: '#111827', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#ffffff',
+        pieTitleTextColor: '#111827', pieSectionTextColor: '#ffffff', pieLegendTextColor: '#831843', pie1: '#ec4899', pie2: '#3b82f6', pie3: '#f59e0b', pie4: '#10b981', pie5: '#ef4444', pie6: '#a78bfa', pie7: '#06b6d4', pie8: '#84cc16',
+        xyChart: { backgroundColor: 'transparent', titleColor: '#111827', xAxisLabelColor: '#831843', yAxisLabelColor: '#831843', xAxisTitleColor: '#111827', yAxisTitleColor: '#111827', xAxisTickColor: '#f9a8d4', yAxisTickColor: '#f9a8d4', xAxisLineColor: '#fbcfe8', yAxisLineColor: '#fbcfe8', plotColorPalette: '#db2777,#ec4899,#f472b6,#be185d,#9d174d' }
+      }
+    }
   },
   mint: {
     name: 'Fresh Mint', preview: 'linear-gradient(135deg, #ccfbf1, #99f6e4, #2dd4bf)',
-    config: { theme: 'base', themeVariables: {
-      darkMode: false, background: 'transparent', primaryColor: '#14b8a6', primaryTextColor: '#ffffff', primaryBorderColor: '#0f766e', secondaryColor: '#ccfbf1', secondaryTextColor: '#134e4a', secondaryBorderColor: '#99f6e4', tertiaryColor: '#f0fdfa', tertiaryTextColor: '#115e59', tertiaryBorderColor: '#5eead4', lineColor: '#0f766e', textColor: '#0f172a', mainBkg: '#ccfbf1', nodeBorder: '#0f766e', clusterBkg: 'rgba(20,184,166,0.08)', clusterBorder: 'rgba(15,118,110,0.25)', titleColor: '#0f766e', edgeLabelBackground: '#ffffff', nodeTextColor: '#0f172a', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#ffffff',
-      pieTitleTextColor: '#0f172a', pieSectionTextColor: '#ffffff', pieLegendTextColor: '#134e4a', pie1: '#14b8a6', pie2: '#ef4444', pie3: '#f59e0b', pie4: '#3b82f6', pie5: '#a78bfa', pie6: '#ec4899', pie7: '#f97316', pie8: '#84cc16',
-      xyChart: { backgroundColor: 'transparent', titleColor: '#0f172a', xAxisLabelColor: '#134e4a', yAxisLabelColor: '#134e4a', xAxisTitleColor: '#0f172a', yAxisTitleColor: '#0f172a', xAxisTickColor: '#99f6e4', yAxisTickColor: '#99f6e4', xAxisLineColor: '#5eead4', yAxisLineColor: '#5eead4', plotColorPalette: '#0d9488,#14b8a6,#2dd4bf,#0f766e,#115e59' }
-    }}
+    config: {
+      theme: 'base', themeVariables: {
+        darkMode: false, background: 'transparent', primaryColor: '#14b8a6', primaryTextColor: '#ffffff', primaryBorderColor: '#0f766e', secondaryColor: '#ccfbf1', secondaryTextColor: '#134e4a', secondaryBorderColor: '#99f6e4', tertiaryColor: '#f0fdfa', tertiaryTextColor: '#115e59', tertiaryBorderColor: '#5eead4', lineColor: '#0f766e', textColor: '#0f172a', mainBkg: '#ccfbf1', nodeBorder: '#0f766e', clusterBkg: 'rgba(20,184,166,0.08)', clusterBorder: 'rgba(15,118,110,0.25)', titleColor: '#0f766e', edgeLabelBackground: '#ffffff', nodeTextColor: '#0f172a', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#ffffff',
+        pieTitleTextColor: '#0f172a', pieSectionTextColor: '#ffffff', pieLegendTextColor: '#134e4a', pie1: '#14b8a6', pie2: '#ef4444', pie3: '#f59e0b', pie4: '#3b82f6', pie5: '#a78bfa', pie6: '#ec4899', pie7: '#f97316', pie8: '#84cc16',
+        xyChart: { backgroundColor: 'transparent', titleColor: '#0f172a', xAxisLabelColor: '#134e4a', yAxisLabelColor: '#134e4a', xAxisTitleColor: '#0f172a', yAxisTitleColor: '#0f172a', xAxisTickColor: '#99f6e4', yAxisTickColor: '#99f6e4', xAxisLineColor: '#5eead4', yAxisLineColor: '#5eead4', plotColorPalette: '#0d9488,#14b8a6,#2dd4bf,#0f766e,#115e59' }
+      }
+    }
   },
   lavender: {
     name: 'Lavender Haze', preview: 'linear-gradient(135deg, #f3e8ff, #e9d5ff, #c084fc)',
-    config: { theme: 'base', themeVariables: {
-      darkMode: false, background: 'transparent', primaryColor: '#a855f7', primaryTextColor: '#ffffff', primaryBorderColor: '#7e22ce', secondaryColor: '#f3e8ff', secondaryTextColor: '#581c87', secondaryBorderColor: '#e9d5ff', tertiaryColor: '#faf5ff', tertiaryTextColor: '#6b21a8', tertiaryBorderColor: '#d8b4fe', lineColor: '#7e22ce', textColor: '#111827', mainBkg: '#f3e8ff', nodeBorder: '#7e22ce', clusterBkg: 'rgba(168,85,247,0.08)', clusterBorder: 'rgba(126,34,206,0.25)', titleColor: '#7e22ce', edgeLabelBackground: '#ffffff', nodeTextColor: '#111827', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#ffffff',
-      pieTitleTextColor: '#111827', pieSectionTextColor: '#ffffff', pieLegendTextColor: '#581c87', pie1: '#a855f7', pie2: '#ef4444', pie3: '#f59e0b', pie4: '#10b981', pie5: '#3b82f6', pie6: '#ec4899', pie7: '#06b6d4', pie8: '#84cc16',
-      xyChart: { backgroundColor: 'transparent', titleColor: '#111827', xAxisLabelColor: '#581c87', yAxisLabelColor: '#581c87', xAxisTitleColor: '#111827', yAxisTitleColor: '#111827', xAxisTickColor: '#d8b4fe', yAxisTickColor: '#d8b4fe', xAxisLineColor: '#e9d5ff', yAxisLineColor: '#e9d5ff', plotColorPalette: '#a855f7,#c084fc,#d8b4fe,#7e22ce,#6b21a8' }
-    }}
+    config: {
+      theme: 'base', themeVariables: {
+        darkMode: false, background: 'transparent', primaryColor: '#a855f7', primaryTextColor: '#ffffff', primaryBorderColor: '#7e22ce', secondaryColor: '#f3e8ff', secondaryTextColor: '#581c87', secondaryBorderColor: '#e9d5ff', tertiaryColor: '#faf5ff', tertiaryTextColor: '#6b21a8', tertiaryBorderColor: '#d8b4fe', lineColor: '#7e22ce', textColor: '#111827', mainBkg: '#f3e8ff', nodeBorder: '#7e22ce', clusterBkg: 'rgba(168,85,247,0.08)', clusterBorder: 'rgba(126,34,206,0.25)', titleColor: '#7e22ce', edgeLabelBackground: '#ffffff', nodeTextColor: '#111827', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#ffffff',
+        pieTitleTextColor: '#111827', pieSectionTextColor: '#ffffff', pieLegendTextColor: '#581c87', pie1: '#a855f7', pie2: '#ef4444', pie3: '#f59e0b', pie4: '#10b981', pie5: '#3b82f6', pie6: '#ec4899', pie7: '#06b6d4', pie8: '#84cc16',
+        xyChart: { backgroundColor: 'transparent', titleColor: '#111827', xAxisLabelColor: '#581c87', yAxisLabelColor: '#581c87', xAxisTitleColor: '#111827', yAxisTitleColor: '#111827', xAxisTickColor: '#d8b4fe', yAxisTickColor: '#d8b4fe', xAxisLineColor: '#e9d5ff', yAxisLineColor: '#e9d5ff', plotColorPalette: '#a855f7,#c084fc,#d8b4fe,#7e22ce,#6b21a8' }
+      }
+    }
   },
   terracotta: {
     name: 'Terracotta', preview: 'linear-gradient(135deg, #fef2f2, #fecaca, #f87171)',
-    config: { theme: 'base', themeVariables: {
-      darkMode: false, background: 'transparent', primaryColor: '#e11d48', primaryTextColor: '#ffffff', primaryBorderColor: '#9f1239', secondaryColor: '#fff1f2', secondaryTextColor: '#881337', secondaryBorderColor: '#fecdd3', tertiaryColor: '#fff1f2', tertiaryTextColor: '#9f1239', tertiaryBorderColor: '#fda4af', lineColor: '#9f1239', textColor: '#111827', mainBkg: '#fff1f2', nodeBorder: '#9f1239', clusterBkg: 'rgba(225,29,72,0.06)', clusterBorder: 'rgba(159,18,57,0.2)', titleColor: '#9f1239', edgeLabelBackground: '#ffffff', nodeTextColor: '#111827', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#ffffff',
-      pieTitleTextColor: '#111827', pieSectionTextColor: '#ffffff', pieLegendTextColor: '#881337', pie1: '#e11d48', pie2: '#3b82f6', pie3: '#f59e0b', pie4: '#10b981', pie5: '#a78bfa', pie6: '#06b6d4', pie7: '#84cc16', pie8: '#f97316',
-      xyChart: { backgroundColor: 'transparent', titleColor: '#111827', xAxisLabelColor: '#881337', yAxisLabelColor: '#881337', xAxisTitleColor: '#111827', yAxisTitleColor: '#111827', xAxisTickColor: '#fda4af', yAxisTickColor: '#fda4af', xAxisLineColor: '#fecdd3', yAxisLineColor: '#fecdd3', plotColorPalette: '#e11d48,#fb7185,#fda4af,#9f1239,#881337' }
-    }}
+    config: {
+      theme: 'base', themeVariables: {
+        darkMode: false, background: 'transparent', primaryColor: '#e11d48', primaryTextColor: '#ffffff', primaryBorderColor: '#9f1239', secondaryColor: '#fff1f2', secondaryTextColor: '#881337', secondaryBorderColor: '#fecdd3', tertiaryColor: '#fff1f2', tertiaryTextColor: '#9f1239', tertiaryBorderColor: '#fda4af', lineColor: '#9f1239', textColor: '#111827', mainBkg: '#fff1f2', nodeBorder: '#9f1239', clusterBkg: 'rgba(225,29,72,0.06)', clusterBorder: 'rgba(159,18,57,0.2)', titleColor: '#9f1239', edgeLabelBackground: '#ffffff', nodeTextColor: '#111827', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#ffffff',
+        pieTitleTextColor: '#111827', pieSectionTextColor: '#ffffff', pieLegendTextColor: '#881337', pie1: '#e11d48', pie2: '#3b82f6', pie3: '#f59e0b', pie4: '#10b981', pie5: '#a78bfa', pie6: '#06b6d4', pie7: '#84cc16', pie8: '#f97316',
+        xyChart: { backgroundColor: 'transparent', titleColor: '#111827', xAxisLabelColor: '#881337', yAxisLabelColor: '#881337', xAxisTitleColor: '#111827', yAxisTitleColor: '#111827', xAxisTickColor: '#fda4af', yAxisTickColor: '#fda4af', xAxisLineColor: '#fecdd3', yAxisLineColor: '#fecdd3', plotColorPalette: '#e11d48,#fb7185,#fda4af,#9f1239,#881337' }
+      }
+    }
   },
 };
 
@@ -190,9 +216,9 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [pngBgChoice, setPngBgChoice] = useState(null);
-  
+
   const [activeTemplate, setActiveTemplate] = useState('paper');
-  
+
   const [showTemplates, setShowTemplates] = useState(false);
   const [activeTool, setActiveTool] = useState('select');
   const [zoom, setZoom] = useState(1);
@@ -214,7 +240,7 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
   const [brushPath, setBrushPath] = useState([]);
   const [selectedContext, setSelectedContext] = useState([]);
   const [interpretation, setInterpretation] = useState(null);
-  
+
   // Suggestion Engine State
   const [suggestions, setSuggestions] = useState([]);
   const [currentSugIdx, setCurrentSugIdx] = useState(0);
@@ -226,14 +252,13 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
   const [visionPrompt, setVisionPrompt] = useState('');
   const [originalVisionPrompt, setOriginalVisionPrompt] = useState('');
   const [isVisionLoading, setIsVisionLoading] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
 
 
   // Node/Edge selection
   const [selectedNode, setSelectedNode] = useState(null);
   const [selectedEdge, setSelectedEdge] = useState(null);
   const [editPopover, setEditPopover] = useState(null);
-  
+
   // Edit states
   const [editText, setEditText] = useState('');
   const [editColor, setEditColor] = useState('');
@@ -280,7 +305,7 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
 
   const handleVisionRegenerate = async () => {
     if (!visionPrompt || visionPrompt === originalVisionPrompt) return;
-    
+
     // Extract diagram type if possible
     const lines = visionPrompt.split('\n');
     let extractedType = diagramType;
@@ -371,50 +396,21 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
       }
 
       try {
-        // Try BYOK first
         const byokResult = await generateDiagram(prompt, diagramType, abortController.signal);
         if (cancelled) return;
 
-        if (byokResult) {
-          // BYOK path succeeded
-          const code = byokResult.mermaid_code || '';
-          if (code.trim()) {
-            setMermaidCode(code);
-            setHistory([code]);
-            setHistoryIndex(0);
-          } else {
-            throw new Error('Empty response from BYOK');
-          }
+        if (byokResult && byokResult.mermaid_code) {
+          const code = byokResult.mermaid_code;
+          setMermaidCode(code);
+          setHistory([code]);
+          setHistoryIndex(0);
         } else {
-          // Free tier — use backend
-          const res = await fetch('/api/generate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt, diagramType }),
-            signal: abortController.signal
-          });
-          if (cancelled) return;
-          if (!res.ok) throw new Error(`API error: ${res.status}`);
-
-          const data = await res.json();
-          if (cancelled) return;
-          const code = data.mermaid_code || '';
-
-          if (!code.trim()) {
-            const fallback = FALLBACK_DIAGRAMS[diagramType] || FALLBACK_DIAGRAMS.flowchart;
-            setMermaidCode(fallback);
-            setHistory([fallback]);
-            setHistoryIndex(0);
-          } else {
-            setMermaidCode(code);
-            setHistory([code]);
-            setHistoryIndex(0);
-          }
+          throw new Error('Empty response from AI model');
         }
       } catch (err) {
         if (cancelled || err.name === 'AbortError') return;
         console.error("Generation Error:", err);
-        alert(`AI Generation Failed: ${err.message || 'Unknown Error'}\nFalling back to default diagrams. Please check your API key if using BYOK.`);
+        alert(`AI Generation Failed: ${err.message || 'Unknown Error'}\nFalling back to default diagrams. Please check your API key / model settings.`);
         const fallback = FALLBACK_DIAGRAMS[diagramType] || FALLBACK_DIAGRAMS.flowchart;
         setMermaidCode(fallback);
         setHistory([fallback]);
@@ -476,7 +472,7 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
         renderCounter.current++;
         const id = `dm-${renderCounter.current}`;
         const { svg } = await mermaidApi.render(id, mermaidCode);
-        
+
         if (canvasRef.current) {
           canvasRef.current.innerHTML = svg;
           setRenderError(null);
@@ -521,10 +517,10 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
 
   const attachInteractionListeners = () => {
     if (!canvasRef.current) return;
-    
+
     // Remove existing plus buttons
     canvasRef.current.querySelectorAll('.node-add-btn').forEach(b => b.remove());
-    
+
     // Only attach interactive editing for diagram types that support it
     if (diagramType !== 'flowchart' && diagramType !== 'architecture') return;
 
@@ -537,7 +533,7 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
         e.stopPropagation();
         handleNodeClick(node, e);
       };
-      
+
       try {
         const bbox = node.getBBox();
         if (bbox && bbox.width) {
@@ -547,12 +543,12 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
           fo.setAttribute('width', 22);
           fo.setAttribute('height', 22);
           fo.style.overflow = 'visible';
-          
+
           const plusBtn = document.createElement('div');
           plusBtn.className = 'node-add-btn';
           plusBtn.innerHTML = '+';
           // reset bottom positioning since we positioned foreignObject directly
-          plusBtn.style.position = 'relative'; 
+          plusBtn.style.position = 'relative';
           plusBtn.style.bottom = '0';
           plusBtn.style.left = '0';
           plusBtn.style.transform = 'none'; // Overriding the CSS transform translateX
@@ -564,7 +560,7 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
             if (match) nodeId = match[1];
             handleAddNodeClick(nodeId);
           };
-          
+
           fo.appendChild(plusBtn);
           node.appendChild(fo);
         }
@@ -585,7 +581,7 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
   /* ─── Node Click → Edit Popover ─── */
   const handleNodeClick = (node, e) => {
     clearSelection();
-    
+
     const labelEl = node.querySelector('.nodeLabel') || node.querySelector('span') || node.querySelector('text');
     const label = labelEl ? labelEl.textContent.trim() : '';
     const rawId = node.id || '';
@@ -611,13 +607,13 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
 
   const handleEdgeClick = (edge, e) => {
     clearSelection();
-    
+
     edge.classList.add('edge-selected');
     const containerRect = containerRef.current?.getBoundingClientRect() || { left: 0, top: 0 };
-    
+
     // Attempt to extract edge info from class/id
     const edgeId = edge.id || '';
-    
+
     setSelectedEdge({ id: edgeId, element: edge });
     setEdgeColor('');
     setEdgeStyle('solid');
@@ -633,7 +629,7 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
       const trimmed = l.trim();
       return trimmed.includes(nodeId);
     }) || '';
-    
+
     if (line.includes(`([`) && line.includes(`])`)) return 'stadium';
     if (line.includes(`[[`) && line.includes(`]]`)) return 'subroutine';
     if (line.includes(`((`) && line.includes(`))`)) return 'circle';
@@ -692,9 +688,9 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
     if (!selectedNode) return;
     const { id: nodeId, label: oldLabel } = selectedNode;
     const newLabel = editText.trim() || oldLabel;
-    
+
     let lines = mermaidCode.split('\n');
-    
+
     // Find the line that defines this node (could be at start or after an arrow)
     let targetIndex = -1;
     const escapedId = nodeId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -702,7 +698,7 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
       const trimmed = lines[i].trim();
       // Match nodeId followed by a shape bracket - at line start or after arrow
       if (trimmed.match(new RegExp(`(?:^|-->\\s*|---\\s*|==>\\s*)${escapedId}\\s*[\\(\\[\\{]`)) ||
-          trimmed.match(new RegExp(`^${escapedId}\\s*$`))) {
+        trimmed.match(new RegExp(`^${escapedId}\\s*$`))) {
         targetIndex = i;
         break;
       }
@@ -717,31 +713,31 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
       // More robust replacement: target exactly the node ID and its trailing bracket sequence
       // This avoids partial mid-word matches and ensures we replace the ENTIRE bracketed label
       const regex = new RegExp(`(^|\\s|-->|---|==>|\\|\\s*)${escapedId}(\\s*[\\(\\[\\{]+.*?[\\)\\]\\}]+)`, 'g');
-      
+
       lines[targetIndex] = line.replace(regex, (match, prefix, brackets) => {
         return `${prefix}${nodeId}${newWrap}`;
       });
 
       // Secondary check: if the line was just the ID with no brackets, replace that too
       if (lines[targetIndex] === line) {
-         const flatRegex = new RegExp(`(^|\\s|-->|---|==>)(${escapedId})(\\s*|$)`, 'g');
-         lines[targetIndex] = line.replace(flatRegex, (match, prefix, id, suffix) => {
-           return `${prefix}${nodeId}${newWrap}${suffix}`;
-         });
+        const flatRegex = new RegExp(`(^|\\s|-->|---|==>)(${escapedId})(\\s*|$)`, 'g');
+        lines[targetIndex] = line.replace(flatRegex, (match, prefix, id, suffix) => {
+          return `${prefix}${nodeId}${newWrap}${suffix}`;
+        });
       }
     } else {
       // Node was used but never explicitly defined with a shape, so we append the definition
       lines.push(`    ${nodeId}${newWrap}`);
     }
-    
+
     let newCode = lines.join('\n');
-    
+
     // Handle colors - only if user explicitly selected something
     if (editColor || editStrokeColor) {
       // Remove existing style line for this node
       const stylePattern = new RegExp(`\\n\\s*style ${nodeId} .*`, 'g');
       newCode = newCode.replace(stylePattern, '');
-      
+
       const parts = [];
       if (editColor) {
         parts.push(`fill:${editColor}`);
@@ -759,7 +755,7 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
       }
       newCode = newCode.trimEnd() + `\n    style ${nodeId} ${parts.join(',')}`;
     }
-    
+
     if (newCode !== mermaidCode) pushHistory(newCode);
     clearSelection();
   };
@@ -772,25 +768,25 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
   const deleteNode = () => {
     if (!selectedNode) return;
     const { id: nodeId } = selectedNode;
-    
+
     let lines = mermaidCode.split('\n');
     const escapedId = nodeId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    
+
     // Improved regex to target the node ID specifically while avoiding partial matches in larger IDs
     // It looks for the ID as a whole word, optionally surrounded by Mermaid syntax characters
     const nodeRefRegex = new RegExp(`(?:^|[^a-zA-Z0-9_-])${escapedId}(?:$|[^a-zA-Z0-9_-])`);
-    
+
     const filteredLines = lines.filter(line => {
       const trimmed = line.trim();
       if (!trimmed) return true;
-      
+
       // Remove style directives for this node
       if (trimmed.startsWith(`style ${nodeId} `)) return false;
-      
+
       // Remove any line that references this node (definitions or connections)
       return !nodeRefRegex.test(trimmed);
     });
-    
+
     const newCode = filteredLines.join('\n');
     if (newCode !== mermaidCode) {
       pushHistory(newCode);
@@ -819,9 +815,9 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
       setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
     }
   };
-  const handleMouseMove = (e) => { 
+  const handleMouseMove = (e) => {
     if (activeTool === 'brush') continueBrushing(e);
-    if (isPanning) setPan({ x: e.clientX - panStart.x, y: e.clientY - panStart.y }); 
+    if (isPanning) setPan({ x: e.clientX - panStart.x, y: e.clientY - panStart.y });
   };
   const handleMouseUp = () => {
     if (activeTool === 'brush') endBrushing();
@@ -850,7 +846,7 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
   const endBrushing = () => {
     if (!isBrushing) return;
     setIsBrushing(false);
-    
+
     // Calculate what's inside the path
     const nodes = canvasRef.current?.querySelectorAll('.node') || [];
     const edges = canvasRef.current?.querySelectorAll('.edgePath') || [];
@@ -880,20 +876,20 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
       const intersects = !(rect.right < bounds.minX || rect.left > bounds.maxX || rect.bottom < bounds.minY || rect.top > bounds.maxY);
       if (intersects) {
         edge.classList.add('edge-brush-highlight');
-        
+
         // Find label. In mermaid it might be in an adjacent .edgeLabel block or a nested tspan
         // The actual label element is often separate from .edgePath, so we get the edge ID and try to find the corresponding label if not enclosed
         let label = "connection";
         const edgeIdParts = edge.id.split('-');
         if (edgeIdParts.length > 2) {
-           label = `${edgeIdParts[0]} to ${edgeIdParts[1]}`;
+          label = `${edgeIdParts[0]} to ${edgeIdParts[1]}`;
         }
-        
+
         // Also look for literal label text around it
         const enclosingGroup = edge.closest('.edgeTerminals, .edgePaths')?.parentNode;
         if (enclosingGroup) {
-             const labelEl = enclosingGroup.querySelector('.edgeLabel');
-             if (labelEl) label = labelEl.textContent;
+          const labelEl = enclosingGroup.querySelector('.edgeLabel');
+          if (labelEl) label = labelEl.textContent;
         }
 
         selection.push({ type: 'edge', label: label.trim(), id: edge.id });
@@ -905,14 +901,14 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
       setIsRefineOpen(true);
       const nodeLabels = [...new Set(selection.filter(s => s.type === 'node').map(s => s.label))];
       const edgeLabels = [...new Set(selection.filter(s => s.type === 'edge').map(s => s.label))];
-      
+
       let contextStr = "";
       if (nodeLabels.length > 0) contextStr += `Focusing on components: ${nodeLabels.join(', ')}. `;
       if (edgeLabels.length > 0) contextStr += `Focusing on connections: ${edgeLabels.join(', ')}. `;
-      
+
       setRefinePrompt(contextStr);
     }
-    
+
     setBrushPath([]);
   };
 
@@ -934,25 +930,13 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
     if (!finalPrompt.trim()) return;
     setIsRefining(true);
     try {
-      // Try BYOK refine first
       const byokResult = await refineDiagram(finalPrompt, mermaidCode, diagramType);
       let resultCode = null;
 
-      if (byokResult) {
+      if (byokResult && byokResult.mermaid_code) {
         resultCode = byokResult.mermaid_code;
       } else {
-        // Free tier — use backend
-        const res = await fetch('/api/refine', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: finalPrompt, mermaid_code: mermaidCode, diagramType })
-        });
-        const data = await res.json();
-        resultCode = data.mermaid_code;
-        if (!resultCode) {
-          alert("Failed to refine: " + (data.error || "Unknown error"));
-          return;
-        }
+        throw new Error("Invalid response from AI model");
       }
 
       if (resultCode) {
@@ -983,12 +967,12 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
       const res = await fetch('/api/interpret_refine', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          prompt: finalPrompt, 
-          mermaid_code: mermaidCode, 
+        body: JSON.stringify({
+          prompt: finalPrompt,
+          mermaid_code: mermaidCode,
           diagramType,
           vision_prompt: visionPrompt,
-          selected_context: selectedContext 
+          selected_context: selectedContext
         })
       });
       const data = await res.json();
@@ -1021,9 +1005,9 @@ ${mermaidCode}`;
       const res = await fetch('/api/suggest_improvements', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          prompt, 
-          mermaid_code: mermaidCode, 
+        body: JSON.stringify({
+          prompt,
+          mermaid_code: mermaidCode,
           diagramType,
           vision_prompt: visionPrompt // Pass vision context here too
         })
@@ -1053,11 +1037,8 @@ ${mermaidCode}`;
 
   /* ─── Export ─── */
   const handleExport = (format, bgOpt) => {
-    if (!auth?.currentUser) {
-      setShowAuthModal(true);
-      return;
-    }
-    
+    if (!auth?.currentUser) return;
+
     setIsExportOpen(false); setPngBgChoice(null);
     const svgEl = canvasRef.current?.querySelector('svg');
     if (!svgEl) return;
@@ -1123,9 +1104,9 @@ ${mermaidCode}`;
   const fastTransition = { type: "spring", stiffness: 450, damping: 30 };
 
   return (
-    <div 
-      className="arena-container" 
-      ref={containerRef} 
+    <div
+      className="arena-container"
+      ref={containerRef}
       data-theme={activeTemplate}
       style={{
         '--label-bkg': TEMPLATES[activeTemplate]?.config?.themeVariables?.edgeLabelBackground,
@@ -1139,7 +1120,7 @@ ${mermaidCode}`;
         <div className="arena-nav-left">
           {!isLoading && (
             <>
-              <div 
+              <div
                 className="nav-expandable-group"
                 onMouseEnter={() => setIsNavHovered(true)}
                 onMouseLeave={() => setIsNavHovered(false)}
@@ -1152,13 +1133,13 @@ ${mermaidCode}`;
                 </button>
               </div>
 
-              <button 
-                className="nav-btn-main vision-nav-btn" 
-                onClick={handleVisionClick} 
+              <button
+                className="nav-btn-main vision-nav-btn"
+                onClick={handleVisionClick}
                 title="Vision Engine"
-                style={{ 
-                  borderRadius: '50%', 
-                  background: '#fff', 
+                style={{
+                  borderRadius: '50%',
+                  background: '#fff',
                   border: '1px solid #e5e7eb'
                 }}
               >
@@ -1167,22 +1148,22 @@ ${mermaidCode}`;
             </>
           )}
         </div>
-        
+
         {!isLoading && (
           <div className="arena-nav-right">
-            
+
             {/* Refine Dropdown */}
             <div className="export-dropdown-container">
-              <button 
-                className={`ai-chip-btn ${renderError ? 'retry-glow' : ''}`} 
-                title={renderError ? 'Fix Diagram Syntax' : 'Refine Diagram'} 
-                onClick={() => { 
+              <button
+                className={`ai-chip-btn ${renderError ? 'retry-glow' : ''}`}
+                title={renderError ? 'Fix Diagram Syntax' : 'Refine Diagram'}
+                onClick={() => {
                   if (renderError) {
                     handleRetryFix();
                   } else {
-                    setIsRefineOpen(!isRefineOpen); 
-                    setIsExportOpen(false); 
-                    setPngBgChoice(null); 
+                    setIsRefineOpen(!isRefineOpen);
+                    setIsExportOpen(false);
+                    setPngBgChoice(null);
                   }
                 }}
               >
@@ -1192,23 +1173,23 @@ ${mermaidCode}`;
               </button>
               <AnimatePresence>
                 {isRefineOpen && (
-                  <motion.div 
+                  <motion.div
                     layout
-                    className="refine-menu export-menu" 
-                    initial={{ opacity: 0, y: -8, scale: 0.95 }} 
-                    animate={{ opacity: 1, y: 0, scale: 1 }} 
-                    exit={{ opacity: 0, y: -8, scale: 0.95 }} 
-                    transition={{ 
-                      type: "spring", 
-                      stiffness: 400, 
+                    className="refine-menu export-menu"
+                    initial={{ opacity: 0, y: -8, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.95 }}
+                    transition={{
+                      type: "spring",
+                      stiffness: 400,
                       damping: 28,
                       opacity: { duration: 0.15 }
-                    }} 
+                    }}
                     style={{ width: '380px', right: 0, padding: '16px' }}
                   >
-                    
+
                     {isInterpreting ? (
-                      <motion.div 
+                      <motion.div
                         layout
                         className="sug-card-loading magical-glow"
                         initial={{ opacity: 0, scale: 0.95 }}
@@ -1220,16 +1201,16 @@ ${mermaidCode}`;
                         <span style={{ fontSize: '10px', fontWeight: 800, color: '#000000', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Connecting vision context...</span>
                       </motion.div>
                     ) : interpretation ? (
-                      <motion.div 
+                      <motion.div
                         layout
                         className="interpretation-card magical-glow"
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        transition={{ 
-                          type: "spring", 
-                          stiffness: 400, 
+                        transition={{
+                          type: "spring",
+                          stiffness: 400,
                           damping: 28,
-                          opacity: { duration: 0.2 } 
+                          opacity: { duration: 0.2 }
                         }}
                       >
                         <div className="interpretation-header">
@@ -1251,15 +1232,15 @@ ${mermaidCode}`;
                               <h4 style={{ margin: 0, fontSize: '10px', fontWeight: 800, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>AI Suggestions <BetaBadge /></h4>
                             </div>
                             <div style={{ display: 'flex', gap: '4px' }}>
-                              <button 
-                                className="sug-nav-btn" 
+                              <button
+                                className="sug-nav-btn"
                                 disabled={currentSugIdx === 0}
                                 onClick={() => setCurrentSugIdx(Math.max(0, currentSugIdx - 1))}
                               >
                                 <ChevronDown size={18} style={{ transform: 'rotate(90deg)' }} />
                               </button>
-                              <button 
-                                className="sug-nav-btn" 
+                              <button
+                                className="sug-nav-btn"
                                 disabled={currentSugIdx === suggestions.length - 1}
                                 onClick={() => setCurrentSugIdx(Math.min(suggestions.length - 1, currentSugIdx + 1))}
                               >
@@ -1267,7 +1248,7 @@ ${mermaidCode}`;
                               </button>
                             </div>
                           </div>
-                          
+
                           <div className="suggestion-card-container">
                             {isSugLoading ? (
                               <div className="sug-card-loading magical-glow">
@@ -1275,7 +1256,7 @@ ${mermaidCode}`;
                                 <span style={{ fontSize: '11px', color: '#000000', fontWeight: 700 }}>BRAINSTORMING...</span>
                               </div>
                             ) : (
-                              <motion.div 
+                              <motion.div
                                 key={currentSugIdx}
                                 initial={{ opacity: 0, y: 5, scale: 0.98 }}
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -1296,18 +1277,18 @@ ${mermaidCode}`;
                         </div>
 
                         <h4 style={{ margin: '0 0 10px 0', fontSize: '10px', fontWeight: 800, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Custom Refinement</h4>
-                        <textarea 
+                        <textarea
                           value={refinePrompt}
                           onChange={(e) => setRefinePrompt(e.target.value)}
                           placeholder="e.g. Change the start node color to red..."
                           className="popover-input"
                           style={{ minHeight: '80px', marginBottom: '12px', resize: 'none', fontSize: '13px' }}
-                          onKeyDown={(e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleInterpretRefine(); } }}
+                          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleInterpretRefine(); } }}
                         />
-                        <button 
+                        <button
                           className="popover-apply-btn"
-                          onClick={() => handleInterpretRefine()} 
-                          disabled={isInterpreting || isRefining || !refinePrompt.trim()} 
+                          onClick={() => handleInterpretRefine()}
+                          disabled={isInterpreting || isRefining || !refinePrompt.trim()}
                           style={{ margin: 0, padding: '10px', opacity: (isInterpreting || isRefining || !refinePrompt.trim()) ? 0.7 : 1 }}
                         >
                           {isRefining ? 'Updating…' : 'Update Diagram'}
@@ -1363,7 +1344,7 @@ ${mermaidCode}`;
                 )}
               </AnimatePresence>
             </div>
-            
+
             <ProfileDropdown />
           </div>
         )}
@@ -1474,8 +1455,8 @@ ${mermaidCode}`;
       <AnimatePresence>
         {editPopover && (editPopover.type === 'node' || editPopover.type === 'add') && (
           <motion.div className="node-edit-sidebar"
-            initial={{ x: '100%', opacity: 0 }} 
-            animate={{ x: 0, opacity: 1 }} 
+            initial={{ x: '100%', opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
             exit={{ x: '100%', opacity: 0 }}
             transition={{ type: 'spring', stiffness: 400, damping: 35 }}>
             <div className="popover-header">
@@ -1700,27 +1681,27 @@ ${mermaidCode}`;
               exit={{ opacity: 0, scale: 0.95, y: 20 }} transition={{ duration: 0.15 }}>
               <div className="code-editor-header">
                 <div className="code-editor-title"><Eye size={18} /><span>Your Vision</span><BetaBadge /></div>
-                <button 
-                  className="popover-close" 
-                  style={{ 
-                    width: 'auto', 
+                <button
+                  className="popover-close"
+                  style={{
+                    width: 'auto',
                     height: '28px',
-                    borderRadius: '8px', 
-                    padding: '0 12px', 
-                    fontSize: '10px', 
-                    fontWeight: 800, 
+                    borderRadius: '8px',
+                    padding: '0 12px',
+                    fontSize: '10px',
+                    fontWeight: 800,
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
                     background: '#f3f4f6',
                     border: '1px solid #e5e7eb',
                     color: '#64748b'
-                  }} 
+                  }}
                   onClick={() => document.querySelector('.code-editor-textarea')?.focus()}
                 >
                   Edit
                 </button>
               </div>
-              
+
               <div className="vision-content-wrapper">
                 {isVisionLoading ? (
                   <div className="vision-loading-placeholder">
@@ -1738,20 +1719,20 @@ ${mermaidCode}`;
                     </div>
                   </div>
                 ) : (
-                  <textarea 
-                    className="code-editor-textarea" 
+                  <textarea
+                    className="code-editor-textarea"
                     value={visionPrompt}
-                    onChange={e => setVisionPrompt(e.target.value)} 
+                    onChange={e => setVisionPrompt(e.target.value)}
                     spellCheck={false}
                     style={{ marginBottom: '1.25rem' }}
                   />
                 )}
-                
+
                 <div className="code-editor-actions" style={{ justifyContent: 'flex-end', alignItems: 'center' }}>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <button className="code-editor-cancel" onClick={() => setIsVisionModalOpen(false)}>Discard</button>
-                    <button 
-                      className="popover-apply-btn" 
+                    <button
+                      className="popover-apply-btn"
                       onClick={handleVisionRegenerate}
                       disabled={visionPrompt === originalVisionPrompt || isVisionLoading}
                       style={{
@@ -1774,65 +1755,7 @@ ${mermaidCode}`;
         )}
       </AnimatePresence>
 
-      {/* Auth Requirement Modal */}
-      <AnimatePresence>
-        {showAuthModal && (
-          <motion.div 
-            className="auth-modal-overlay"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setShowAuthModal(false)}
-            style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          >
-            <motion.div 
-              className="auth-modal-card"
-              initial={{ opacity: 0, y: 20, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -20, scale: 0.95 }}
-              onClick={e => e.stopPropagation()}
-              style={{ background: '#fff', border: '3px solid #000', borderRadius: '12px', padding: '32px', maxWidth: '420px', width: '90%', position: 'relative', boxShadow: '8px 8px 0px #000' }}
-            >
-              <button 
-                onClick={() => setShowAuthModal(false)} 
-                style={{ position: 'absolute', top: '16px', right: '16px', background: 'transparent', border: '2px solid transparent', borderRadius: '50%', cursor: 'pointer', padding: '4px', transition: 'all 0.2s' }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = '#000'; e.currentTarget.style.background = '#f1f5f9'; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.background = 'transparent'; }}
-              >
-                <X size={20} color="#0f172a" />
-              </button>
-              
-              <div style={{ width: '52px', height: '52px', background: '#fef2f2', border: '3px solid #000', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px', boxShadow: '4px 4px 0 #000' }}>
-                <User size={26} color="#000" />
-              </div>
-              
-              <h2 style={{ fontSize: '1.6rem', fontWeight: 800, margin: '0 0 12px 0', color: '#0f172a', letterSpacing: '-0.02em' }}>Authentication Required</h2>
-              <p style={{ color: '#475569', fontSize: '0.95rem', lineHeight: 1.6, margin: '0 0 28px 0', fontWeight: 500 }}>
-                You need to be signed in to download and export diagrams. Join now to access all export formats including PNG, SVG, and Mermaid code!
-              </p>
-              
-              <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
-                <button 
-                  onClick={() => setShowAuthModal(false)}
-                  style={{ flex: 1, padding: '14px', background: '#fff', border: '3px solid #e2e8f0', borderRadius: '8px', fontWeight: 700, color: '#64748b', cursor: 'pointer', transition: 'all 0.2s' }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#000'; e.currentTarget.style.color = '#000'; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.color = '#64748b'; }}
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={() => navigate('/auth')}
-                  style={{ flex: 2, padding: '14px', background: '#e11d48', border: '3px solid #000', borderRadius: '8px', fontWeight: 800, color: '#fff', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '4px 4px 0px #000' }}
-                  onMouseEnter={e => { e.currentTarget.style.transform = 'translate(-2px, -2px)'; e.currentTarget.style.boxShadow = '6px 6px 0px #000'; }}
-                  onMouseLeave={e => { e.currentTarget.style.transform = 'translate(0, 0)'; e.currentTarget.style.boxShadow = '4px 4px 0px #000'; }}
-                >
-                  Sign In / Sign Up
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+
     </div>
   );
 };

@@ -2,20 +2,32 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, Database, Cloud, Zap, Eye, Check, X } from './googleIcons';
 import { auth } from './firebase';
-import { getSettings, saveSettings, getCreditsInfo, CLOUD_PROVIDERS, LOCAL_MODELS } from './aiService';
+import { onAuthStateChanged } from 'firebase/auth';
+import { getSettings, saveSettings, CLOUD_PROVIDERS, LOCAL_MODELS } from './aiService';
 
 const Settings = () => {
   const navigate = useNavigate();
-  const [providerType, setProviderType] = useState('free');
+  const [authLoading, setAuthLoading] = useState(true);
+  const [providerType, setProviderType] = useState('cloud');
   const [cloudProvider, setCloudProvider] = useState('gemini');
   const [cloudModel, setCloudModel] = useState('gemini-combo-3');
   const [apiKey, setApiKey] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [localUrl, setLocalUrl] = useState('http://localhost:11434');
   const [localModel, setLocalModel] = useState('gemma3:12b');
-  const [credits, setCredits] = useState({ used: 0, total: 3 });
   const [saved, setSaved] = useState(false);
   const [savedModel, setSavedModel] = useState(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        navigate('/auth');
+      } else {
+        setAuthLoading(false);
+      }
+    });
+    return () => unsubscribe();
+  }, [navigate]);
 
   useEffect(() => {
     const s = getSettings();
@@ -25,7 +37,6 @@ const Settings = () => {
     setApiKey(s.apiKey);
     setLocalUrl(s.localUrl);
     setLocalModel(s.localModel);
-    setCredits(getCreditsInfo());
     if (s.providerType === 'cloud') setSavedModel(s.cloudModel);
     else if (s.providerType === 'local') setSavedModel(s.localModel);
   }, []);
@@ -70,25 +81,6 @@ const Settings = () => {
         <h1 style={{ fontFamily: 'var(--font-sans)', fontSize: '1.75rem', fontWeight: 800, marginBottom: '0.5rem', color: '#000' }}>Settings</h1>
         <p style={{ color: '#9ca3af', fontSize: '0.85rem', marginBottom: '2rem', fontFamily: 'var(--font-mono)' }}>Configure how Arka generates your diagrams.</p>
 
-        {/* ─── Credits Card ─── */}
-        <div style={cardStyle}>
-          <h2 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '1rem' }}>Free Tier</h2>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', padding: '1rem 1.25rem', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}>
-            <div>
-              <div style={{ fontWeight: 700, color: '#0f172a', marginBottom: '0.15rem', fontSize: '0.9rem' }}>Arka AI Credits</div>
-              <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontFamily: 'var(--font-mono)' }}>Powered by Sarvam</div>
-            </div>
-            <div style={{ fontSize: '1.4rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: credits.used >= credits.total ? '#ef4444' : '#000' }}>
-              {credits.used}/{credits.total}
-            </div>
-          </div>
-          {credits.used >= credits.total && (
-            <div style={{ marginTop: '0.75rem', padding: '0.75rem 1rem', background: '#fef2f2', borderRadius: '0.5rem', fontSize: '0.8rem', color: '#b91c1c', fontWeight: 600 }}>
-              Free credits exhausted. Add your own API key below to continue generating.
-            </div>
-          )}
-        </div>
-
         {/* ─── Provider Selection ─── */}
         <div style={cardStyle}>
           <h2 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.5rem' }}>AI Provider</h2>
@@ -97,9 +89,6 @@ const Settings = () => {
           </p>
 
           <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem' }}>
-            <button onClick={() => setProviderType('free')} style={tabBtn(providerType === 'free')}>
-              <Zap size={16} /> Free Tier
-            </button>
             <button onClick={() => setProviderType('cloud')} style={tabBtn(providerType === 'cloud')}>
               <Cloud size={16} /> Cloud API
             </button>
@@ -107,15 +96,6 @@ const Settings = () => {
               <Database size={16} /> Local
             </button>
           </div>
-
-          {/* ─── Free Tier ─── */}
-          {providerType === 'free' && (
-            <div style={{ padding: '1.25rem', background: '#f8fafc', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}>
-              <p style={{ fontSize: '0.85rem', color: '#475569', lineHeight: 1.6, margin: 0 }}>
-                You get <strong>3 free diagram generations</strong> powered by Arka AI (Sarvam) via our servers. After that, add your own API key or run models locally for unlimited generation.
-              </p>
-            </div>
-          )}
 
           {/* ─── Cloud API ─── */}
           {providerType === 'cloud' && (

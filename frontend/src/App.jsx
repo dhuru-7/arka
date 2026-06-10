@@ -11,14 +11,17 @@ import ProfileDropdown from './ProfileDropdown';
 import { auth, db } from './firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { collection, query, orderBy, limit, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
-import { isBYOK, hasCredits, incrementCredits, suggestDiagramType, getSettings, getCreditsInfo } from './aiService';
+import { suggestDiagramType, getSettings } from './aiService';
 
 
 // Lander import removed
 const DiagramsPage = () => {
+  const navigate = useNavigate();
+  const [authLoading, setAuthLoading] = useState(true);
   const [prompt, setPrompt] = useState(() => localStorage.getItem('arka_prompt') || '');
   const [isHovered, setIsHovered] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isNavHovered, setIsNavHovered] = useState(false);
   const [showPinNotice, setShowPinNotice] = useState(false);
   const [viewState, setViewState] = useState(() => localStorage.getItem('arka_viewState') || 'input'); // 'input', 'loading', 'result', 'arena'
   const [suggestedType, setSuggestedType] = useState(() => localStorage.getItem('arka_diagramType') || null);
@@ -29,6 +32,17 @@ const DiagramsPage = () => {
   const [historyItems, setHistoryItems] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [currentDiagramId, setCurrentDiagramId] = useState(() => localStorage.getItem('arka_diagramId') || null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        navigate('/auth');
+      } else {
+        setAuthLoading(false);
+      }
+    });
+    return () => unsubscribe();
+  }, [navigate]);
 
   useEffect(() => {
     localStorage.setItem('arka_prompt', prompt);
@@ -122,8 +136,7 @@ const DiagramsPage = () => {
     return () => unsubscribe();
   }, [isSidebarOpen, auth?.currentUser]);
 
-  const [showLimitModal, setShowLimitModal] = useState(false);
-  const settingsNav = useNavigate();
+
 
   const handleSubmit = async () => {
     if (!prompt.trim() || viewState !== 'input') return;
@@ -133,47 +146,15 @@ const DiagramsPage = () => {
       return;
     }
 
-    // Credit gate: if free tier and no credits left, show limit modal
-    const settings = getSettings();
-    if (settings.providerType === 'free') {
-      const canGenerate = await hasCredits();
-      if (!canGenerate) {
-        setShowLimitModal(true);
-        return;
-      }
-    }
-
     setCurrentDiagramId(Date.now().toString());
     localStorage.removeItem('arka_last_mermaid_code');
     localStorage.removeItem('arka_vision_prompt');
     setViewState('loading');
     
     try {
-      // Try BYOK suggest first
-      const byokResult = await suggestDiagramType(prompt);
-      if (byokResult) {
-        // BYOK path — got result directly
-        setSuggestedType(byokResult.category || 'flowchart');
-        setViewState('result');
-        return;
-      }
-
-      // Free tier path — use backend
-      const response = await fetch('/api/suggest', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt })
-      });
-
-      if (!response.ok) throw new Error(`API error: ${response.status}`);
-
-      const data = await response.json();
-      setSuggestedType(data.category || 'flowchart');
+      const suggestResult = await suggestDiagramType(prompt);
+      setSuggestedType(suggestResult?.category || 'flowchart');
       setViewState('result');
-      
-      // Increment credits for free tier
-      await incrementCredits();
-      
     } catch (error) {
       console.error("AI Error:", error);
       setSuggestedType('flowchart');
@@ -224,46 +205,16 @@ const DiagramsPage = () => {
   const fastTransition = { type: "spring", stiffness: 450, damping: 30 };
   const hasText = prompt.trim().length > 0;
 
+  if (authLoading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#f5f5f5' }}>
+        <div className="loader"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="diagrams-container">
-      {/* ─── Credit Limit Modal ─── */}
-      <AnimatePresence>
-        {showLimitModal && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
-            onClick={() => setShowLimitModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              style={{ background: '#fff', borderRadius: '1.25rem', padding: '2rem', maxWidth: '420px', width: '100%', textAlign: 'center', border: '1px solid #e5e7eb' }}
-              onClick={e => e.stopPropagation()}
-            >
-              <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>⚡</div>
-              <h3 style={{ fontFamily: 'var(--font-sans)', fontSize: '1.25rem', fontWeight: 800, marginBottom: '0.5rem' }}>Free Credits Used Up</h3>
-              <p style={{ color: '#6b7280', fontSize: '0.85rem', lineHeight: 1.6, marginBottom: '1.5rem', fontFamily: 'var(--font-mono)' }}>
-                You've used all 3 free generations. Add your own API key (Gemini or Sarvam) or run a local model to keep generating — unlimited.
-              </p>
-              <div style={{ display: 'flex', gap: '0.75rem', flexDirection: 'column' }}>
-                <button onClick={() => { setShowLimitModal(false); settingsNav('/settings'); }} style={{
-                  padding: '0.85rem', borderRadius: '0.75rem', background: '#000', color: '#fff', border: 'none',
-                  fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer', fontFamily: 'var(--font-sans)'
-                }}>
-                  Add API Key →
-                </button>
-                {!auth?.currentUser && (
-                  <button onClick={() => { setShowLimitModal(false); settingsNav('/auth'); }} style={{
-                    padding: '0.75rem', borderRadius: '0.75rem', background: '#f3f4f6', color: '#000', border: '1px solid #e5e7eb',
-                    fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'var(--font-sans)'
-                  }}>
-                    Sign in first
-                  </button>
-                )}
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Sidebar Overlay */}
       <div 
@@ -339,8 +290,26 @@ const DiagramsPage = () => {
             <header className="fixed-navbar">
               <div className="nav-left-group">
                  
-                 {/* No button on left for prompt area */}
-                 {viewState === 'input' ? null : (
+                 {viewState === 'input' ? (
+                   <div style={{ display: 'flex', alignItems: 'center', marginRight: '-0.17rem' }}>
+                     <div
+                       className="nav-expandable-group"
+                       onMouseEnter={() => setIsNavHovered(true)}
+                       onMouseLeave={() => setIsNavHovered(false)}
+                     >
+                       <button className="nav-btn-main" onClick={handleReset} title="New Diagram">
+                         <Plus size={20} />
+                       </button>
+                       <button 
+                         className={`nav-btn-secondary ${isNavHovered ? 'visible' : ''}`} 
+                         onClick={() => setIsSidebarOpen(true)} 
+                         title="History"
+                       >
+                         HISTORY
+                       </button>
+                     </div>
+                   </div>
+                 ) : (
                    <div style={{ display: 'flex', alignItems: 'center' }}>
                       <button 
                         className="nav-btn-main" 

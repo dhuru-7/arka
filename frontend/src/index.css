@@ -73,7 +73,7 @@ input[type="password"]::-ms-clear {
 /* ─── LOGO ─── */
 /* ═══════════════════════════════════════════ */
 .logo-wrapper {
-  display: flex; align-items: baseline; gap: 0.475rem;
+  display: flex; align-items: baseline; gap: 0.3rem;
   color: var(--primary); text-decoration: none; user-select: none;
   transition: transform 0.3s ease-out;
 }

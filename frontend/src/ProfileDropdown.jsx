@@ -4,38 +4,19 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { auth } from './firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { getCreditsUsed, getSettings } from './aiService';
+import { getSettings } from './aiService';
 
 const ProfileDropdown = () => {
   const [user, setUser] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [credits, setCredits] = useState(0);
-  const [isUnlimited, setIsUnlimited] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
-      if (currentUser) {
-        const settings = getSettings();
-        if (settings.providerType !== 'free') {
-          setIsUnlimited(true);
-        } else {
-          setIsUnlimited(false);
-          const used = await getCreditsUsed();
-          setCredits(used);
-        }
-      }
     });
     return () => unsubscribe();
   }, []);
-
-  // Poll for credit updates if dropdown is open
-  useEffect(() => {
-    if (profileOpen && user && !isUnlimited) {
-      getCreditsUsed().then(c => setCredits(c));
-    }
-  }, [profileOpen, user, isUnlimited]);
 
   return (
     <div style={{ position: 'relative' }}>
@@ -86,12 +67,7 @@ const ProfileDropdown = () => {
               </div>
             </div>
             
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem', fontWeight: 600, padding: '0.25rem 0.5rem' }}>
-              <span>Credits</span>
-              <span style={{ background: '#f3f4f6', padding: '0.2rem 0.6rem', borderRadius: '0.5rem', fontFamily: 'var(--font-mono)', color: isUnlimited ? '#10b981' : '#111827' }}>
-                {isUnlimited ? 'Unlimited' : `${credits} / 3`}
-              </span>
-            </div>
+
 
             <button 
               onClick={() => { setProfileOpen(false); navigate('/settings'); }}

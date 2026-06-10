@@ -1050,11 +1050,12 @@ def interpret_refine():
 
 @app.route('/api/generate-byok', methods=['POST'])
 def generate_byok():
-    """Proxy endpoint for BYOK Sarvam API calls. The user's API key is passed in the
-    request body and forwarded to Sarvam — never stored on the server."""
+    """Proxy endpoint for BYOK API calls. The user's API key is passed in the
+    request body and forwarded to the provider (Sarvam or Groq) — never stored on the server."""
     data = request.json
     user_api_key = data.get('apiKey', '')
     model = data.get('model', 'sarvam-105b')
+    provider = data.get('provider', 'sarvam')
     system_prompt = data.get('systemPrompt', '')
     user_message = data.get('userMessage', '')
     temperature = data.get('temperature', 0.2)
@@ -1079,8 +1080,13 @@ def generate_byok():
     }
 
     try:
+        if provider == 'groq':
+            url = "https://api.groq.com/openai/v1/chat/completions"
+        else:
+            url = "https://api.sarvam.ai/v1/chat/completions"
+
         response = requests.post(
-            "https://api.sarvam.ai/v1/chat/completions",
+            url,
             headers=headers,
             json=payload,
             timeout=30
@@ -1090,7 +1096,7 @@ def generate_byok():
         content = result['choices'][0]['message']['content'].strip()
         return jsonify({"content": content})
     except Exception as e:
-        print(f"BYOK proxy error: {e}")
+        print(f"BYOK proxy error for {provider}: {e}")
         return jsonify({"error": str(e)}), 500
 
 
