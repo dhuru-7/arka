@@ -210,6 +210,23 @@ const SHAPES = [
   { id: 'trapezoid', label: 'Trapezoid', icon: TrapezoidIcon, wrap: (t) => `[/${t}\\]` },
 ];
 
+const getInitialAgentRemarks = (steps, repairLog) => {
+  let remarks = "Hello! I am your diagram assistant. Here is a summary of how I generated this diagram:\n\n";
+  if (steps && steps.length > 0) {
+    remarks += "**Execution Steps:**\n";
+    steps.forEach(step => {
+      remarks += `- ${step}\n`;
+    });
+  }
+  const repairs = repairLog ? repairLog.filter(item => item.status === 'needs_repair').length : 0;
+  if (repairs > 0) {
+    remarks += `\n**Repairs:** I performed ${repairs} repair pass(es) to resolve syntax/rendering issues and ensure the diagram renders correctly.`;
+  } else {
+    remarks += `\n**Validation:** Static checks passed on the first attempt without requiring syntax repairs!`;
+  }
+  return remarks;
+};
+
 const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
   const navigate = useNavigate();
   const [mermaidCode, setMermaidCode] = useState('');
@@ -271,6 +288,76 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
   const [originalVisionPrompt, setOriginalVisionPrompt] = useState('');
   const [isVisionLoading, setIsVisionLoading] = useState(false);
 
+
+  // Chat states
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatInput, setChatInput] = useState('');
+  const [chatMessages, setChatMessages] = useState([]);
+  const chatEndRef = useRef(null);
+
+  // Scroll to bottom of chat
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatMessages, isRefining, isChatOpen]);
+
+  const handleSendChatMessage = async () => {
+    if (!chatInput.trim() || isRefining) return;
+    const userText = chatInput.trim();
+    setChatInput('');
+
+    // Add user message to chat
+    const updatedMessages = [...chatMessages, { sender: 'user', text: userText }];
+    setChatMessages(updatedMessages);
+
+    setIsRefining(true);
+    setDynamicLoadingText('Thinking...');
+
+    // Format history for the refinement engine
+    const formattedHistoryPrompt = `We are in a chat discussion refining this diagram.
+Here is our conversation history:
+${updatedMessages.map(m => `${m.sender === 'user' ? 'User' : 'Agent'}: ${m.text}`).join('\n')}
+
+Based on the latest request, update the diagram code. Output ONLY the updated Mermaid JS code.`;
+
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
+    try {
+      const byokResult = await agentRefineDiagram(formattedHistoryPrompt, mermaidCode, diagramType, {
+        visionPrompt,
+        selectedContext,
+        signal: abortController.signal,
+        onProgress: (step) => {
+          setDynamicLoadingText(step);
+        }
+      });
+
+      if (byokResult && byokResult.mermaid_code) {
+        const resultCode = byokResult.mermaid_code;
+        pushHistory(resultCode);
+
+        // Add agent response to chat
+        const remarks = byokResult.agent_steps && byokResult.agent_steps.length > 0
+          ? `I've updated the diagram. Here are the steps I took:\n${byokResult.agent_steps.map(s => `- ${s}`).join('\n')}`
+          : "I've successfully updated the diagram based on your request!";
+
+        setChatMessages(prev => [...prev, { sender: 'agent', text: remarks }]);
+      } else {
+        throw new Error("Invalid response from AI model");
+      }
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        setChatMessages(prev => [...prev, { sender: 'agent', text: "Request cancelled." }]);
+        return;
+      }
+      console.error("Chat Refine Error:", err);
+      setChatMessages(prev => [...prev, { sender: 'agent', text: `Failed to update diagram: ${err.message || "Unknown error"}` }]);
+    } finally {
+      setIsRefining(false);
+    }
+  };
 
   // Node/Edge selection
   const [selectedNode, setSelectedNode] = useState(null);
@@ -398,6 +485,7 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
         setHistory([savedCode]);
         setHistoryIndex(0);
         setAgentSteps(['Loaded saved diagram.']);
+        setChatMessages([{ sender: 'agent', text: "Hello! I loaded your saved diagram. How can I help you refine or modify it?" }]);
         if (savedVision) {
           setVisionPrompt(savedVision);
           setOriginalVisionPrompt(savedVision);
@@ -426,8 +514,11 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
           setMermaidCode(code);
           setHistory([code]);
           setHistoryIndex(0);
-          setAgentSteps(byokResult.agent_steps || ['Agent generated the diagram.']);
-          setAgentRepairLog(byokResult.repair_log || []);
+          const steps = byokResult.agent_steps || ['Agent generated the diagram.'];
+          const repairLog = byokResult.repair_log || [];
+          setAgentSteps(steps);
+          setAgentRepairLog(repairLog);
+          setChatMessages([{ sender: 'agent', text: getInitialAgentRemarks(steps, repairLog) }]);
           if (Array.isArray(byokResult.suggestions)) {
             setSuggestions(byokResult.suggestions);
             setCurrentSugIdx(0);
@@ -669,7 +760,7 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
     return 'rect';
   };
 
-  const clearSelection = () => {
+  const clearSelection = (keepChatOpen = false) => {
     if (canvasRef.current) {
       canvasRef.current.querySelectorAll('.node-selected').forEach(n => n.classList.remove('node-selected'));
       canvasRef.current.querySelectorAll('.edge-selected').forEach(e => e.classList.remove('edge-selected'));
@@ -682,6 +773,9 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
     setAddNodeText('');
     setAddNodeShape('rect');
     setSidebarMode('edit');
+    if (!keepChatOpen) {
+      setIsChatOpen(false);
+    }
   };
 
   /* ─── Add New Node ─── */
@@ -1329,6 +1423,24 @@ ${mermaidCode}`;
               </AnimatePresence>
             </div>
 
+            {/* Sidechat Toggle Button */}
+            <button
+              className={`chat-toggle-btn ${isChatOpen ? 'active' : ''}`}
+              title="Agent Chat"
+              onClick={() => {
+                const nextChatOpen = !isChatOpen;
+                setIsChatOpen(nextChatOpen);
+                setIsRefineOpen(false);
+                setIsExportOpen(false);
+                setPngBgChoice(null);
+                clearSelection(true);
+              }}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill={isChatOpen ? "#fff" : "#e3e3e3"}>
+                <path d="M272-160q-30 0-51-21t-21-51q0-21 12-39.5t32-26.5l156-62v-90q-54 63-125.5 96.5T120-320v-80q68 0 123.5-28T344-508l54-64q12-14 28-21t34-7h40q18 0 34 7t28 21l54 64q45 52 100.5 80T840-400v80q-83 0-154.5-33.5T560-450v90l156 62q20 8 32 26.5t12 39.5q0 30-21 51t-51 21H400v-20q0-26 17-43t43-17h120q9 0 14.5-5.5T600-260q0-9-5.5-14.5T580-280H460q-42 0-71 29t-29 71v20h-88Zm151.5-503.5Q400-687 400-720t23.5-56.5Q447-800 480-800t56.5 23.5Q560-753 560-720t-23.5 56.5Q513-640 480-640t-56.5-23.5Z"/>
+              </svg>
+            </button>
+
             {/* Export */}
             <div className="export-dropdown-container">
               <button className="export-btn" onClick={() => { setIsExportOpen(!isExportOpen); setPngBgChoice(null); setIsRefineOpen(false); }}>
@@ -1549,20 +1661,6 @@ ${mermaidCode}`;
           </div>
         )}
 
-        {!isLoading && mermaidCode && (agentSteps.length > 0 || agentRepairLog.length > 0) && (
-          <div className="agent-status-panel">
-            <div className="agent-status-title">Agent Run</div>
-            {agentSteps.slice(-3).map((step, idx) => (
-              <div className="agent-status-line" key={`${step}-${idx}`}>{step}</div>
-            ))}
-            {agentRepairLog.length > 0 && (
-              <div className="agent-status-line muted">
-                {agentRepairLog.filter(item => item.status === 'needs_repair').length} repair pass(es), final validation ready.
-              </div>
-            )}
-          </div>
-        )}
-
       </div>
 
       {/* ─── Right Sidebar (Node Edit / Add Node) ─── */}
@@ -1694,6 +1792,76 @@ ${mermaidCode}`;
               </div>
             </div>
             <button className="popover-apply-btn" onClick={clearSelection}><Check size={17} /> Done</button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ─── Right Sidebar (Agent Chat) ─── */}
+      <AnimatePresence>
+        {isChatOpen && (
+          <motion.div className="chat-sidebar"
+            initial={{ x: '100%', opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: '100%', opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 260, damping: 20 }}>
+            
+            <div className="popover-header">
+              <span className="popover-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className="agent-status-dot"></span>
+                {getProviderLabel()}
+              </span>
+              <button className="popover-close" onClick={() => setIsChatOpen(false)}><X size={18} /></button>
+            </div>
+            
+            <div className="chat-messages-container">
+              {chatMessages.map((msg, idx) => (
+                <div key={idx} className={`chat-message-bubble ${msg.sender}`}>
+                  <div className="chat-message-header">
+                    {msg.sender === 'user' ? 'You' : getProviderLabel()}
+                  </div>
+                  <div className="chat-message-text">
+                    {msg.text.split('\n').map((line, lIdx) => (
+                      <React.Fragment key={lIdx}>
+                        {line}
+                        <br />
+                      </React.Fragment>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {isRefining && (
+                <div className="chat-message-bubble agent">
+                  <div className="chat-message-header">{getProviderLabel()}</div>
+                  <div className="chat-message-text typing-indicator">
+                    <span></span><span></span><span></span>
+                  </div>
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+            
+            <div className="chat-input-area">
+              <textarea
+                className="chat-input-textarea"
+                value={chatInput}
+                onChange={e => setChatInput(e.target.value)}
+                placeholder="Ask agent to change the diagram..."
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendChatMessage();
+                  }
+                }}
+              />
+              <button 
+                className="chat-send-btn" 
+                onClick={handleSendChatMessage}
+                disabled={!chatInput.trim() || isRefining}
+              >
+                Send
+              </button>
+            </div>
+            
           </motion.div>
         )}
       </AnimatePresence>
