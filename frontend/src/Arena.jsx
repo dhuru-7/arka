@@ -519,11 +519,16 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
       }
     }
 
+    let errorInstruction = '';
+    if (renderError) {
+      errorInstruction = `\n\n[CRITICAL] RENDER ERROR DETECTED: The current Mermaid JS code failed to render in the user's browser with the following error: "${renderError}". Please address and resolve this syntax error immediately in your suggestions/proposals.`;
+    }
+
     const systemPrompt = `You are Arka's diagram planning assistant.
 You are helping the user design and refine a ${diagramType} diagram.
 Current Mermaid JS code:
 ${displayMermaidCode}
-${contextInstructions}
+${contextInstructions}${errorInstruction}
 
 Your task is to discuss, brainstorm, and plan changes with the user.
 Follow these formatting and response rules strictly:
