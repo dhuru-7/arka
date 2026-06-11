@@ -100,10 +100,20 @@ function resolveModels(purpose) {
 
 // ─── Gemini direct call ───
 
-async function callGemini(apiKey, model, systemPrompt, userMessage, temperature = 0.2, maxTokens = 2500, signal) {
+async function callGemini(apiKey, model, systemPrompt, userMessage, temperature = 0.2, maxTokens = 2500, signal, imageBase64) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const parts = [{ text: userMessage }];
+  if (imageBase64) {
+    const base64Data = imageBase64.split(',')[1];
+    parts.push({
+      inlineData: {
+        mimeType: 'image/png',
+        data: base64Data
+      }
+    });
+  }
   const body = {
-    contents: [{ role: 'user', parts: [{ text: userMessage }] }],
+    contents: [{ role: 'user', parts }],
     systemInstruction: { parts: [{ text: systemPrompt }] },
     generationConfig: { temperature, maxOutputTokens: maxTokens }
   };
@@ -151,7 +161,12 @@ async function callGroq(apiKey, model, systemPrompt, userMessage, temperature = 
 
 // ─── Ollama local call ───
 
-async function callOllama(url, model, systemPrompt, userMessage, signal) {
+async function callOllama(url, model, systemPrompt, userMessage, signal, imageBase64) {
+  const images = [];
+  if (imageBase64) {
+    const base64Data = imageBase64.split(',')[1];
+    images.push(base64Data);
+  }
   const res = await fetch(`${url}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -159,7 +174,7 @@ async function callOllama(url, model, systemPrompt, userMessage, signal) {
       model,
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: userMessage }
+        { role: 'user', content: userMessage, ...(images.length > 0 ? { images } : {}) }
       ],
       stream: false
     }),
@@ -384,24 +399,10 @@ export async function agentGenerateDiagram(prompt, diagramType, options = {}) {
   }, options.onProgress, options.signal);
 }
 
-export async function agentInterpretRefine(prompt, mermaidCode, diagramType, options = {}) {
-  const providerPayload = buildAgentProviderPayload('generate');
-
-  if (providerPayload.provider === 'local' || providerPayload.provider === 'gemini') {
-    return {
-      confirmation: `I'll update the diagram based on: ${prompt}`,
-      technical_instructions: prompt
-    };
-  }
-
-  return callAgentEndpoint('/api/agent/interpret-refine', {
-    prompt,
-    mermaid_code: mermaidCode,
-    diagramType,
-    vision_prompt: options.visionPrompt || '',
-    selected_context: options.selectedContext || [],
-    ...providerPayload
-  }, options.signal);
+export function hasVisionCapability(provider, model) {
+  if (provider === 'gemini') return true;
+  if (model && (model.toLowerCase().includes('gemma4') || model.toLowerCase().includes('vision'))) return true;
+  return false;
 }
 
 export async function agentRefineDiagram(prompt, mermaidCode, diagramType, options = {}) {
@@ -421,26 +422,64 @@ export async function agentRefineDiagram(prompt, mermaidCode, diagramType, optio
     prompt,
     mermaid_code: mermaidCode,
     diagramType,
-    vision_prompt: options.visionPrompt || '',
     selected_context: options.selectedContext || [],
     ...providerPayload
   }, options.onProgress, options.signal);
 }
 
-export async function agentSuggestImprovements(prompt, mermaidCode, diagramType, options = {}) {
-  const providerPayload = buildAgentProviderPayload('generate');
-
-  if (providerPayload.provider === 'local' || providerPayload.provider === 'gemini') {
-    return null;
+export async function agentChat(systemPrompt, userMessage, signal, imageBase64) {
+  let providerPayload = {};
+  try {
+    providerPayload = buildAgentProviderPayload('generate');
+  } catch (e) {
+    providerPayload = { provider: 'free' };
   }
 
-  return callAgentEndpoint('/api/agent/suggestions', {
-    prompt,
-    mermaid_code: mermaidCode,
-    diagramType,
-    vision_prompt: options.visionPrompt || '',
-    ...providerPayload
-  }, options.signal);
+  const modelHasVision = hasVisionCapability(providerPayload.provider, providerPayload.model);
+
+  if (providerPayload.provider === 'local') {
+    return callOllama(
+      providerPayload.localUrl,
+      providerPayload.model,
+      systemPrompt,
+      userMessage,
+      signal,
+      modelHasVision ? imageBase64 : null
+    );
+  }
+
+  if (providerPayload.provider === 'gemini') {
+    return callGemini(
+      providerPayload.apiKey,
+      providerPayload.model,
+      systemPrompt,
+      userMessage,
+      0.3,
+      1500,
+      signal,
+      modelHasVision ? imageBase64 : null
+    );
+  }
+
+  const res = await fetch('/api/agent/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      system_prompt: systemPrompt,
+      user_message: userMessage,
+      image_base64: modelHasVision ? imageBase64 : null,
+      ...providerPayload
+    }),
+    signal
+  });
+  
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `Agent Chat error: ${res.status}`);
+  }
+  
+  const data = await res.json();
+  return data.content;
 }
 
 function buildGeneratePrompt(diagramType) {

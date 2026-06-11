@@ -267,39 +267,7 @@ class DiagramAgent:
             "agent_steps": progress,
         }
 
-    def interpret_refine(self, prompt, mermaid_code, diagram_type, vision_prompt="", selected_context=None):
-        diagram_type = normalize_type(diagram_type) or "flowchart"
-        knowledge = self.load_knowledge(diagram_type)
-        context = json.dumps(selected_context or [], ensure_ascii=False)
-        system_prompt = (
-            "You are Arka's refinement planning agent. Do not modify code yet. "
-            "Explain exactly what you will implement, then produce technical instructions for the next agent step. "
-            "Return ONLY JSON with confirmation and technical_instructions."
-        )
-        user_prompt = (
-            f"DIAGRAM TYPE: {diagram_type}\n"
-            f"KNOWLEDGE RULES:\n{knowledge[:1800]}\n\n"
-            f"VISION CONTEXT:\n{vision_prompt[:1500]}\n\n"
-            f"SELECTED CANVAS CONTEXT:\n{context}\n\n"
-            f"CURRENT CODE:\n{mermaid_code}\n\n"
-            f"USER REFINEMENT REQUEST:\n{prompt}"
-        )
-        try:
-            content = self.call_model(system_prompt, user_prompt, temperature=0.2, max_tokens=700)
-            data = parse_json_object(content)
-            confirmation = str(data.get("confirmation") or "").strip()
-            technical = str(data.get("technical_instructions") or "").strip()
-        except Exception:
-            confirmation = ""
-            technical = ""
-
-        if not confirmation:
-            confirmation = f"I'll update the {readable_type(diagram_type)} based on your request: {prompt.strip()}"
-        if not technical:
-            technical = prompt
-        return {"confirmation": confirmation[:360], "technical_instructions": technical}
-
-    def refine(self, prompt, mermaid_code, diagram_type, vision_prompt="", selected_context=None, max_attempts=3, on_progress=None):
+    def refine(self, prompt, mermaid_code, diagram_type, selected_context=None, max_attempts=3, on_progress=None):
         diagram_type = normalize_type(diagram_type) or "flowchart"
         knowledge = self.load_knowledge(diagram_type)
         docs = ""
@@ -319,7 +287,6 @@ class DiagramAgent:
                 system_prompt = build_refine_prompt(diagram_type, knowledge)
                 user_prompt = (
                     f"CURRENT MERMAID CODE:\n{mermaid_code}\n\n"
-                    f"VISION CONTEXT:\n{vision_prompt[:1500]}\n\n"
                     f"SELECTED CONTEXT:\n{json.dumps(selected_context or [], ensure_ascii=False)}\n\n"
                     f"REFINEMENT INSTRUCTION:\n{prompt}\n\n"
                     "Return the complete updated Mermaid code."
@@ -375,45 +342,15 @@ class DiagramAgent:
         if not validation["valid"]:
             raise RuntimeError("Agent could not repair refined Mermaid code:\n" + format_issues_for_prompt(validation["issues"]))
 
-        try:
-            suggestions = self.suggest_improvements("", code, diagram_type, vision_prompt)
-        except Exception:
-            suggestions = []
         return {
             "mermaid_code": code,
             "diagram_type": diagram_type,
             "validation": validation,
             "repair_log": repair_log,
-            "suggestions": suggestions,
+            "suggestions": [],
             "agent_steps": progress,
         }
 
-    def suggest_improvements(self, prompt, mermaid_code, diagram_type, vision_prompt=""):
-        diagram_type = normalize_type(diagram_type) or "flowchart"
-        knowledge = self.load_knowledge(diagram_type)
-        system_prompt = (
-            "You are a diagram quality agent. Suggest 5 concise improvements for this diagram. "
-            "Return ONLY a JSON list of strings. Include: missing structural details, readability, layout, labels, and color/style. "
-            "Each string must be actionable and under 16 words."
-        )
-        user_prompt = (
-            f"DIAGRAM TYPE: {diagram_type}\n"
-            f"USER PROMPT: {prompt}\n"
-            f"VISION CONTEXT: {vision_prompt[:1000]}\n"
-            f"KNOWLEDGE RULES:\n{knowledge[:1200]}\n"
-            f"CURRENT CODE:\n{mermaid_code}"
-        )
-        try:
-            content = self.call_model(system_prompt, user_prompt, temperature=0.45, max_tokens=700)
-            match = re.search(r"\[.*\]", content, re.DOTALL)
-            suggestions = json.loads(match.group(0)) if match else []
-            suggestions = [str(item).strip() for item in suggestions if str(item).strip()][:5]
-        except Exception:
-            suggestions = []
-
-        if len(suggestions) < 3:
-            raise RuntimeError("Agent did not return enough improvement suggestions.")
-        return suggestions
 
     def load_knowledge(self, diagram_type):
         filename = KNOWLEDGE_FILES.get(diagram_type)

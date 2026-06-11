@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { History, Trash2, Plus, User, Download, Palette, MousePointer2, Move, Undo, Redo, ZoomIn, ZoomOut, Maximize, X, Check, ChevronDown, Image, FileCode, FileText, FileImage, Code2, Plus as PlusIcon, Minus, Cpu, Square, Circle, Hexagon, Database, MessageSquare, Box, ArrowRight, Eye, RefreshCw, Loader2, Brush } from './googleIcons';
+import { History, Trash2, Plus, User, Download, Palette, MousePointer2, Move, Undo, Redo, ZoomIn, ZoomOut, Maximize, X, Check, ChevronDown, Image, FileCode, FileText, FileImage, Code2, Plus as PlusIcon, Minus, Cpu, Square, Circle, Hexagon, Database, MessageSquare, Box, ArrowRight, Brush } from './googleIcons';
 import { motion, AnimatePresence } from 'framer-motion';
 import ProfileDropdown from './ProfileDropdown';
 import { auth, db } from './firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { agentGenerateDiagram, agentInterpretRefine, agentRefineDiagram, agentSuggestImprovements, getProviderLabel } from './aiService';
+import { agentGenerateDiagram, agentRefineDiagram, getProviderLabel, agentChat } from './aiService';
 import './Arena.css';
 
 let mermaidPromise = null;
@@ -297,6 +297,101 @@ const renderMarkdown = (text) => {
   });
 };
 
+const TypewriterText = ({ text, onComplete }) => {
+  const [displayedText, setDisplayedText] = useState('');
+  
+  useEffect(() => {
+    let index = 0;
+    setDisplayedText('');
+    const timer = setInterval(() => {
+      index += 4;
+      if (index >= text.length) {
+        setDisplayedText(text);
+        clearInterval(timer);
+        if (onComplete) onComplete();
+      } else {
+        setDisplayedText(text.slice(0, index));
+      }
+      
+      const container = document.querySelector('.chat-messages-container');
+      if (container) {
+        container.scrollTop = container.scrollHeight;
+      }
+    }, 15);
+    return () => clearInterval(timer);
+  }, [text]);
+
+  return <>{renderMarkdown(displayedText)}</>;
+};
+
+const AgentChatMessage = ({ msg, canClickPlan, handleProceedWithPlan, idx, onTypingComplete }) => {
+  const isTyping = msg.typed === false;
+  const [typingComplete, setTypingComplete] = useState(msg.typed !== false);
+  const [isClicked, setIsClicked] = useState(msg.clicked);
+
+  useEffect(() => {
+    setTypingComplete(msg.typed !== false);
+  }, [msg.typed]);
+
+  useEffect(() => {
+    setIsClicked(msg.clicked);
+  }, [msg.clicked]);
+
+  const handleComplete = () => {
+    setTypingComplete(true);
+    if (onTypingComplete) {
+      onTypingComplete(idx);
+    }
+  };
+
+  const showPlanActive = canClickPlan && !isClicked;
+
+  return (
+    <div className={`chat-message-bubble ${msg.sender}`}>
+      <div className="chat-message-text">
+        {isTyping ? (
+          <TypewriterText text={msg.text} onComplete={handleComplete} />
+        ) : (
+          renderMarkdown(msg.text)
+        )}
+      </div>
+      {msg.proposal && typingComplete && (
+        <div className="chat-proposal-container" style={{ marginTop: '0.75rem' }}>
+          <motion.div 
+            initial={{ opacity: 0, y: 5, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className={`suggestion-card ${showPlanActive ? 'magical-glow' : 'disabled'}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              if (showPlanActive) {
+                setIsClicked(true);
+                handleProceedWithPlan(idx, msg.proposal);
+              }
+            }}
+            style={{
+              cursor: showPlanActive ? 'pointer' : 'default',
+              opacity: showPlanActive ? 1 : 0.65,
+              pointerEvents: showPlanActive ? 'auto' : 'none'
+            }}
+          >
+            <p style={{ fontWeight: 600 }}>{msg.proposal}</p>
+            {msg.clicked || isClicked ? (
+              <div className="sug-apply-hint" style={{ opacity: 1, color: '#10b981' }}>Applied</div>
+            ) : showPlanActive ? (
+              <div className="sug-apply-hint" style={{ opacity: 1 }}>Click to proceed</div>
+            ) : (
+              <div className="sug-apply-hint" style={{ opacity: 1, color: '#9ca3af' }}>Unavailable</div>
+            )}
+          </motion.div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+
 const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
   const navigate = useNavigate();
   const [mermaidCode, setMermaidCode] = useState('');
@@ -317,17 +412,17 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [isNavHovered, setIsNavHovered] = useState(false);
 
-  // Refine state
-  const [isRefineOpen, setIsRefineOpen] = useState(false);
-  const [refinePrompt, setRefinePrompt] = useState('');
+  // Diagram update state
   const [isRefining, setIsRefining] = useState(false);
   const [isRendering, setIsRendering] = useState(false);
-  const [isInterpreting, setIsInterpreting] = useState(false);
+  const abortControllerRef = useRef(null);
+
+  // Brush/Highlight states
   const [isBrushing, setIsBrushing] = useState(false);
   const [brushPath, setBrushPath] = useState([]);
   const [selectedContext, setSelectedContext] = useState([]);
-  const [interpretation, setInterpretation] = useState(null);
-  const abortControllerRef = useRef(null);
+  const [highlightImage, setHighlightImage] = useState(null);
+  const brushPathRef = useRef([]);
 
   const handleCancelRequest = () => {
     if (abortControllerRef.current) {
@@ -343,27 +438,20 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
 
   const [dynamicLoadingText, setDynamicLoadingText] = useState('Starting diagram agent...');
 
-  // Suggestion Engine State
-  const [suggestions, setSuggestions] = useState([]);
-  const [currentSugIdx, setCurrentSugIdx] = useState(0);
-  const [isSugLoading, setIsSugLoading] = useState(false);
-  const [lastSuggestedCode, setLastSuggestedCode] = useState('');
+  // Agent State
   const [agentSteps, setAgentSteps] = useState([]);
   const [agentRepairLog, setAgentRepairLog] = useState([]);
   const [agentError, setAgentError] = useState('');
-
-  // Vision Engine State
-  const [isVisionModalOpen, setIsVisionModalOpen] = useState(false);
-  const [visionPrompt, setVisionPrompt] = useState('');
-  const [originalVisionPrompt, setOriginalVisionPrompt] = useState('');
-  const [isVisionLoading, setIsVisionLoading] = useState(false);
 
 
   // Chat states
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState([]);
+  const [isChatLoading, setIsChatLoading] = useState(false);
   const chatEndRef = useRef(null);
+  const chatInputRef = useRef(null);
+  const isProceedingPlanRef = useRef(false);
 
   const getShortAgentName = () => {
     const label = getProviderLabel();
@@ -378,33 +466,156 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
     if (chatEndRef.current) {
       chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [chatMessages, isRefining, isChatOpen]);
+  }, [chatMessages, isChatLoading, isChatOpen]);
+
+  // Mark all messages as typed when chat is closed to prevent re-triggering typing animations
+  useEffect(() => {
+    if (!isChatOpen) {
+      setChatMessages(prev => prev.map(m => ({ ...m, typed: true })));
+    }
+  }, [isChatOpen]);
+
+  const handleInputChange = (e) => {
+    setChatInput(e.target.value);
+    const textarea = e.target;
+    textarea.style.height = 'auto';
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 80)}px`;
+  };
 
   const handleSendChatMessage = async () => {
-    if (!chatInput.trim() || isRefining) return;
+    if (!chatInput.trim() || isChatLoading) return;
     const userText = chatInput.trim();
     setChatInput('');
+    if (chatInputRef.current) {
+      chatInputRef.current.style.height = 'auto';
+    }
 
     // Add user message to chat
     const updatedMessages = [...chatMessages, { sender: 'user', text: userText }];
     setChatMessages(updatedMessages);
 
-    setIsRefining(true);
-    setDynamicLoadingText('Thinking...');
+    setIsChatLoading(true);
 
-    // Format history for the refinement engine
-    const formattedHistoryPrompt = `We are in a chat discussion refining this diagram.
-Here is our conversation history:
-${updatedMessages.map(m => `${m.sender === 'user' ? 'User' : 'Agent'}: ${m.text}`).join('\n')}
+    // Format history for planning and discussion
+    let displayMermaidCode = mermaidCode;
+    let contextInstructions = '';
+    if (selectedContext && selectedContext.length > 0) {
+      const nodeLabels = [...new Set(selectedContext.filter(s => s.type === 'node').map(s => s.label))];
+      const edgeLabels = [...new Set(selectedContext.filter(s => s.type === 'edge').map(s => s.label))];
+      
+      let contextStr = "";
+      if (nodeLabels.length > 0) contextStr += `Focusing on components: ${nodeLabels.join(', ')}. `;
+      if (edgeLabels.length > 0) contextStr += `Focusing on connections: ${edgeLabels.join(', ')}. `;
+      
+      contextInstructions = `\n\nNote: The user has highlighted the following elements on the diagram canvas: ${contextStr}Please address these highlighted components specifically in your response and plan.`;
 
-Based on the latest request, update the diagram code. Output ONLY the updated Mermaid JS code.`;
+      // Highlight in code for non-vision models:
+      const highlightStyles = selectedContext
+        .filter(item => item.type === 'node')
+        .map(item => `style ${item.id} stroke:#3b82f6,stroke-width:3px,stroke-dasharray: 8 8`)
+        .join('\n');
+      if (highlightStyles) {
+        displayMermaidCode = mermaidCode.trimEnd() + '\n' + highlightStyles;
+      }
+    }
+
+    const systemPrompt = `You are Arka's diagram planning assistant.
+You are helping the user design and refine a ${diagramType} diagram.
+Current Mermaid JS code:
+${displayMermaidCode}
+${contextInstructions}
+
+Your task is to discuss, brainstorm, and plan changes with the user.
+- If the user is just saying hello, discussing, or asking questions, answer them in a helpful, conversational manner.
+- If the user wants to make a change or update to the diagram, describe the plan of changes in text first, and then append a distinct proposal block wrapped in [PROPOSAL] and [/PROPOSAL] at the end of your response.
+- If the user is NOT requesting diagram updates (e.g. asking general questions, greeting you, or reporting browser display problems), DO NOT output a [PROPOSAL] block.
+- Inside the [PROPOSAL] ... [/PROPOSAL] tags, write a concise, one-line instruction of what to update (e.g., "Add a validation node and connect it between Ingestion and Process").
+- Do NOT output raw Mermaid JS code in the chat. The user will click the proposal card to apply the changes.
+
+DIRECT CODE ACCESS RULES:
+- You have direct, real-time access to the current diagram code (displayed above under "Current Mermaid JS code").
+- If the user says "I see nothing on the screen", "the diagram is blank", "I'm seeing a render error", or similar, DO NOT ask them to share or paste their code. You already have it in your prompt context!
+- Look at the "Current Mermaid JS code":
+  1. If the current code is empty or has only a starting line, explain that no diagram has been generated yet, and offer to create one.
+  2. If the current code is fully valid and correct, explain that the Mermaid code itself appears completely correct and valid, and suggest browser-side troubleshooting steps like refreshing the page, resizing the window, or trying a different browser.
+  3. If the current code has syntax errors or is broken, analyze the code, identify the issue, and output a [PROPOSAL] block to fix it.
+
+Example:
+User: "Add a database node"
+Response: "I will add a new Database component to store records.
+[PROPOSAL] Add a database node and connect it from the API Service [/PROPOSAL]"`;
+
+    const userMessageWithHistory = `Here is our conversation history:
+${updatedMessages.slice(0, -1).map(m => `${m.sender === 'user' ? 'User' : 'Agent'}: ${m.text}`).join('\n')}
+User's latest message: ${userText}`;
 
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
 
     try {
-      const byokResult = await agentRefineDiagram(formattedHistoryPrompt, mermaidCode, diagramType, {
-        visionPrompt,
+      const result = await agentChat(systemPrompt, userMessageWithHistory, abortController.signal, highlightImage);
+      
+      let replyText = result;
+      let proposalText = null;
+
+      // Clean thinking blocks from reasoning models
+      replyText = replyText.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+
+      // Extract proposal block if present
+      const proposalMatch = replyText.match(/\[PROPOSAL\]([\s\S]*?)\[\/PROPOSAL\]/);
+      if (proposalMatch) {
+        proposalText = proposalMatch[1].trim();
+        replyText = replyText.replace(/\[PROPOSAL\][\s\S]*?\[\/PROPOSAL\]/, '').trim();
+      }
+
+      setChatMessages(prev => {
+        const next = [...prev, { sender: 'agent', text: replyText, proposal: proposalText, clicked: false, typed: false }];
+        return next;
+      });
+
+      // Clear highlights after sending the message
+      if (canvasRef.current) {
+        canvasRef.current.querySelectorAll('.node-brush-selected, .edge-brush-highlight').forEach(el => {
+          el.classList.remove('node-brush-selected', 'edge-brush-highlight');
+        });
+      }
+      setBrushPath([]);
+      brushPathRef.current = [];
+      setSelectedContext([]);
+      setHighlightImage(null);
+
+    } catch (err) {
+      if (err.name === 'AbortError') return;
+      console.error("Chat Error:", err);
+      setChatMessages(prev => {
+        const next = [...prev, { sender: 'agent', text: `Failed to get a response: ${err.message || "Unknown error"}` }];
+        return next;
+      });
+    } finally {
+      setIsChatLoading(false);
+    }
+  };
+
+  const handleTypingComplete = (msgIdx) => {
+    setChatMessages(prev => prev.map((m, i) => i === msgIdx ? { ...m, typed: true } : m));
+  };
+
+  const handleProceedWithPlan = async (msgIdx, proposalText) => {
+    if (msgIdx !== chatMessages.length - 1 || chatMessages[msgIdx].clicked || isRefining || isLoading || isProceedingPlanRef.current) return;
+    isProceedingPlanRef.current = true;
+
+    // Mark as clicked
+    setChatMessages(prev => prev.map((m, i) => i === msgIdx ? { ...m, clicked: true } : m));
+
+    // Show full-screen loader ONLY during diagram update
+    setIsRefining(true);
+    setDynamicLoadingText('Updating diagram...');
+
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
+    try {
+      const byokResult = await agentRefineDiagram(proposalText, mermaidCode, diagramType, {
         selectedContext,
         signal: abortController.signal,
         onProgress: (step) => {
@@ -416,24 +627,33 @@ Based on the latest request, update the diagram code. Output ONLY the updated Me
         const resultCode = byokResult.mermaid_code;
         pushHistory(resultCode);
 
-        // Add agent response to chat
         const remarks = byokResult.agent_steps && byokResult.agent_steps.length > 0
-          ? `I've updated the diagram. Here are the steps I took:\n${byokResult.agent_steps.map(s => `- ${s}`).join('\n')}`
-          : "I've successfully updated the diagram based on your request!";
+          ? `I've successfully updated the diagram. Here is what I did:\n${byokResult.agent_steps.map(s => `- ${s}`).join('\n')}`
+          : "I've successfully updated the diagram!";
 
-        setChatMessages(prev => [...prev, { sender: 'agent', text: remarks }]);
+        setChatMessages(prev => {
+          const next = [...prev, { sender: 'agent', text: remarks, typed: false }];
+          return next;
+        });
       } else {
         throw new Error("Invalid response from AI model");
       }
     } catch (err) {
       if (err.name === 'AbortError') {
-        setChatMessages(prev => [...prev, { sender: 'agent', text: "Request cancelled." }]);
+        setChatMessages(prev => {
+          const next = [...prev, { sender: 'agent', text: "Request cancelled." }];
+          return next;
+        });
         return;
       }
-      console.error("Chat Refine Error:", err);
-      setChatMessages(prev => [...prev, { sender: 'agent', text: `Failed to update diagram: ${err.message || "Unknown error"}` }]);
+      console.error("Chat Proposal Apply Error:", err);
+      setChatMessages(prev => {
+        const next = [...prev, { sender: 'agent', text: `Failed to update diagram: ${err.message || "Unknown error"}` }];
+        return next;
+      });
     } finally {
       setIsRefining(false);
+      isProceedingPlanRef.current = false;
     }
   };
 
@@ -463,67 +683,148 @@ Based on the latest request, update the diagram code. Output ONLY the updated Me
   // Right sidebar mode: 'edit' or 'add'
   const [sidebarMode, setSidebarMode] = useState('edit');
 
-  const handleVisionClick = async () => {
-    setIsVisionModalOpen(true);
-    if (!visionPrompt) {
-      setIsVisionLoading(true);
-      try {
-        const res = await fetch('/api/vision', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt, diagramType })
-        });
-        const data = await res.json();
-        if (data.polished_prompt) {
-          setVisionPrompt(data.polished_prompt);
-          setOriginalVisionPrompt(data.polished_prompt);
+  const getCanvasImageBase64 = async () => {
+    const svgEl = canvasRef.current?.querySelector('svg');
+    if (!svgEl) return null;
+    const clone = svgEl.cloneNode(true);
+    
+    // Set dimensions
+    const box = clone.viewBox.baseVal;
+    if (box.width > 0) {
+      clone.setAttribute('width', box.width);
+      clone.setAttribute('height', box.height);
+    }
+    
+    const data = new XMLSerializer().serializeToString(clone);
+    
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new window.Image();
+      img.onload = () => {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        
+        // Draw background
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw diagram
+        ctx.drawImage(img, 0, 0);
+        
+        // Draw the brush path
+        if (brushPathRef.current && brushPathRef.current.length > 1) {
+          const rect = svgEl.getBoundingClientRect();
+          
+          ctx.strokeStyle = '#38bdf8';
+          ctx.lineWidth = 4;
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          ctx.beginPath();
+          
+          brushPathRef.current.forEach((p, idx) => {
+            const x = (p.x - rect.left) * (box.width / rect.width);
+            const y = (p.y - rect.top) * (box.height / rect.height);
+            if (idx === 0) {
+              ctx.moveTo(x, y);
+            } else {
+              ctx.lineTo(x, y);
+            }
+          });
+          ctx.stroke();
         }
-      } catch (err) {
-        console.error("Vision Error:", err);
-      } finally {
-        setIsVisionLoading(false);
-      }
+        
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(data)));
+    });
+  };
+
+  const startBrushing = (e) => {
+    setIsBrushing(true);
+    const coords = { x: e.clientX, y: e.clientY };
+    setBrushPath([coords]);
+    brushPathRef.current = [coords];
+    setSelectedContext([]);
+    setHighlightImage(null);
+    if (canvasRef.current) {
+      canvasRef.current.querySelectorAll('.node-brush-selected, .edge-brush-highlight').forEach(el => {
+        el.classList.remove('node-brush-selected', 'edge-brush-highlight');
+      });
     }
   };
 
-  const handleVisionRegenerate = async () => {
-    if (!visionPrompt || visionPrompt === originalVisionPrompt) return;
+  const continueBrushing = (e) => {
+    if (!isBrushing) return;
+    const coords = { x: e.clientX, y: e.clientY };
+    setBrushPath(prev => {
+      const next = [...prev, coords];
+      brushPathRef.current = next;
+      return next;
+    });
+  };
 
-    // Extract diagram type if possible
-    const lines = visionPrompt.split('\n');
-    let extractedType = diagramType;
-    for (const line of lines.slice(0, 5)) {
-      if (line.toLowerCase().startsWith('diagram type:')) {
-        const typeStr = line.split(':')[1].trim().toLowerCase();
-        const supported = ['flowchart', 'architecture', 'xy', 'pie', 'sequence', 'erDiagram', 'gantt'];
-        if (supported.includes(typeStr)) {
-          extractedType = typeStr;
-        } else if (typeStr === 'er diagram') {
-          extractedType = 'erDiagram';
+  const endBrushing = async () => {
+    if (!isBrushing) return;
+    setIsBrushing(false);
+
+    const nodes = canvasRef.current?.querySelectorAll('.node') || [];
+    const edges = canvasRef.current?.querySelectorAll('.edgePath') || [];
+    const selection = [];
+
+    const bounds = brushPathRef.current.reduce((acc, p) => ({
+      minX: Math.min(acc.minX, p.x),
+      maxX: Math.max(acc.maxX, p.x),
+      minY: Math.min(acc.minY, p.y),
+      maxY: Math.max(acc.maxY, p.y)
+    }), { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity });
+
+    nodes.forEach(node => {
+      const rect = node.getBoundingClientRect();
+      const intersects = !(rect.right < bounds.minX || rect.left > bounds.maxX || rect.bottom < bounds.minY || rect.top > bounds.maxY);
+      if (intersects) {
+        node.classList.add('node-brush-selected');
+        const labelEl = node.querySelector('.nodeLabel') || node.querySelector('span') || node.querySelector('text');
+        const label = labelEl ? labelEl.textContent.trim() : node.id;
+        const rawId = node.id || '';
+        let nodeId = rawId;
+        const match = rawId.match(/flowchart-(.+?)-\d+/);
+        if (match) nodeId = match[1];
+        selection.push({ type: 'node', label, id: nodeId, rawId });
+      }
+    });
+
+    edges.forEach(edge => {
+      const rect = edge.getBoundingClientRect();
+      const intersects = !(rect.right < bounds.minX || rect.left > bounds.maxX || rect.bottom < bounds.minY || rect.top > bounds.maxY);
+      if (intersects) {
+        edge.classList.add('edge-brush-highlight');
+        let label = "connection";
+        const edgeIdParts = edge.id.split('-');
+        if (edgeIdParts.length > 2) {
+          label = `${edgeIdParts[0]} to ${edgeIdParts[1]}`;
         }
+        const enclosingGroup = edge.closest('.edgeTerminals, .edgePaths')?.parentNode;
+        if (enclosingGroup) {
+          const labelEl = enclosingGroup.querySelector('.edgeLabel');
+          if (labelEl) label = labelEl.textContent;
+        }
+        selection.push({ type: 'edge', label: label.trim(), id: edge.id });
       }
-    }
+    });
 
-    setIsVisionLoading(true);
-    try {
-      // We'll reuse the logic from the main generation but pass the vision prompt
-      const res = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: visionPrompt, diagramType: extractedType })
-      });
-      const data = await res.json();
-      if (data.mermaid_code) {
-        setMermaidCode(data.mermaid_code);
-        setHistory([data.mermaid_code]);
-        setHistoryIndex(0);
-        setOriginalVisionPrompt(visionPrompt);
-        setIsVisionModalOpen(false);
+    if (selection.length > 0) {
+      setSelectedContext(selection);
+      setIsChatOpen(true);
+      try {
+        const base64Img = await getCanvasImageBase64();
+        setHighlightImage(base64Img);
+      } catch (err) {
+        console.error("Failed to capture highlighted canvas:", err);
       }
-    } catch (err) {
-      console.error("Vision Regenerate Error:", err);
-    } finally {
-      setIsVisionLoading(false);
+    } else {
+      setBrushPath([]);
+      brushPathRef.current = [];
     }
   };
 
@@ -556,21 +857,13 @@ Based on the latest request, update the diagram code. Output ONLY the updated Me
       setAgentRepairLog([]);
 
       const savedCode = localStorage.getItem('arka_last_mermaid_code');
-      const savedVision = localStorage.getItem('arka_vision_prompt');
 
       if (savedCode) {
         setMermaidCode(savedCode);
         setHistory([savedCode]);
         setHistoryIndex(0);
         setAgentSteps(['Loaded saved diagram.']);
-        setChatMessages([{ sender: 'agent', text: "Hello! I loaded your saved diagram. How can I help you refine or modify it?" }]);
-        if (savedVision) {
-          setVisionPrompt(savedVision);
-          setOriginalVisionPrompt(savedVision);
-        } else {
-          setVisionPrompt('');
-          setOriginalVisionPrompt('');
-        }
+        setChatMessages([{ sender: 'agent', text: "Hello! I loaded your saved diagram. How can I help you refine or modify it?", typed: true }]);
         setIsLoading(false);
         return;
       }
@@ -596,12 +889,7 @@ Based on the latest request, update the diagram code. Output ONLY the updated Me
           const repairLog = byokResult.repair_log || [];
           setAgentSteps(steps);
           setAgentRepairLog(repairLog);
-          setChatMessages([{ sender: 'agent', text: getInitialAgentRemarks(steps, repairLog) }]);
-          if (Array.isArray(byokResult.suggestions)) {
-            setSuggestions(byokResult.suggestions);
-            setCurrentSugIdx(0);
-            setLastSuggestedCode(code);
-          }
+          setChatMessages([{ sender: 'agent', text: getInitialAgentRemarks(steps, repairLog), typed: true }]);
         } else {
           throw new Error('Empty response from AI model');
         }
@@ -628,7 +916,6 @@ Based on the latest request, update the diagram code. Output ONLY the updated Me
       if (auth?.currentUser && db && diagramId) {
         setDoc(doc(db, 'users', auth.currentUser.uid, 'diagrams', diagramId), {
           prompt: prompt || '',
-          visionPrompt: originalVisionPrompt || '',
           diagramType: diagramType || '',
           code: mermaidCode,
           updatedAt: serverTimestamp()
@@ -840,8 +1127,12 @@ Based on the latest request, update the diagram code. Output ONLY the updated Me
 
   const clearSelection = (keepChatOpen = false) => {
     if (canvasRef.current) {
-      canvasRef.current.querySelectorAll('.node-selected').forEach(n => n.classList.remove('node-selected'));
-      canvasRef.current.querySelectorAll('.edge-selected').forEach(e => e.classList.remove('edge-selected'));
+      canvasRef.current.querySelectorAll('.node-selected, .node-brush-selected').forEach(n => {
+        n.classList.remove('node-selected', 'node-brush-selected');
+      });
+      canvasRef.current.querySelectorAll('.edge-selected, .edge-brush-highlight').forEach(e => {
+        e.classList.remove('edge-selected', 'edge-brush-highlight');
+      });
     }
     setSelectedNode(null);
     setSelectedEdge(null);
@@ -851,6 +1142,13 @@ Based on the latest request, update the diagram code. Output ONLY the updated Me
     setAddNodeText('');
     setAddNodeShape('rect');
     setSidebarMode('edit');
+    
+    // Clear brush states
+    setBrushPath([]);
+    brushPathRef.current = [];
+    setSelectedContext([]);
+    setHighlightImage(null);
+
     if (!keepChatOpen) {
       setIsChatOpen(false);
     }
@@ -1003,7 +1301,7 @@ Based on the latest request, update the diagram code. Output ONLY the updated Me
   const handleFitView = () => { setZoom(1); setPan({ x: 0, y: 0 }); };
 
   const handleMouseDown = (e) => {
-    if (e.target.closest('.node-edit-sidebar') || e.target.closest('.refine-menu')) return;
+    if (e.target.closest('.node-edit-sidebar') || e.target.closest('.chat-sidebar')) return;
     if (activeTool === 'brush') {
       startBrushing(e);
       return;
@@ -1014,107 +1312,26 @@ Based on the latest request, update the diagram code. Output ONLY the updated Me
     }
   };
   const handleMouseMove = (e) => {
-    if (activeTool === 'brush') continueBrushing(e);
-    if (isPanning) setPan({ x: e.clientX - panStart.x, y: e.clientY - panStart.y });
+    if (activeTool === 'brush') {
+      continueBrushing(e);
+    } else if (isPanning) {
+      setPan({ x: e.clientX - panStart.x, y: e.clientY - panStart.y });
+    }
   };
   const handleMouseUp = () => {
-    if (activeTool === 'brush') endBrushing();
-    setIsPanning(false);
+    if (activeTool === 'brush') {
+      endBrushing();
+    } else {
+      setIsPanning(false);
+    }
   };
   const handleWheel = (e) => { e.preventDefault(); setZoom(z => Math.max(0.3, Math.min(10, z + (e.deltaY > 0 ? -0.1 : 0.1)))); };
-
-  /* ─── Brush / Selection Logic ─── */
-  const startBrushing = (e) => {
-    setIsBrushing(true);
-    setBrushPath([{ x: e.clientX, y: e.clientY }]);
-    setSelectedContext([]);
-    // Clear previous brush highlights
-    if (canvasRef.current) {
-      canvasRef.current.querySelectorAll('.node-brush-selected, .edge-brush-highlight').forEach(el => {
-        el.classList.remove('node-brush-selected', 'edge-brush-highlight');
-      });
-    }
-  };
-
-  const continueBrushing = (e) => {
-    if (!isBrushing) return;
-    setBrushPath(prev => [...prev, { x: e.clientX, y: e.clientY }]);
-  };
-
-  const endBrushing = () => {
-    if (!isBrushing) return;
-    setIsBrushing(false);
-
-    // Calculate what's inside the path
-    const nodes = canvasRef.current?.querySelectorAll('.node') || [];
-    const edges = canvasRef.current?.querySelectorAll('.edgePath') || [];
-    const selection = [];
-
-    // Simple bounding box check for selection (can be improved to polygon-in-polygon)
-    const bounds = brushPath.reduce((acc, p) => ({
-      minX: Math.min(acc.minX, p.x),
-      maxX: Math.max(acc.maxX, p.x),
-      minY: Math.min(acc.minY, p.y),
-      maxY: Math.max(acc.maxY, p.y)
-    }), { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity });
-
-    // Use intersection logic instead of strict inclusion to make selecting arrows easier
-    nodes.forEach(node => {
-      const rect = node.getBoundingClientRect();
-      const intersects = !(rect.right < bounds.minX || rect.left > bounds.maxX || rect.bottom < bounds.minY || rect.top > bounds.maxY);
-      if (intersects) {
-        node.classList.add('node-brush-selected');
-        const label = node.querySelector('.nodeLabel')?.textContent || node.id;
-        selection.push({ type: 'node', label, id: node.id });
-      }
-    });
-
-    edges.forEach(edge => {
-      const rect = edge.getBoundingClientRect();
-      const intersects = !(rect.right < bounds.minX || rect.left > bounds.maxX || rect.bottom < bounds.minY || rect.top > bounds.maxY);
-      if (intersects) {
-        edge.classList.add('edge-brush-highlight');
-
-        // Find label. In mermaid it might be in an adjacent .edgeLabel block or a nested tspan
-        // The actual label element is often separate from .edgePath, so we get the edge ID and try to find the corresponding label if not enclosed
-        let label = "connection";
-        const edgeIdParts = edge.id.split('-');
-        if (edgeIdParts.length > 2) {
-          label = `${edgeIdParts[0]} to ${edgeIdParts[1]}`;
-        }
-
-        // Also look for literal label text around it
-        const enclosingGroup = edge.closest('.edgeTerminals, .edgePaths')?.parentNode;
-        if (enclosingGroup) {
-          const labelEl = enclosingGroup.querySelector('.edgeLabel');
-          if (labelEl) label = labelEl.textContent;
-        }
-
-        selection.push({ type: 'edge', label: label.trim(), id: edge.id });
-      }
-    });
-
-    if (selection.length > 0) {
-      setSelectedContext(selection);
-      setIsRefineOpen(true);
-      const nodeLabels = [...new Set(selection.filter(s => s.type === 'node').map(s => s.label))];
-      const edgeLabels = [...new Set(selection.filter(s => s.type === 'edge').map(s => s.label))];
-
-      let contextStr = "";
-      if (nodeLabels.length > 0) contextStr += `Focusing on components: ${nodeLabels.join(', ')}. `;
-      if (edgeLabels.length > 0) contextStr += `Focusing on connections: ${edgeLabels.join(', ')}. `;
-
-      setRefinePrompt(contextStr);
-    }
-
-    setBrushPath([]);
-  };
 
   /* ─── Undo / Redo ─── */
   const handleUndo = () => { if (historyIndex > 0) { setHistoryIndex(historyIndex - 1); setMermaidCode(history[historyIndex - 1]); } };
   const handleRedo = () => { if (historyIndex < history.length - 1) { setHistoryIndex(historyIndex + 1); setMermaidCode(history[historyIndex + 1]); } };
 
-  /* ─── Code Editor & Refine ─── */
+  /* ─── Code Editor ─── */
   const openCodeEditor = () => { setCodeEditorValue(mermaidCode); setShowCodeEditor(true); };
   const applyCodeEdit = () => {
     if (codeEditorValue.trim() && codeEditorValue !== mermaidCode) {
@@ -1122,119 +1339,6 @@ Based on the latest request, update the diagram code. Output ONLY the updated Me
     }
     setShowCodeEditor(false);
   };
-
-  const handleRefine = async (overridePrompt = null) => {
-    const finalPrompt = overridePrompt || refinePrompt;
-    if (!finalPrompt.trim()) return;
-    setIsRefining(true);
-    setDynamicLoadingText('Initializing refinement agent...');
-    setAgentError('');
-    const abortController = new AbortController();
-    abortControllerRef.current = abortController;
-    try {
-      const byokResult = await agentRefineDiagram(finalPrompt, mermaidCode, diagramType, {
-        visionPrompt,
-        selectedContext,
-        signal: abortController.signal,
-        onProgress: (step) => {
-          setDynamicLoadingText(step);
-          setAgentSteps(prev => [...prev, step]);
-        }
-      });
-      let resultCode = null;
-
-      if (byokResult && byokResult.mermaid_code) {
-        resultCode = byokResult.mermaid_code;
-        setAgentSteps(byokResult.agent_steps || ['Agent refined the diagram.']);
-        setAgentRepairLog(byokResult.repair_log || []);
-        if (Array.isArray(byokResult.suggestions)) {
-          setSuggestions(byokResult.suggestions);
-          setCurrentSugIdx(0);
-          setLastSuggestedCode(resultCode);
-        }
-      } else {
-        throw new Error("Invalid response from AI model");
-      }
-
-      if (resultCode) {
-        pushHistory(resultCode);
-        setIsRefineOpen(false);
-        setRefinePrompt('');
-        setSelectedContext([]);
-        if (canvasRef.current) {
-          canvasRef.current.querySelectorAll('.node-brush-selected, .edge-brush-highlight').forEach(el => {
-            el.classList.remove('node-brush-selected', 'edge-brush-highlight');
-          });
-        }
-      }
-    } catch (err) {
-      if (err.name === 'AbortError') {
-        setAgentSteps(prev => [...prev, 'Refinement cancelled by the user.']);
-        return;
-      }
-      console.error("Refine Error:", err);
-      setAgentError(err.message || "Failed to connect to refine API.");
-    } finally {
-      setIsRefining(false);
-    }
-  };
-
-  const handleInterpretRefine = async (overridePrompt = null) => {
-    const finalPrompt = overridePrompt || refinePrompt;
-    if (!finalPrompt.trim()) return;
-    setIsInterpreting(true);
-    setInterpretation(null);
-    try {
-      const data = await agentInterpretRefine(finalPrompt, mermaidCode, diagramType, {
-        visionPrompt,
-        selectedContext
-      });
-      if (data.confirmation) {
-        setInterpretation(data);
-        setIsRefineOpen(true);
-      } else {
-        handleRefine(finalPrompt);
-      }
-    } catch (err) {
-      console.error("Interpret Error:", err);
-      handleRefine(finalPrompt);
-    } finally {
-      setIsInterpreting(false);
-    }
-  };
-
-  const handleRetryFix = async () => {
-    if (!renderError) return;
-    const fixPrompt = `Investigate this Mermaid syntax error: "${renderError}".
-Fix the following Mermaid code while keeping its original meaning:
-${mermaidCode}`;
-    await handleInterpretRefine(fixPrompt);
-  };
-
-  const fetchSuggestions = async () => {
-    if (mermaidCode === lastSuggestedCode) return;
-    setIsSugLoading(true);
-    try {
-      const data = await agentSuggestImprovements(prompt, mermaidCode, diagramType, {
-        visionPrompt
-      });
-      if (data?.suggestions?.length) {
-        setSuggestions(data.suggestions);
-      }
-      setCurrentSugIdx(0);
-      setLastSuggestedCode(mermaidCode);
-    } catch (err) {
-      console.error("Suggestions Error:", err);
-    } finally {
-      setIsSugLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (isRefineOpen && mermaidCode !== lastSuggestedCode) {
-      fetchSuggestions();
-    }
-  }, [isRefineOpen]);
 
   /* ─── Export ─── */
   const handleExport = (format, bgOpt) => {
@@ -1333,19 +1437,6 @@ ${mermaidCode}`;
                   HISTORY
                 </button>
               </div>
-
-              <button
-                className="nav-btn-main vision-nav-btn"
-                onClick={handleVisionClick}
-                title="Vision Engine"
-                style={{
-                  borderRadius: '50%',
-                  background: '#fff',
-                  border: '1px solid #e5e7eb'
-                }}
-              >
-                <Eye size={18} />
-              </button>
             </>
           )}
         </div>
@@ -1353,175 +1444,32 @@ ${mermaidCode}`;
         {!isLoading && (
           <div className="arena-nav-right">
 
-            {/* Refine Dropdown */}
-            <div className="export-dropdown-container">
-              <button
-                className={`ai-chip-btn ${renderError ? 'retry-glow' : ''}`}
-                title={renderError ? 'Fix Diagram Syntax' : 'Refine Diagram'}
-                onClick={() => {
-                  if (renderError) {
-                    handleRetryFix();
-                  } else {
-                    setIsRefineOpen(!isRefineOpen);
-                    setIsExportOpen(false);
-                    setPngBgChoice(null);
-                  }
-                }}
-              >
-                <span className="ai-chip-text">
-                  {isRefining ? 'Refining...' : renderError ? 'Retry' : 'Refine'}
-                </span>
-              </button>
-              <AnimatePresence>
-                {isRefineOpen && (
-                  <motion.div
-                    layout
-                    className="refine-menu export-menu"
-                    initial={{ opacity: 0, y: -8, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -8, scale: 0.95 }}
-                    transition={{
-                      type: "spring",
-                      stiffness: 400,
-                      damping: 28,
-                      opacity: { duration: 0.15 }
-                    }}
-                    style={{ width: '380px', right: 0, padding: '16px' }}
-                  >
-
-                    {isInterpreting ? (
-                      <motion.div
-                        layout
-                        className="sug-card-loading magical-glow"
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        style={{ height: '160px', background: 'white' }}
-                        transition={{ type: "spring", stiffness: 400, damping: 28 }}
-                      >
-                        <div className="mini-loader" />
-                        <span style={{ fontSize: '10px', fontWeight: 800, color: '#000000', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Connecting vision context...</span>
-                      </motion.div>
-                    ) : interpretation ? (
-                      <motion.div
-                        layout
-                        className="interpretation-card magical-glow"
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{
-                          type: "spring",
-                          stiffness: 400,
-                          damping: 28,
-                          opacity: { duration: 0.2 }
-                        }}
-                      >
-                        <div className="interpretation-header">
-                          <span>AI Interpretation</span>
-                        </div>
-                        <p className="interpretation-text" style={{ fontSize: '0.9rem', color: '#1e293b' }}>
-                          {interpretation.confirmation}
-                        </p>
-                        <div className="interpretation-actions">
-                          <button className="btn-proceed" onClick={() => { handleRefine(interpretation.technical_instructions); setInterpretation(null); setRefinePrompt(''); setIsRefineOpen(false); }}>Proceed</button>
-                          <button className="btn-cancel" onClick={() => setInterpretation(null)}>Cancel</button>
-                        </div>
-                      </motion.div>
-                    ) : (
-                      <motion.div layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ type: "spring", stiffness: 400, damping: 28 }}>
-                        <div style={{ marginBottom: '16px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center' }}>
-                              <h4 style={{ margin: 0, fontSize: '10px', fontWeight: 800, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>AI Suggestions <BetaBadge /></h4>
-                            </div>
-                            <div style={{ display: 'flex', gap: '4px' }}>
-                              <button
-                                className="sug-nav-btn"
-                                disabled={currentSugIdx === 0}
-                                onClick={() => setCurrentSugIdx(Math.max(0, currentSugIdx - 1))}
-                              >
-                                <ChevronDown size={18} style={{ transform: 'rotate(90deg)' }} />
-                              </button>
-                              <button
-                                className="sug-nav-btn"
-                                disabled={currentSugIdx === suggestions.length - 1}
-                                onClick={() => setCurrentSugIdx(Math.min(suggestions.length - 1, currentSugIdx + 1))}
-                              >
-                                <ChevronDown size={18} style={{ transform: 'rotate(-90deg)' }} />
-                              </button>
-                            </div>
-                          </div>
-
-                          <div className="suggestion-card-container">
-                            {isSugLoading ? (
-                              <div className="sug-card-loading magical-glow">
-                                <div className="mini-loader" />
-                                <span style={{ fontSize: '11px', color: '#000000', fontWeight: 700 }}>BRAINSTORMING...</span>
-                              </div>
-                            ) : (
-                              <motion.div
-                                key={currentSugIdx}
-                                initial={{ opacity: 0, y: 5, scale: 0.98 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                transition={{ duration: 0.2, ease: "easeOut" }}
-                                className="suggestion-card magical-glow"
-                                onClick={() => handleInterpretRefine(suggestions[currentSugIdx])}
-                              >
-                                <p>{suggestions[currentSugIdx] || "No suggestions available."}</p>
-                                <div className="sug-apply-hint">Click to review</div>
-                              </motion.div>
-                            )}
-                            <div className="sug-dots">
-                              {suggestions.map((_, i) => (
-                                <div key={i} className={`sug-dot ${i === currentSugIdx ? 'active' : ''}`} />
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-
-                        <h4 style={{ margin: '0 0 10px 0', fontSize: '10px', fontWeight: 800, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Custom Refinement</h4>
-                        <textarea
-                          value={refinePrompt}
-                          onChange={(e) => setRefinePrompt(e.target.value)}
-                          placeholder="e.g. Change the start node color to red..."
-                          className="popover-input"
-                          style={{ minHeight: '80px', marginBottom: '12px', resize: 'none', fontSize: '13px' }}
-                          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleInterpretRefine(); } }}
-                        />
-                        <button
-                          className="popover-apply-btn"
-                          onClick={() => handleInterpretRefine()}
-                          disabled={isInterpreting || isRefining || !refinePrompt.trim()}
-                          style={{ margin: 0, padding: '10px', opacity: (isInterpreting || isRefining || !refinePrompt.trim()) ? 0.7 : 1 }}
-                        >
-                          {isRefining ? 'Updating…' : 'Update Diagram'}
-                        </button>
-                      </motion.div>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
             {/* Sidechat Toggle Button */}
             <button
               className={`chat-toggle-btn ${isChatOpen ? 'active' : ''}`}
               title="Agent Chat"
+              disabled={isRefining}
               onClick={() => {
+                if (isRefining) return;
                 const nextChatOpen = !isChatOpen;
                 setIsChatOpen(nextChatOpen);
-                setIsRefineOpen(false);
+                if (!nextChatOpen) {
+                  // Mark all messages as typed when closing chat to prevent any animation when reopening
+                  setChatMessages(prev => prev.map(m => ({ ...m, typed: true })));
+                }
                 setIsExportOpen(false);
                 setPngBgChoice(null);
                 clearSelection(true);
               }}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill={isChatOpen ? "#ffffff" : "#000000"}>
+              <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px">
                 <path d="M272-160q-30 0-51-21t-21-51q0-21 12-39.5t32-26.5l156-62v-90q-54 63-125.5 96.5T120-320v-80q68 0 123.5-28T344-508l54-64q12-14 28-21t34-7h40q18 0 34 7t28 21l54 64q45 52 100.5 80T840-400v80q-83 0-154.5-33.5T560-450v90l156 62q20 8 32 26.5t12 39.5q0 30-21 51t-51 21H400v-20q0-26 17-43t43-17h120q9 0 14.5-5.5T600-260q0-9-5.5-14.5T580-280H460q-42 0-71 29t-29 71v20h-88Zm151.5-503.5Q400-687 400-720t23.5-56.5Q447-800 480-800t56.5 23.5Q560-753 560-720t-23.5 56.5Q513-640 480-640t-56.5-23.5Z"/>
               </svg>
             </button>
 
             {/* Export */}
             <div className="export-dropdown-container">
-              <button className="export-btn" onClick={() => { setIsExportOpen(!isExportOpen); setPngBgChoice(null); setIsRefineOpen(false); }}>
+              <button className="export-btn" onClick={() => { setIsExportOpen(!isExportOpen); setPngBgChoice(null); }}>
                 <span>Export</span><Download size={18} />
               </button>
               <AnimatePresence>
@@ -1634,6 +1582,7 @@ ${mermaidCode}`;
             ))}
           </svg>
         )}
+
         {/* Canvas is ALWAYS mounted so canvasRef is always valid */}
         <div className="arena-canvas"
           style={{ opacity: (isLoading || isRefining) ? 0 : 1, transition: 'opacity 0.3s ease' }}>
@@ -1658,79 +1607,7 @@ ${mermaidCode}`;
           )}
         </div>
 
-        {/* Loader overlay on top */}
-        <AnimatePresence>
-          {(isLoading || isRefining) && (
-            <motion.div 
-              key="loader" 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
-              exit={{ opacity: 0 }} 
-              transition={{ duration: 0.25 }}
-              style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                width: '100vw',
-                height: '100vh',
-                zIndex: 5000,
-                backgroundColor: '#f5f5f5',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '2rem'
-              }}
-            >
-              <div className="loader"></div>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem', width: '100%' }}>
-                <span style={{ 
-                  fontWeight: 400, 
-                  color: 'var(--text-main)', 
-                  fontSize: '1.1rem', 
-                  fontFamily: 'var(--font-mono)', 
-                  textAlign: 'center', 
-                  maxWidth: '90%', 
-                  whiteSpace: 'nowrap', 
-                  overflow: 'hidden', 
-                  textOverflow: 'ellipsis' 
-                }}>
-                  {dynamicLoadingText}
-                </span>
-                <button 
-                  className="agent-cancel-btn"
-                  onClick={handleCancelRequest}
-                  style={{
-                    marginTop: '1rem',
-                    padding: '0.6rem 1.5rem',
-                    borderRadius: '0.75rem',
-                    border: '1px solid #e5e7eb',
-                    background: '#ffffff',
-                    color: '#ef4444',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    fontSize: '0.9rem',
-                    fontFamily: 'var(--font-body)',
-                    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseOver={e => {
-                    e.currentTarget.style.background = '#fef2f2';
-                    e.currentTarget.style.borderColor = '#fca5a5';
-                    e.currentTarget.style.transform = 'translateY(-1px)';
-                  }}
-                  onMouseOut={e => {
-                    e.currentTarget.style.background = '#ffffff';
-                    e.currentTarget.style.borderColor = '#e5e7eb';
-                    e.currentTarget.style.transform = 'translateY(0)';
-                  }}
-                >
-                  Cancel Task
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+
 
         {!isLoading && agentError && !mermaidCode && (
           <div className="agent-error-panel">
@@ -1878,10 +1755,10 @@ ${mermaidCode}`;
       <AnimatePresence>
         {isChatOpen && (
           <motion.div className="chat-sidebar"
-            initial={{ x: '120%', opacity: 0, scale: 0.95 }}
-            animate={{ x: 0, opacity: 1, scale: 1 }}
-            exit={{ x: '120%', opacity: 0, scale: 0.95 }}
-            transition={{ type: 'spring', stiffness: 220, damping: 22 }}>
+            initial={{ x: '100%', opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: '100%', opacity: 0 }}
+            transition={{ type: 'tween', duration: 0.25, ease: 'easeOut' }}>
             
             <div className="popover-header">
               <span className="popover-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1894,19 +1771,33 @@ ${mermaidCode}`;
             </div>
             
             <div className="chat-messages-container">
-              {chatMessages.map((msg, idx) => (
-                <div key={idx} className={`chat-message-bubble ${msg.sender}`}>
-                  <div className="chat-message-header">
-                    {msg.sender === 'user' ? 'You' : getShortAgentName()}
-                  </div>
-                  <div className="chat-message-text">
-                    {renderMarkdown(msg.text)}
-                  </div>
-                </div>
-              ))}
-              {isRefining && (
+              {chatMessages.map((msg, idx) => {
+                const isLatest = idx === chatMessages.length - 1;
+                const canClickPlan = isLatest && msg.proposal && !msg.clicked && !isRefining && !isLoading;
+
+                if (msg.sender === 'user') {
+                  return (
+                    <div key={idx} className={`chat-message-bubble ${msg.sender}`}>
+                      <div className="chat-message-text">
+                        {renderMarkdown(msg.text)}
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <AgentChatMessage
+                    key={idx}
+                    msg={msg}
+                    canClickPlan={canClickPlan}
+                    handleProceedWithPlan={handleProceedWithPlan}
+                    idx={idx}
+                    onTypingComplete={handleTypingComplete}
+                  />
+                );
+              })}
+              {isChatLoading && (
                 <div className="chat-message-bubble agent">
-                  <div className="chat-message-header">{getShortAgentName()}</div>
                   <div className="chat-message-text typing-indicator">
                     <span></span><span></span><span></span>
                   </div>
@@ -1916,25 +1807,31 @@ ${mermaidCode}`;
             </div>
             
             <div className="chat-input-area">
-              <textarea
-                className="chat-input-textarea"
-                value={chatInput}
-                onChange={e => setChatInput(e.target.value)}
-                placeholder="Ask agent to change the diagram..."
-                onKeyDown={e => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendChatMessage();
-                  }
-                }}
-              />
-              <button 
-                className="chat-send-btn" 
-                onClick={handleSendChatMessage}
-                disabled={!chatInput.trim() || isRefining}
-              >
-                Send
-              </button>
+              <div className={`chat-input-wrapper ${(isChatLoading || isRefining) ? 'disabled' : ''}`}>
+                <textarea
+                  ref={chatInputRef}
+                  className="chat-input-textarea"
+                  value={chatInput}
+                  onChange={handleInputChange}
+                  placeholder="Ask agent to change the diagram..."
+                  disabled={isChatLoading || isRefining}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendChatMessage();
+                    }
+                  }}
+                />
+                <button 
+                  className="chat-send-btn-inline" 
+                  onClick={handleSendChatMessage}
+                  disabled={!chatInput.trim() || isChatLoading || isRefining}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="currentColor">
+                    <path d="M440-160v-487L216-424l-56-56 320-320 320 320-56 56-224-223v487h-80Z"/>
+                  </svg>
+                </button>
+              </div>
             </div>
             
           </motion.div>
@@ -2027,91 +1924,79 @@ ${mermaidCode}`;
         )}
       </AnimatePresence>
 
-      {/* ─── Vision Engine Modal ─── */}
+      {/* Loader overlay on top (Fixed position at root zIndex 5500 to cover all sidebar/panels/nav except sidechat zIndex 6000) */}
       <AnimatePresence>
-        {isVisionModalOpen && (
-          <motion.div className="code-editor-overlay"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
-            onClick={() => setIsVisionModalOpen(false)}>
-            <motion.div className="code-editor-modal vision-modal" onClick={e => e.stopPropagation()}
-              initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }} transition={{ duration: 0.15 }}>
-              <div className="code-editor-header">
-                <div className="code-editor-title"><Eye size={18} /><span>Your Vision</span><BetaBadge /></div>
-                <button
-                  className="popover-close"
-                  style={{
-                    width: 'auto',
-                    height: '28px',
-                    borderRadius: '8px',
-                    padding: '0 12px',
-                    fontSize: '10px',
-                    fontWeight: 800,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                    background: '#f3f4f6',
-                    border: '1px solid #e5e7eb',
-                    color: '#64748b'
-                  }}
-                  onClick={() => document.querySelector('.code-editor-textarea')?.focus()}
-                >
-                  Edit
-                </button>
-              </div>
-
-              <div className="vision-content-wrapper">
-                {isVisionLoading ? (
-                  <div className="vision-loading-placeholder">
-                    <div className="vision-skeleton-header">
-                      <div className="skeleton-chip" />
-                      <div className="skeleton-chip" />
-                    </div>
-                    <div className="vision-skeleton-body">
-                      <div className="skeleton-line" style={{ width: '90%' }} />
-                      <div className="skeleton-line" style={{ width: '70%' }} />
-                      <div className="skeleton-line" style={{ width: '85%' }} />
-                      <div className="skeleton-line" style={{ width: '60%' }} />
-                      <div className="skeleton-line" style={{ width: '95%' }} />
-                      <div className="skeleton-line" style={{ width: '40%' }} />
-                    </div>
-                  </div>
-                ) : (
-                  <textarea
-                    className="code-editor-textarea"
-                    value={visionPrompt}
-                    onChange={e => setVisionPrompt(e.target.value)}
-                    spellCheck={false}
-                    style={{ marginBottom: '1.25rem' }}
-                  />
-                )}
-
-                <div className="code-editor-actions" style={{ justifyContent: 'flex-end', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button className="code-editor-cancel" onClick={() => setIsVisionModalOpen(false)}>Discard</button>
-                    <button
-                      className="popover-apply-btn"
-                      onClick={handleVisionRegenerate}
-                      disabled={visionPrompt === originalVisionPrompt || isVisionLoading}
-                      style={{
-                        width: 'auto',
-                        padding: '0.45rem 1.2rem',
-                        marginTop: 0,
-                        background: (visionPrompt === originalVisionPrompt || isVisionLoading) ? '#f3f4f6' : '#000',
-                        color: (visionPrompt === originalVisionPrompt || isVisionLoading) ? '#9ca3af' : '#fff',
-                        borderColor: (visionPrompt === originalVisionPrompt || isVisionLoading) ? '#e5e7eb' : '#000'
-                      }}
-                    >
-                      {isVisionLoading ? <Loader2 className="animate-spin" size={17} /> : <RefreshCw size={17} />}
-                      <span style={{ marginLeft: '8px' }}>Regenerate</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
+        {(isLoading || isRefining) && (
+          <motion.div 
+            key="loader" 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }} 
+            transition={{ duration: 0.25 }}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              width: '100vw',
+              height: '100vh',
+              zIndex: 5500,
+              backgroundColor: '#f5f5f5',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '2rem'
+            }}
+          >
+            <div className="loader"></div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem', width: '100%' }}>
+              <span style={{ 
+                fontWeight: 400, 
+                color: 'var(--text-main)', 
+                fontSize: '1.1rem', 
+                fontFamily: 'var(--font-mono)', 
+                textAlign: 'center', 
+                maxWidth: '90%', 
+                whiteSpace: 'nowrap', 
+                overflow: 'hidden', 
+                textOverflow: 'ellipsis' 
+              }}>
+                {dynamicLoadingText}
+              </span>
+              <button 
+                className="agent-cancel-btn"
+                onClick={handleCancelRequest}
+                style={{
+                  marginTop: '1rem',
+                  padding: '0.6rem 1.5rem',
+                  borderRadius: '0.75rem',
+                  border: '1px solid #e5e7eb',
+                  background: '#ffffff',
+                  color: '#ef4444',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontSize: '0.9rem',
+                  fontFamily: 'var(--font-body)',
+                  boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseOver={e => {
+                  e.currentTarget.style.background = '#fef2f2';
+                  e.currentTarget.style.borderColor = '#fca5a5';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }}
+                onMouseOut={e => {
+                  e.currentTarget.style.background = '#ffffff';
+                  e.currentTarget.style.borderColor = '#e5e7eb';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+              >
+                Cancel Task
+              </button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
-
 
     </div>
   );

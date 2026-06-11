@@ -114,29 +114,6 @@ def agent_validate_diagram():
     return jsonify(validate_mermaid_code(code, diagram_type))
 
 
-@app.route('/api/agent/interpret-refine', methods=['POST'])
-def agent_interpret_refine():
-    data = request.json or {}
-    user_prompt = data.get('prompt', '')
-    mermaid_code = data.get('mermaid_code', '')
-    diagram_type = data.get('diagramType', 'flowchart')
-    if not user_prompt or not mermaid_code:
-        return jsonify({"error": "Missing prompt or mermaid_code"}), 400
-
-    try:
-        result = agent_from_request(data).interpret_refine(
-            user_prompt,
-            mermaid_code,
-            diagram_type,
-            vision_prompt=data.get('vision_prompt', ''),
-            selected_context=data.get('selected_context', []),
-        )
-        return jsonify(result)
-    except Exception as e:
-        print(f"Agent interpret refine error: {e}")
-        return jsonify({"error": f"Agent interpretation failed: {str(e)}"}), 500
-
-
 @app.route('/api/agent/refine', methods=['POST'])
 def agent_refine_diagram():
     data = request.json or {}
@@ -160,7 +137,6 @@ def agent_refine_diagram():
                 user_prompt,
                 mermaid_code,
                 diagram_type,
-                vision_prompt=data.get('vision_prompt', ''),
                 selected_context=data.get('selected_context', []),
                 on_progress=on_progress
             )
@@ -182,24 +158,29 @@ def agent_refine_diagram():
     return Response(event_stream(), mimetype='application/x-ndjson')
 
 
-@app.route('/api/agent/suggestions', methods=['POST'])
-def agent_suggest_improvements():
+@app.route('/api/agent/chat', methods=['POST'])
+def agent_chat():
     data = request.json or {}
-    mermaid_code = data.get('mermaid_code', '')
-    if not mermaid_code:
-        return jsonify({"error": "Missing mermaid_code"}), 400
+    
+    provider = data.get('provider')
+    if not provider or provider == 'free':
+        data['provider'] = 'sarvam'
+        data['model'] = 'sarvam-105b'
+        data['apiKey'] = SARVAM_API_KEY
+
+    system_prompt = data.get('system_prompt', '')
+    user_message = data.get('user_message', '')
+    
+    if not user_message:
+        return jsonify({"error": "No user message provided"}), 400
 
     try:
-        suggestions = agent_from_request(data).suggest_improvements(
-            data.get('prompt', ''),
-            mermaid_code,
-            data.get('diagramType', 'flowchart'),
-            vision_prompt=data.get('vision_prompt', ''),
-        )
-        return jsonify({"suggestions": suggestions})
+        agent = agent_from_request(data)
+        content = agent.call_model(system_prompt, user_message, temperature=0.3, max_tokens=1500)
+        return jsonify({"content": content})
     except Exception as e:
-        print(f"Agent suggestions error: {e}")
-        return jsonify({"error": f"Agent suggestions failed: {str(e)}"}), 500
+        print(f"Agent chat error: {e}")
+        return jsonify({"error": f"Agent chat failed: {str(e)}"}), 500
 
 
 @app.route('/api/suggest', methods=['POST'])
@@ -208,67 +189,6 @@ def suggest_diagram():
         "error": "This endpoint was retired. Use /api/agent/suggest with the user's selected provider and model."
     }), 410
 
-
-@app.route('/api/vision', methods=['POST'])
-def vision_engine():
-    data = request.json
-    user_prompt = data.get('prompt', '')
-    diagram_type = data.get('diagramType', 'flowchart')
-    
-    if not user_prompt:
-        return jsonify({"error": "No prompt provided"}), 400
-
-    headers = {
-        "Authorization": f"Bearer {SARVAM_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    
-    system_prompt = (
-        "You are the Arka Vision Engine, powered by Sarvam 30B. Your job is to take a user's rough diagram prompt and transform it into a "
-        "highly detailed, polished, and structured architectural requirement document. "
-        "You MUST follow these exactly five steps in your response:\n\n"
-        "1. Ingestion & Classification: Parse the raw prompt, identify the diagram type, clean up the text, and generate a technical summary.\n"
-        "2. Node Extraction: Identify every standalone component (the 'Things' to be drawn).\n"
-        "3. Grouping Definition: Identify boundaries (the 'Containers' like Subnets, Clusters, or Swimlanes) and assign the extracted nodes into them.\n"
-        "4. Edge Mapping: Define every connection. You must explicitly state Source, Destination, the Label on the arrow, and the Type of connection (e.g., dotted, solid, async).\n"
-        "5. Final Generation: Compile all of the above into the final data structure (a unified technical specification).\n\n"
-        "RULES:\n"
-        "1. Start the response with exactly these two lines:\n"
-        "   Name: [A concise, descriptive name for the diagram]\n"
-        "   Diagram Type: [The type of diagram]\n\n"
-        "2. Rewrite for maximum clarity and technical precision.\n"
-        "3. Use professional technical language.\n"
-        "4. Do NOT include any meta-talk like 'Here is your polished prompt'.\n"
-        "5. Ensure every step is explicitly labeled and detailed."
-    )
-    
-    payload = {
-        "model": "sarvam-30b",
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"User Prompt: {user_prompt}\nDiagram Type Suggestion: {diagram_type}"}
-        ],
-        "temperature": 0.2,
-        "max_tokens": 2500
-    }
-    
-    try:
-        response = requests.post(
-            "https://api.sarvam.ai/v1/chat/completions",
-            headers=headers,
-            json=payload,
-            timeout=30
-        )
-        response.raise_for_status()
-        result = response.json()
-        polished_prompt = result['choices'][0]['message']['content'].strip()
-        
-        return jsonify({"polished_prompt": polished_prompt})
-    except Exception as e:
-        print(f"Vision Engine Error: {e}")
-        # Fallback: just return the original prompt with a header
-        fallback = f"Name: Custom Diagram\nDiagram Type: {diagram_type}\n\n{user_prompt}"
-        return jsonify({"polished_prompt": fallback})
 
 
 @app.route('/api/generate', methods=['POST'])
@@ -749,182 +669,6 @@ def generate_diagram():
         })
 
 
-@app.route('/api/refine', methods=['POST'])
-def refine_diagram():
-    """Refine an existing diagram based on user instructions."""
-    data = request.json
-    user_prompt = data.get('prompt', '')
-    current_code = data.get('mermaid_code', '')
-    diagram_type = data.get('diagramType', 'flowchart')
-
-    if not user_prompt or not current_code:
-        return jsonify({"error": "Missing prompt or mermaid_code"}), 400
-
-    # Load knowledge bank rules for this diagram type
-    knowledge_rules = load_knowledge(diagram_type)
-
-    headers = {
-        "Authorization": f"Bearer {SARVAM_API_KEY}",
-        "Content-Type": "application/json"
-    }
-
-    system_prompt = (
-        f"You are an expert diagram editor. You will be given existing Mermaid JS code for a {diagram_type} diagram "
-        "and a user's refinement instruction. Your job is to modify the EXISTING code based on the instruction.\n\n"
-        "KNOWLEDGE BANK RULES (you MUST follow these):\n"
-        f"{knowledge_rules}\n\n"
-        "CRITICAL INSTRUCTIONS:\n"
-        "- Output ONLY the complete, updated Mermaid JS code.\n"
-        "- NEVER output partial code. You MUST return the ENTIRE diagram code from start to finish.\n"
-        "- Do NOT wrap in markdown code blocks (no ```mermaid).\n"
-        "- Do NOT include any explanation or text before/after the code.\n"
-        "- PRESERVE the existing diagram structure. DO NOT REMOVE any existing nodes, links, or styles unless explicitly asked to do so.\n"
-        "- When applying styles or colors, use standard Mermaid styling (e.g. `style nodeID fill:#colorName`).\n"
-        "- Keep the same diagram type header.\n"
-        "- ALWAYS wrap node text in double quotes to prevent parser errors.\n"
-    )
-
-    payload = {
-        "model": "sarvam-105b",
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"CURRENT MERMAID CODE:\n{current_code}\n\nREFINEMENT INSTRUCTION: {user_prompt}\n\nOutput ONLY the updated Mermaid JS code:"}
-        ],
-        "temperature": 0.2,
-        "max_tokens": 2500
-    }
-
-    try:
-        response = requests.post(
-            "https://api.sarvam.ai/v1/chat/completions",
-            headers=headers,
-            json=payload,
-            timeout=30
-        )
-        response.raise_for_status()
-        result = response.json()
-        content = result['choices'][0]['message']['content'].strip()
-
-        # Clean up markdown code blocks
-        content = re.sub(r'^```(?:mermaid)?\s*\n?', '', content)
-        content = re.sub(r'\n?```\s*$', '', content)
-        content = content.replace("```mermaid", "").replace("```", "")
-        content = content.strip()
-
-        # Strip internal LLM tags
-        content = re.sub(r'<[^>]+>', '', content)
-
-        # Remove duplicate diagram headers
-        lines = content.split('\n')
-        header_keywords = ['flowchart ', 'sequenceDiagram', 'erDiagram', 'gantt', 'pie', 'xychart-beta']
-        header_count = 0
-        cleaned_lines = []
-        for line in lines:
-            stripped = line.strip()
-            is_header = any(stripped.startswith(kw) for kw in header_keywords)
-            if is_header:
-                header_count += 1
-                if header_count > 1:
-                    continue
-            cleaned_lines.append(line)
-        content = '\n'.join(cleaned_lines)
-
-        # Type-specific syntax fixes
-        if diagram_type in ['flowchart', 'architecture']:
-            content = re.sub(r'(^|\n)end(\s*[-=]>|[\(\[\{])', r'\1finish\2', content)
-            content = re.sub(r'([\(\[\{])end([\)\]\}])', r'\1finish\2', content)
-            content = re.sub(r'([-=]>(?:\s*\|[^|]*\|)?\s*)end(\s|[\(\[\{\n]|$)', r'\1finish\2', content)
-            # Fix illegal nested shapes like node(([ "text" ])) -> node([ "text" ])
-            content = re.sub(r'(\w+)\s*\(\(\s*([\[\{\(])', r'\1\2', content)
-            content = re.sub(r'([\]\}\)])\s*\)\)', r'\1', content)
-
-        if diagram_type == 'sequence':
-            lines = content.split('\n')
-            if lines and lines[0].strip() != 'sequenceDiagram':
-                lines = ['sequenceDiagram'] + [l for l in lines if l.strip() != 'sequenceDiagram']
-            # Strip colons/semicolons from message text and angle brackets
-            fixed_lines = []
-            for line in lines:
-                arrow_match = re.match(r'(\s*\S+\s*-[->>x)]+[+-]?\s*\S+\s*:\s*)(.*)', line)
-                if arrow_match:
-                    prefix = arrow_match.group(1)
-                    msg = arrow_match.group(2)
-                    msg = msg.replace(':', ' -').replace(';', ',')
-                    msg = re.sub(r'<[^>]*>', '', msg)
-                    fixed_lines.append(prefix + msg)
-                else:
-                    fixed_lines.append(line)
-            
-            # Fix unbalanced activations: track +/- per participant
-            activation_counts = {}
-            balanced_lines = []
-            for line in fixed_lines:
-                stripped = line.strip()
-                
-                # Detect activation (+) on target participant
-                act_match = re.match(r'[^:]+->>\+\s*([a-zA-Z0-9_]+)\s*:', stripped)
-                if not act_match:
-                    # Also try to match without colon at the end if it's just an activation message
-                    act_match = re.match(r'[^:]+->>\+\s*([a-zA-Z0-9_]+)', stripped)
-                    
-                target = None
-                if act_match:
-                    target = act_match.group(1).strip()
-                    activation_counts[target] = activation_counts.get(target, 0) + 1
-                    
-                # Detect deactivation (-) on target participant
-                deact_match = re.match(r'[^:]+-->>-\s*([a-zA-Z0-9_]+)\s*:', stripped)
-                if not deact_match:
-                    deact_match = re.match(r'[^:]+-->>-\s*([a-zA-Z0-9_]+)', stripped)
-                    
-                if deact_match:
-                    target = deact_match.group(1).strip()
-                    if activation_counts.get(target, 0) > 0:
-                        activation_counts[target] -= 1
-                    else:
-                        # Unbalanced deactivation! Strip the '-' marker
-                        line = line.replace('-->>-', '-->>')
-                
-                balanced_lines.append(line)
-            content = '\n'.join(balanced_lines)
-
-        if diagram_type == 'erDiagram':
-            lines = content.split('\n')
-            if lines and lines[0].strip() != 'erDiagram':
-                lines = ['erDiagram'] + [l for l in lines if l.strip() != 'erDiagram']
-            # Fix relationship labels missing quotes
-            fixed_lines = []
-            for line in lines:
-                rel_match = re.match(r'(\s*\w+\s+[|o}{]+--[|o}{]+\s+\w+\s*:\s*)([^"].*[^"]\s*)$', line)
-                if rel_match:
-                    prefix = rel_match.group(1)
-                    label = rel_match.group(2).strip()
-                    fixed_lines.append(f'{prefix}"{label}"')
-                else:
-                    fixed_lines.append(line)
-            content = '\n'.join(fixed_lines)
-
-        if diagram_type == 'gantt':
-            lines = content.split('\n')
-            if lines and lines[0].strip() != 'gantt':
-                lines = ['gantt'] + [l for l in lines if l.strip() != 'gantt']
-            has_date_format = any('dateFormat' in l for l in lines)
-            if not has_date_format:
-                insert_idx = 1
-                for i, l in enumerate(lines):
-                    if l.strip().startswith('title'):
-                        insert_idx = i + 1
-                        break
-                lines.insert(insert_idx, '    dateFormat YYYY-MM-DD')
-            content = '\n'.join(lines)
-
-        return jsonify({"mermaid_code": content, "diagram_type": diagram_type})
-
-    except Exception as e:
-        print(f"Error calling Sarvam refine: {e}")
-        return jsonify({"error": f"Refine failed: {str(e)}"}), 500
-
-
 @app.route('/api/upload-doc', methods=['POST'])
 def upload_document():
     """Extract text from uploaded document (PDF, DOCX, TXT) and return it for diagram generation."""
@@ -957,163 +701,6 @@ def upload_document():
         print(f"Document extraction error: {e}")
         return jsonify({"error": f"Failed to process document: {str(e)}"}), 500
 
-
-@app.route('/api/suggest_improvements', methods=['POST'])
-def suggest_improvements():
-    """Generate 3-5 concise, context-aware suggestions for improving the current diagram."""
-    data = request.json
-    user_prompt = data.get('prompt', '')
-    mermaid_code = data.get('mermaid_code', '')
-    diagram_type = data.get('diagramType', 'flowchart')
-    vision_prompt = data.get('vision_prompt', '') # New: Vision engine context
-
-    if not mermaid_code:
-        return jsonify({"error": "Missing mermaid_code"}), 400
-
-    knowledge_rules = load_knowledge(diagram_type) # New: Syntax awareness
-
-    headers = {
-        "Authorization": f"Bearer {SARVAM_API_KEY}",
-        "Content-Type": "application/json"
-    }
-
-    system_prompt = (
-        "You are an expert design assistant for Mermaid JS diagrams. "
-        "Your goal is to suggest 3-5 CONCISE improvements for the user's diagram. "
-        "Each suggestion MUST be a single, actionable sentence (max 12 words). "
-        "Use both visual context (from Vision Engine) and structural rules (from Knowledge Bank).\n\n"
-        "KNOWLEDGE BANK RULES (Respect these syntax limits):\n"
-        f"{knowledge_rules[:1000]}\n\n" # Truncated for token limit
-        "Provide a mix of:\n"
-        "1. Visual suggestions (e.g., 'Use a dark color palette for better contrast', 'Add icons to nodes').\n"
-        "2. Structural/Logic suggestions (e.g., 'Simplify the connection between A and B', 'Break subgraph X into smaller pieces').\n"
-        "3. Diagram-specific improvements based on the diagram type and user's intent.\n\n"
-        "Format your response as a JSON list of strings. Close the JSON properly. "
-        "Do NOT include any other text or explanation."
-    )
-
-    user_input = (
-        f"DIAGRAM TYPE: {diagram_type}\n"
-        f"USER'S INITIAL PROMPT: {user_prompt}\n"
-        f"VISION ENGINE CONTEXT: {vision_prompt}\n" # New: More context
-        f"CURRENT CODE:\n{mermaid_code}\n\n"
-        "Provide 3-5 suggestions as a JSON list of strings:"
-    )
-
-    payload = {
-        "model": "sarvam-30b",
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_input}
-        ],
-        "temperature": 0.5
-    }
-
-    try:
-        response = requests.post(
-            "https://api.sarvam.ai/v1/chat/completions",
-            headers=headers,
-            json=payload,
-            timeout=15
-        )
-        response.raise_for_status()
-        result = response.json()
-        content = result['choices'][0]['message']['content'].strip()
-        
-        match = re.search(r'\[.*\]', content, re.DOTALL)
-        if match:
-            suggestions = json.loads(match.group(0))
-        else:
-            suggestions = [
-                "Apply a modern color palette for better visibility.",
-                "Organize related components into clear subgraphs.",
-                "Ensure all arrows flow in a consistent direction.",
-                "Add descriptive labels to connecting lines."
-            ]
-            
-        return jsonify({"suggestions": suggestions})
-        
-    except Exception as e:
-        print(f"Error calling Sarvam suggestions: {e}")
-        return jsonify({
-            "suggestions": [
-                "Enhance clarity with consistent node shapes.",
-                "Use distinct colors for different system layers.",
-                "Simplify complex paths to avoid 'spaghetti' arrows.",
-                "Review labels for maximum readability."
-            ]
-        })
-
-
-@app.route('/api/interpret_refine', methods=['POST'])
-def interpret_refine():
-    """Interprets a user's refinement prompt before execution, providing a confirmation message and technical instructions."""
-    data = request.json
-    user_prompt = data.get('prompt', '')
-    mermaid_code = data.get('mermaid_code', '')
-    diagram_type = data.get('diagramType', 'flowchart')
-    vision_prompt = data.get('vision_prompt', '')
-
-    if not user_prompt or not mermaid_code:
-        return jsonify({"error": "Missing prompt or mermaid_code"}), 400
-
-    knowledge_rules = load_knowledge(diagram_type)
-
-    headers = {
-        "Authorization": f"Bearer {SARVAM_API_KEY}",
-        "Content-Type": "application/json"
-    }
-
-    system_prompt = (
-        "You are the Arka Interpreter. Your job is to take a user's quick refinement instruction (e.g. 'Add a button') "
-        "and explain exactly what you understood in a friendly way, while also generating internal technical instructions "
-        "for the refining engine. You must use the Vision Engine's context and the Diagram Syntax to be precise.\n\n"
-        "KNOWLEDGE BANK RULES:\n"
-        f"{knowledge_rules[:1500]}\n\n"
-        "VISION ENGINE CONTEXT:\n"
-        f"{vision_prompt}\n\n"
-        "RULES:\n"
-        "1. Output a JSON object with two fields: 'confirmation' and 'technical_instructions'.\n"
-        "2. 'confirmation' should be a concise, friendly summary of what's about to change (e.g. 'I'll add a Power Source to the Arduino in the Logic Layer as you requested.').\n"
-        "3. 'technical_instructions' should be a detailed, technical prompt for a refining engine (e.g. 'Add a node named Power Source with stadium shape, connect it to the Arduino node with a solid arrow labeled \"5V Power\"').\n"
-        "4. DO NOT make syntax errors. Use valid Mermaid terminology for the given diagram type.\n"
-        "5. Respond with ONLY the JSON object."
-    )
-
-    payload = {
-        "model": "sarvam-30b",
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"USER PROMPT: {user_prompt}\nCURRENT PROJECT CODE:\n{mermaid_code}\n\nInterpret this and provide the JSON:"}
-        ],
-        "temperature": 0.2
-    }
-
-    try:
-        response = requests.post(
-            "https://api.sarvam.ai/v1/chat/completions",
-            headers=headers,
-            json=payload,
-            timeout=15
-        )
-        response.raise_for_status()
-        result = response.json()
-        content = result['choices'][0]['message']['content'].strip()
-        
-        match = re.search(r'\{.*\}', content, re.DOTALL)
-        if match:
-            return jsonify(json.loads(match.group(0)))
-        else:
-            return jsonify({
-                "confirmation": "I'll update the diagram according to your request.",
-                "technical_instructions": user_prompt
-            })
-    except Exception as e:
-        print(f"Error in interpret_refine: {e}")
-        return jsonify({
-            "confirmation": f"I'll try to apply: {user_prompt}",
-            "technical_instructions": user_prompt
-        })
 
 
 @app.route('/api/generate-byok', methods=['POST'])

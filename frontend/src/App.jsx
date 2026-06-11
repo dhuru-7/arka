@@ -159,7 +159,6 @@ const DiagramsPage = () => {
 
     setCurrentDiagramId(Date.now().toString());
     localStorage.removeItem('arka_last_mermaid_code');
-    localStorage.removeItem('arka_vision_prompt');
     setSuggestedType(null);
     setAgentSuggestion(null);
     setExpandedCardType(null);
@@ -203,14 +202,12 @@ const DiagramsPage = () => {
   const handleProceed = () => {
     if (!suggestedType) return;
     localStorage.removeItem('arka_last_mermaid_code');
-    localStorage.removeItem('arka_vision_prompt');
     setViewState('arena');
   };
 
   const loadHistoryItem = (item) => {
     localStorage.setItem('arka_last_mermaid_code', item.code);
     localStorage.setItem('arka_prompt', item.prompt);
-    localStorage.setItem('arka_vision_prompt', item.visionPrompt || '');
     setPrompt(item.prompt);
     setSuggestedType(item.diagramType);
     setCurrentDiagramId(item.id);
