@@ -227,6 +227,76 @@ const getInitialAgentRemarks = (steps, repairLog) => {
   return remarks;
 };
 
+const renderMarkdown = (text) => {
+  if (!text) return null;
+
+  const lines = text.split('\n');
+  return lines.map((line, lineIdx) => {
+    let content = line;
+    let isBullet = false;
+    let isHeader = false;
+    let headerLevel = 0;
+
+    if (content.trim().startsWith('- ') || content.trim().startsWith('* ')) {
+      isBullet = true;
+      content = content.trim().substring(2);
+    }
+
+    const headerMatch = content.match(/^(#{1,6})\s+(.*)$/);
+    if (headerMatch) {
+      isHeader = true;
+      headerLevel = headerMatch[1].length;
+      content = headerMatch[2];
+    }
+
+    const parseInlineStyles = (str) => {
+      const parts = [];
+      const boldRegex = /\*\*([^*]+)\*\*/g;
+      let lastIndex = 0;
+      let match;
+
+      while ((match = boldRegex.exec(str)) !== null) {
+        if (match.index > lastIndex) {
+          parts.push(str.substring(lastIndex, match.index));
+        }
+        parts.push(<strong key={`bold-${match.index}`}>{match[1]}</strong>);
+        lastIndex = boldRegex.lastIndex;
+      }
+
+      if (lastIndex < str.length) {
+        parts.push(str.substring(lastIndex));
+      }
+
+      return parts.length > 0 ? parts : str;
+    };
+
+    const renderedInline = parseInlineStyles(content);
+
+    if (isBullet) {
+      return (
+        <li key={lineIdx} style={{ marginLeft: '1.2rem', marginBottom: '0.35rem', listStyleType: 'disc' }}>
+          {renderedInline}
+        </li>
+      );
+    }
+
+    if (isHeader) {
+      const HeaderTag = `h${Math.min(headerLevel + 2, 6)}`;
+      return (
+        <HeaderTag key={lineIdx} style={{ margin: '0.8rem 0 0.4rem 0', fontWeight: 700, color: 'var(--text-main)' }}>
+          {renderedInline}
+        </HeaderTag>
+      );
+    }
+
+    return (
+      <div key={lineIdx} style={{ minHeight: '1.2em', marginBottom: '0.3rem' }}>
+        {renderedInline}
+      </div>
+    );
+  });
+};
+
 const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
   const navigate = useNavigate();
   const [mermaidCode, setMermaidCode] = useState('');
@@ -294,6 +364,14 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState([]);
   const chatEndRef = useRef(null);
+
+  const getShortAgentName = () => {
+    const label = getProviderLabel();
+    if (label && label.includes(' · ')) {
+      return label.split(' · ')[1];
+    }
+    return label;
+  };
 
   // Scroll to bottom of chat
   useEffect(() => {
@@ -1436,7 +1514,7 @@ ${mermaidCode}`;
                 clearSelection(true);
               }}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill={isChatOpen ? "#fff" : "#e3e3e3"}>
+              <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill={isChatOpen ? "#ffffff" : "#000000"}>
                 <path d="M272-160q-30 0-51-21t-21-51q0-21 12-39.5t32-26.5l156-62v-90q-54 63-125.5 96.5T120-320v-80q68 0 123.5-28T344-508l54-64q12-14 28-21t34-7h40q18 0 34 7t28 21l54 64q45 52 100.5 80T840-400v80q-83 0-154.5-33.5T560-450v90l156 62q20 8 32 26.5t12 39.5q0 30-21 51t-51 21H400v-20q0-26 17-43t43-17h120q9 0 14.5-5.5T600-260q0-9-5.5-14.5T580-280H460q-42 0-71 29t-29 71v20h-88Zm151.5-503.5Q400-687 400-720t23.5-56.5Q447-800 480-800t56.5 23.5Q560-753 560-720t-23.5 56.5Q513-640 480-640t-56.5-23.5Z"/>
               </svg>
             </button>
@@ -1800,15 +1878,17 @@ ${mermaidCode}`;
       <AnimatePresence>
         {isChatOpen && (
           <motion.div className="chat-sidebar"
-            initial={{ x: '100%', opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: '100%', opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 260, damping: 20 }}>
+            initial={{ x: '120%', opacity: 0, scale: 0.95 }}
+            animate={{ x: 0, opacity: 1, scale: 1 }}
+            exit={{ x: '120%', opacity: 0, scale: 0.95 }}
+            transition={{ type: 'spring', stiffness: 220, damping: 22 }}>
             
             <div className="popover-header">
               <span className="popover-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span className="agent-status-dot"></span>
-                {getProviderLabel()}
+                <svg xmlns="http://www.w3.org/2000/svg" height="18px" viewBox="0 -960 960 960" width="18px" fill="#000000" style={{ flexShrink: 0 }}>
+                  <path d="M272-160q-30 0-51-21t-21-51q0-21 12-39.5t32-26.5l156-62v-90q-54 63-125.5 96.5T120-320v-80q68 0 123.5-28T344-508l54-64q12-14 28-21t34-7h40q18 0 34 7t28 21l54 64q45 52 100.5 80T840-400v80q-83 0-154.5-33.5T560-450v90l156 62q20 8 32 26.5t12 39.5q0 30-21 51t-51 21H400v-20q0-26 17-43t43-17h120q9 0 14.5-5.5T600-260q0-9-5.5-14.5T580-280H460q-42 0-71 29t-29 71v20h-88Zm151.5-503.5Q400-687 400-720t23.5-56.5Q447-800 480-800t56.5 23.5Q560-753 560-720t-23.5 56.5Q513-640 480-640t-56.5-23.5Z"/>
+                </svg>
+                {getShortAgentName()}
               </span>
               <button className="popover-close" onClick={() => setIsChatOpen(false)}><X size={18} /></button>
             </div>
@@ -1817,21 +1897,16 @@ ${mermaidCode}`;
               {chatMessages.map((msg, idx) => (
                 <div key={idx} className={`chat-message-bubble ${msg.sender}`}>
                   <div className="chat-message-header">
-                    {msg.sender === 'user' ? 'You' : getProviderLabel()}
+                    {msg.sender === 'user' ? 'You' : getShortAgentName()}
                   </div>
                   <div className="chat-message-text">
-                    {msg.text.split('\n').map((line, lIdx) => (
-                      <React.Fragment key={lIdx}>
-                        {line}
-                        <br />
-                      </React.Fragment>
-                    ))}
+                    {renderMarkdown(msg.text)}
                   </div>
                 </div>
               ))}
               {isRefining && (
                 <div className="chat-message-bubble agent">
-                  <div className="chat-message-header">{getProviderLabel()}</div>
+                  <div className="chat-message-header">{getShortAgentName()}</div>
                   <div className="chat-message-text typing-indicator">
                     <span></span><span></span><span></span>
                   </div>
