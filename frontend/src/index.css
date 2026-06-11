@@ -415,27 +415,6 @@ input[type="password"]::-ms-clear {
 }
 @keyframes l38 { 100% { background-position: 100% 0, 100% 100%, 0 100%, 0 0 } }
 
-.alien-loader {
-  width: fit-content;
-  font-weight: bold;
-  font-family: monospace;
-  white-space: pre;
-  font-size: 30px;
-  line-height: 1.2em;
-  height: 1.2em;
-  overflow: hidden;
-}
-.alien-loader:before {
-  content: "Loading...\A⌰oading...\A⌰⍜ading...\A⌰⍜⏃ding...\A⌰⍜⏃⎅ing...\A⌰⍜⏃⎅⟟ng...\A⌰⍜⏃⎅⟟⋏g...\A⌰⍜⏃⎅⟟⋏☌...\A⌰⍜⏃⎅⟟⋏☌⟒..\A⌰⍜⏃⎅⟟⋏☌⟒⏁.\A⌰⍜⏃⎅⟟⋏☌⟒⏁⋔"; 
-  white-space: pre;
-  display: inline-block;
-  animation: l39 1s infinite steps(11) alternate;
-}
-
-@keyframes l39 {
-  100% { transform: translateY(-100%); }
-}
-
 /* ─── Suggestion Board (Light Mode) ─── */
 .suggestion-board {
   width: 100%; max-width: 900px; min-height: 85vh; margin: 0 auto;

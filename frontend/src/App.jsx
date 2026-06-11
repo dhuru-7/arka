@@ -32,18 +32,17 @@ const DiagramsPage = () => {
   const [placeholderText, setPlaceholderText] = useState('Describe your flowchart...');
   const textareaRef = useRef(null);
   const pinNoticeTimerRef = useRef(null);
-  const suggestAbortControllerRef = useRef(null);
-
-  useEffect(() => {
-    return () => {
-      if (suggestAbortControllerRef.current) {
-        suggestAbortControllerRef.current.abort();
-      }
-    };
-  }, []);
   const [historyItems, setHistoryItems] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [currentDiagramId, setCurrentDiagramId] = useState(() => localStorage.getItem('arka_diagramId') || null);
+  const suggestAbortControllerRef = useRef(null);
+
+  const handleCancelSuggest = () => {
+    if (suggestAbortControllerRef.current) {
+      suggestAbortControllerRef.current.abort();
+    }
+    setViewState('input');
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -158,14 +157,6 @@ const DiagramsPage = () => {
       return;
     }
 
-    // Abort any previous pending suggestion call
-    if (suggestAbortControllerRef.current) {
-      suggestAbortControllerRef.current.abort();
-    }
-
-    const controller = new AbortController();
-    suggestAbortControllerRef.current = controller;
-
     setCurrentDiagramId(Date.now().toString());
     localStorage.removeItem('arka_last_mermaid_code');
     localStorage.removeItem('arka_vision_prompt');
@@ -175,34 +166,22 @@ const DiagramsPage = () => {
     setSuggestionError('');
     setViewState('loading');
 
+    const abortController = new AbortController();
+    suggestAbortControllerRef.current = abortController;
+
     try {
-      const suggestResult = await agentSuggestDiagramType(prompt, controller.signal);
+      const suggestResult = await agentSuggestDiagramType(prompt, abortController.signal);
       const nextType = suggestResult?.suggestions?.[0]?.type || suggestResult?.suggested_type;
       if (!nextType) throw new Error('The selected AI model returned no diagram suggestions.');
       setSuggestedType(nextType);
       setAgentSuggestion(suggestResult || null);
       setViewState('result');
     } catch (error) {
-      if (error.name === 'AbortError') {
-        console.log("Suggestion call aborted by user.");
-        return;
-      }
+      if (error.name === 'AbortError') return;
       console.error("AI Error:", error);
       setSuggestionError(error.message || 'The selected AI model could not analyze this prompt.');
       setViewState('input');
-    } finally {
-      if (suggestAbortControllerRef.current === controller) {
-        suggestAbortControllerRef.current = null;
-      }
     }
-  };
-
-  const handleCancelSuggestion = () => {
-    if (suggestAbortControllerRef.current) {
-      suggestAbortControllerRef.current.abort();
-      suggestAbortControllerRef.current = null;
-    }
-    setViewState('input');
   };
 
   const handleReset = () => {
@@ -464,42 +443,40 @@ const DiagramsPage = () => {
                                 gap: '2rem'
                               }}
                             >
-                              <div className="alien-loader"></div>
-                              <div style={{
-                                fontFamily: 'var(--font-mono)',
-                                fontSize: '0.9rem',
-                                color: 'var(--text-alt)',
-                                textAlign: 'center',
-                                maxWidth: '80%',
-                                padding: '0 1rem'
-                              }}>
-                                Analyzing prompt and recommending diagram types...
+                              <div className="loader"></div>
+                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+                                <span style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '1.1rem', fontFamily: 'var(--font-mono)' }}>
+                                  Analyzing diagram types...
+                                </span>
+                                <button
+                                  onClick={handleCancelSuggest}
+                                  style={{
+                                    padding: '0.6rem 1.5rem',
+                                    borderRadius: '0.75rem',
+                                    border: '1px solid #e5e7eb',
+                                    background: '#ffffff',
+                                    color: '#ef4444',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    fontSize: '0.9rem',
+                                    fontFamily: 'var(--font-body)',
+                                    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)',
+                                    transition: 'all 0.2s ease'
+                                  }}
+                                  onMouseOver={e => {
+                                    e.currentTarget.style.background = '#fef2f2';
+                                    e.currentTarget.style.borderColor = '#fca5a5';
+                                    e.currentTarget.style.transform = 'translateY(-1px)';
+                                  }}
+                                  onMouseOut={e => {
+                                    e.currentTarget.style.background = '#ffffff';
+                                    e.currentTarget.style.borderColor = '#e5e7eb';
+                                    e.currentTarget.style.transform = 'translateY(0)';
+                                  }}
+                                >
+                                  Cancel
+                                </button>
                               </div>
-                              <button 
-                                onClick={handleCancelSuggestion}
-                                style={{
-                                  padding: '0.6rem 1.5rem',
-                                  borderRadius: '12px',
-                                  border: '1px solid #e5e7eb',
-                                  background: '#ffffff',
-                                  color: '#ef4444',
-                                  fontWeight: 600,
-                                  fontSize: '0.85rem',
-                                  cursor: 'pointer',
-                                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
-                                  transition: 'all 0.2s'
-                                }}
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.borderColor = '#fca5a5';
-                                  e.currentTarget.style.background = '#fef2f2';
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.borderColor = '#e5e7eb';
-                                  e.currentTarget.style.background = '#ffffff';
-                                }}
-                              >
-                                Cancel Process
-                              </button>
                             </motion.div>
                           ) : (
                             <motion.div

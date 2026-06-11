@@ -240,6 +240,19 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
   const [brushPath, setBrushPath] = useState([]);
   const [selectedContext, setSelectedContext] = useState([]);
   const [interpretation, setInterpretation] = useState(null);
+  const abortControllerRef = useRef(null);
+
+  const handleCancelRequest = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    setIsLoading(false);
+    setIsRefining(false);
+    if (!mermaidCode) {
+      setAgentError('Generation was cancelled.');
+      setAgentSteps(prev => [...prev, 'Generation cancelled by the user.']);
+    }
+  };
 
   // Suggestion Engine State
   const [suggestions, setSuggestions] = useState([]);
@@ -350,17 +363,6 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
   const renderCounter = useRef(0);
-  const abortControllerRef = useRef(null);
-
-  const handleCancelWork = () => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-    }
-    setIsLoading(false);
-    setIsRefining(false);
-    setIsInterpreting(false);
-  };
 
   /* ─── Push to history helper ─── */
   const pushHistory = (newCode) => {
@@ -424,20 +426,12 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
           throw new Error('Empty response from AI model');
         }
       } catch (err) {
-        if (cancelled || err.name === 'AbortError') {
-          onBack();
-          return;
-        }
+        if (cancelled || err.name === 'AbortError') return;
         console.error("Generation Error:", err);
         setAgentError(err.message || 'Agent generation failed.');
         setAgentSteps(prev => [...prev, 'Generation stopped before a valid diagram was produced.']);
       } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-          if (abortControllerRef.current === abortController) {
-            abortControllerRef.current = null;
-          }
-        }
+        if (!cancelled) setIsLoading(false);
       }
     };
     gen();
@@ -445,9 +439,6 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
     return () => {
       cancelled = true;
       abortController.abort();
-      if (abortControllerRef.current === abortController) {
-        abortControllerRef.current = null;
-      }
     };
   }, [prompt, diagramType, diagramId]);
 
@@ -952,21 +943,15 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
   const handleRefine = async (overridePrompt = null) => {
     const finalPrompt = overridePrompt || refinePrompt;
     if (!finalPrompt.trim()) return;
-
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-
     setIsRefining(true);
     setAgentError('');
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
     try {
       const byokResult = await agentRefineDiagram(finalPrompt, mermaidCode, diagramType, {
         visionPrompt,
         selectedContext,
-        signal: controller.signal
+        signal: abortController.signal
       });
       let resultCode = null;
 
@@ -996,60 +981,37 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
       }
     } catch (err) {
       if (err.name === 'AbortError') {
-        console.log("Refinement aborted by user");
+        setAgentSteps(prev => [...prev, 'Refinement cancelled by the user.']);
         return;
       }
       console.error("Refine Error:", err);
       setAgentError(err.message || "Failed to connect to refine API.");
     } finally {
       setIsRefining(false);
-      if (abortControllerRef.current === controller) {
-        abortControllerRef.current = null;
-      }
     }
   };
 
   const handleInterpretRefine = async (overridePrompt = null) => {
     const finalPrompt = overridePrompt || refinePrompt;
     if (!finalPrompt.trim()) return;
-
-    // We'll skip interpretation if selectedContext is empty (e.g. no brush selection)
-    if (selectedContext.length === 0) {
-      handleRefine(finalPrompt);
-      return;
-    }
-
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-
     setIsInterpreting(true);
+    setInterpretation(null);
     try {
-      const result = await agentInterpretRefine(finalPrompt, mermaidCode, diagramType, {
+      const data = await agentInterpretRefine(finalPrompt, mermaidCode, diagramType, {
         visionPrompt,
-        selectedContext,
-        signal: controller.signal
+        selectedContext
       });
-      if (result && result.technical_instructions) {
-        setInterpretation(result);
+      if (data.confirmation) {
+        setInterpretation(data);
+        setIsRefineOpen(true);
       } else {
         handleRefine(finalPrompt);
       }
     } catch (err) {
-      if (err.name === 'AbortError') {
-        console.log("Interpretation aborted by user");
-        return;
-      }
       console.error("Interpret Error:", err);
       handleRefine(finalPrompt);
     } finally {
       setIsInterpreting(false);
-      if (abortControllerRef.current === controller) {
-        abortControllerRef.current = null;
-      }
     }
   };
 
@@ -1245,26 +1207,11 @@ ${mermaidCode}`;
                         className="sug-card-loading magical-glow"
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        style={{ height: '160px', background: 'white', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '8px' }}
+                        style={{ height: '160px', background: 'white' }}
                         transition={{ type: "spring", stiffness: 400, damping: 28 }}
                       >
                         <div className="mini-loader" />
                         <span style={{ fontSize: '10px', fontWeight: 800, color: '#000000', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Connecting vision context...</span>
-                        <button
-                          onClick={handleCancelWork}
-                          style={{
-                            padding: '4px 10px',
-                            fontSize: '9px',
-                            fontWeight: 700,
-                            borderRadius: '6px',
-                            border: '1px solid #e5e7eb',
-                            background: '#ffffff',
-                            color: '#ef4444',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          Cancel
-                        </button>
                       </motion.div>
                     ) : interpretation ? (
                       <motion.div
@@ -1510,40 +1457,49 @@ ${mermaidCode}`;
           {(isLoading || isRefining) && (
             <motion.div key="loader" className="arena-loader-overlay"
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
-              <div className="new-loader-container" style={{ flexDirection: 'column', gap: '2rem' }}>
-                <div className="alien-loader" />
-                <div className="agent-progress-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <div className="new-loader-container">
+                <div className="loader" />
+                <div className="agent-progress-card">
                   <div className="agent-progress-title">{isRefining ? 'Refinement agent working' : 'Diagram agent working'}</div>
                   {(agentSteps.length ? agentSteps : ['Starting the diagram agent...']).slice(-4).map((step, idx) => (
                     <div className="agent-progress-step" key={`${step}-${idx}`}>{step}</div>
                   ))}
+                  <button 
+                    className="agent-cancel-btn"
+                    onClick={handleCancelRequest}
+                    style={{
+                      marginTop: '1.25rem',
+                      padding: '0.6rem 1.25rem',
+                      borderRadius: '0.75rem',
+                      border: '1px solid #e5e7eb',
+                      background: '#ffffff',
+                      color: '#ef4444',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      fontSize: '0.85rem',
+                      fontFamily: 'var(--font-body)',
+                      transition: 'all 0.2s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      justifyContent: 'center',
+                      width: '100%',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+                    }}
+                    onMouseOver={e => {
+                      e.currentTarget.style.background = '#fef2f2';
+                      e.currentTarget.style.borderColor = '#fca5a5';
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                    }}
+                    onMouseOut={e => {
+                      e.currentTarget.style.background = '#ffffff';
+                      e.currentTarget.style.borderColor = '#e5e7eb';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    Cancel Task
+                  </button>
                 </div>
-                <button
-                  onClick={handleCancelWork}
-                  style={{
-                    padding: '0.6rem 1.5rem',
-                    borderRadius: '12px',
-                    border: '1px solid #e5e7eb',
-                    background: '#ffffff',
-                    color: '#ef4444',
-                    fontWeight: 600,
-                    fontSize: '0.85rem',
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
-                    transition: 'all 0.2s',
-                    zIndex: 10
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = '#fca5a5';
-                    e.currentTarget.style.background = '#fef2f2';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = '#e5e7eb';
-                    e.currentTarget.style.background = '#ffffff';
-                  }}
-                >
-                  Cancel Process
-                </button>
               </div>
             </motion.div>
           )}
