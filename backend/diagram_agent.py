@@ -174,7 +174,7 @@ class DiagramAgent:
             ],
         }
 
-    def generate(self, prompt, diagram_type, max_attempts=3):
+    def generate(self, prompt, diagram_type, max_attempts=3, on_progress=None):
         diagram_type = normalize_type(diagram_type) or "flowchart"
         knowledge = self.load_knowledge(diagram_type)
         docs = ""
@@ -183,6 +183,10 @@ class DiagramAgent:
             f"Loaded {readable_type(diagram_type)} knowledge-bank rules.",
             "Drafting Mermaid code.",
         ]
+        if on_progress:
+            on_progress("Understanding prompt and chosen diagram type.")
+            on_progress(f"Loaded {readable_type(diagram_type)} knowledge-bank rules.")
+            on_progress("Drafting Mermaid code.")
         repair_log = []
         code = ""
 
@@ -194,7 +198,10 @@ class DiagramAgent:
                 if not docs:
                     docs = fetch_mermaid_reference(diagram_type)
                     if docs:
-                        progress.append("Checked Mermaid syntax reference for repair guidance.")
+                        msg = "Checked Mermaid syntax reference for repair guidance."
+                        progress.append(msg)
+                        if on_progress:
+                            on_progress(msg)
                 system_prompt = build_repair_prompt(diagram_type, knowledge, docs)
                 user_prompt = (
                     f"ORIGINAL USER PROMPT:\n{prompt}\n\n"
@@ -202,7 +209,10 @@ class DiagramAgent:
                     f"VALIDATION ISSUES:\n{format_issues_for_prompt(repair_log[-1]['issues'])}\n\n"
                     "Return the full corrected Mermaid code."
                 )
-                progress.append(f"Repair attempt {attempt - 1}: using line-level validation feedback.")
+                msg = f"Repair attempt {attempt - 1}: using line-level validation feedback."
+                progress.append(msg)
+                if on_progress:
+                    on_progress(msg)
 
             try:
                 raw = self.call_model(system_prompt, user_prompt, temperature=0.2, max_tokens=2600)
@@ -223,7 +233,10 @@ class DiagramAgent:
             })
 
             if validation["valid"]:
-                progress.append("Validated Mermaid syntax with static checks.")
+                msg = "Validated Mermaid syntax with static checks."
+                progress.append(msg)
+                if on_progress:
+                    on_progress(msg)
                 break
 
         if not code:
@@ -235,10 +248,16 @@ class DiagramAgent:
 
         try:
             suggestions = self.suggest_improvements(prompt, code, diagram_type)
-            progress.append("Prepared structural and visual refinement suggestions.")
+            msg = "Prepared structural and visual refinement suggestions."
+            progress.append(msg)
+            if on_progress:
+                on_progress(msg)
         except Exception:
             suggestions = []
-            progress.append("Generated the diagram; suggestions were not available from the model.")
+            msg = "Generated the diagram; suggestions were not available from the model."
+            progress.append(msg)
+            if on_progress:
+                on_progress(msg)
         return {
             "mermaid_code": code,
             "diagram_type": diagram_type,
@@ -280,7 +299,7 @@ class DiagramAgent:
             technical = prompt
         return {"confirmation": confirmation[:360], "technical_instructions": technical}
 
-    def refine(self, prompt, mermaid_code, diagram_type, vision_prompt="", selected_context=None, max_attempts=3):
+    def refine(self, prompt, mermaid_code, diagram_type, vision_prompt="", selected_context=None, max_attempts=3, on_progress=None):
         diagram_type = normalize_type(diagram_type) or "flowchart"
         knowledge = self.load_knowledge(diagram_type)
         docs = ""
@@ -288,6 +307,9 @@ class DiagramAgent:
             "Reading current diagram code and refinement request.",
             "Applying the requested change while preserving existing structure.",
         ]
+        if on_progress:
+            on_progress("Reading current diagram code and refinement request.")
+            on_progress("Applying the requested change while preserving existing structure.")
         repair_log = []
         code = mermaid_code
         produced_candidate = False
@@ -306,14 +328,20 @@ class DiagramAgent:
                 if not docs:
                     docs = fetch_mermaid_reference(diagram_type)
                     if docs:
-                        progress.append("Checked Mermaid syntax reference for repair guidance.")
+                        msg = "Checked Mermaid syntax reference for repair guidance."
+                        progress.append(msg)
+                        if on_progress:
+                            on_progress(msg)
                 system_prompt = build_repair_prompt(diagram_type, knowledge, docs)
                 user_prompt = (
                     f"CURRENT BROKEN CODE:\n{code}\n\n"
                     f"VALIDATION ISSUES:\n{format_issues_for_prompt(repair_log[-1]['issues'])}\n\n"
                     "Return the complete corrected Mermaid code."
                 )
-                progress.append(f"Repair attempt {attempt - 1}: fixing line-level errors.")
+                msg = f"Repair attempt {attempt - 1}: fixing line-level errors."
+                progress.append(msg)
+                if on_progress:
+                    on_progress(msg)
 
             try:
                 raw = self.call_model(system_prompt, user_prompt, temperature=0.2, max_tokens=2600)
@@ -334,7 +362,10 @@ class DiagramAgent:
                 "issues": validation["issues"],
             })
             if validation["valid"]:
-                progress.append("Validated the refined diagram.")
+                msg = "Validated the refined diagram."
+                progress.append(msg)
+                if on_progress:
+                    on_progress(msg)
                 break
 
         if not produced_candidate:

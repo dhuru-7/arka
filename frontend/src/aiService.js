@@ -299,6 +299,58 @@ async function callAgentEndpoint(path, body, signal) {
   return data;
 }
 
+async function callAgentEndpointStream(path, body, onProgress, signal) {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `Agent API error: ${res.status}`);
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let result = null;
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop();
+
+    for (const line of lines) {
+      if (line.trim()) {
+        try {
+          const data = JSON.parse(line);
+          if (data.type === 'progress') {
+            if (onProgress) onProgress(data.content);
+          } else if (data.type === 'result') {
+            result = data.content;
+          } else if (data.type === 'error') {
+            throw new Error(data.content);
+          }
+        } catch (e) {
+          console.error("Failed to parse line", line, e);
+          if (e.message && e.message.indexOf("Error") !== -1) {
+            throw e;
+          }
+        }
+      }
+    }
+  }
+
+  if (!result) {
+    throw new Error("Agent failed to return a result.");
+  }
+  return result;
+}
+
 export async function agentSuggestDiagramType(prompt, signal) {
   const providerPayload = buildAgentProviderPayload('suggest');
 
@@ -312,11 +364,11 @@ export async function agentSuggestDiagramType(prompt, signal) {
   }, signal);
 }
 
-export async function agentGenerateDiagram(prompt, diagramType, signal) {
+export async function agentGenerateDiagram(prompt, diagramType, options = {}) {
   const providerPayload = buildAgentProviderPayload('generate');
 
   if (providerPayload.provider === 'local' || providerPayload.provider === 'gemini') {
-    const result = await generateDiagram(prompt, diagramType, signal);
+    const result = await generateDiagram(prompt, diagramType, options.signal);
     return {
       ...result,
       agent_steps: ['Generated with the selected local model.'],
@@ -325,11 +377,11 @@ export async function agentGenerateDiagram(prompt, diagramType, signal) {
     };
   }
 
-  return callAgentEndpoint('/api/agent/generate', {
+  return callAgentEndpointStream('/api/agent/generate', {
     prompt,
     diagramType,
     ...providerPayload
-  }, signal);
+  }, options.onProgress, options.signal);
 }
 
 export async function agentInterpretRefine(prompt, mermaidCode, diagramType, options = {}) {
@@ -365,14 +417,14 @@ export async function agentRefineDiagram(prompt, mermaidCode, diagramType, optio
     };
   }
 
-  return callAgentEndpoint('/api/agent/refine', {
+  return callAgentEndpointStream('/api/agent/refine', {
     prompt,
     mermaid_code: mermaidCode,
     diagramType,
     vision_prompt: options.visionPrompt || '',
     selected_context: options.selectedContext || [],
     ...providerPayload
-  }, options.signal);
+  }, options.onProgress, options.signal);
 }
 
 export async function agentSuggestImprovements(prompt, mermaidCode, diagramType, options = {}) {

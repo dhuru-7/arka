@@ -444,8 +444,18 @@ const DiagramsPage = () => {
                               }}
                             >
                               <div className="loader"></div>
-                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
-                                <span style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '1.1rem', fontFamily: 'var(--font-mono)' }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem', width: '100%' }}>
+                                <span style={{ 
+                                  fontWeight: 400, 
+                                  color: 'var(--text-main)', 
+                                  fontSize: '1.1rem', 
+                                  fontFamily: 'var(--font-mono)',
+                                  textAlign: 'center',
+                                  maxWidth: '90%',
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis'
+                                }}>
                                   Analyzing diagram types...
                                 </span>
                                 <button

@@ -2,7 +2,7 @@ import os
 import requests
 import json
 import re
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
 from dotenv import load_dotenv
 import fitz  # PyMuPDF
@@ -75,12 +75,33 @@ def agent_generate_diagram():
     if not user_prompt:
         return jsonify({"error": "No prompt provided"}), 400
 
-    try:
-        result = agent_from_request(data).generate(user_prompt, diagram_type)
-        return jsonify(result)
-    except Exception as e:
-        print(f"Agent generate error: {e}")
-        return jsonify({"error": f"Agent generation failed: {str(e)}"}), 500
+    agent = agent_from_request(data)
+    import queue
+    import threading
+    q = queue.Queue()
+
+    def run_agent():
+        try:
+            def on_progress(step):
+                q.put({"type": "progress", "content": step})
+            
+            result = agent.generate(user_prompt, diagram_type, on_progress=on_progress)
+            q.put({"type": "result", "content": result})
+        except Exception as e:
+            q.put({"type": "error", "content": str(e)})
+        finally:
+            q.put(None)
+
+    threading.Thread(target=run_agent).start()
+
+    def event_stream():
+        while True:
+            item = q.get()
+            if item is None:
+                break
+            yield json.dumps(item) + "\n"
+
+    return Response(event_stream(), mimetype='application/x-ndjson')
 
 
 @app.route('/api/agent/validate', methods=['POST'])
@@ -125,18 +146,40 @@ def agent_refine_diagram():
     if not user_prompt or not mermaid_code:
         return jsonify({"error": "Missing prompt or mermaid_code"}), 400
 
-    try:
-        result = agent_from_request(data).refine(
-            user_prompt,
-            mermaid_code,
-            diagram_type,
-            vision_prompt=data.get('vision_prompt', ''),
-            selected_context=data.get('selected_context', []),
-        )
-        return jsonify(result)
-    except Exception as e:
-        print(f"Agent refine error: {e}")
-        return jsonify({"error": f"Agent refine failed: {str(e)}"}), 500
+    agent = agent_from_request(data)
+    import queue
+    import threading
+    q = queue.Queue()
+
+    def run_agent():
+        try:
+            def on_progress(step):
+                q.put({"type": "progress", "content": step})
+            
+            result = agent.refine(
+                user_prompt,
+                mermaid_code,
+                diagram_type,
+                vision_prompt=data.get('vision_prompt', ''),
+                selected_context=data.get('selected_context', []),
+                on_progress=on_progress
+            )
+            q.put({"type": "result", "content": result})
+        except Exception as e:
+            q.put({"type": "error", "content": str(e)})
+        finally:
+            q.put(None)
+
+    threading.Thread(target=run_agent).start()
+
+    def event_stream():
+        while True:
+            item = q.get()
+            if item is None:
+                break
+            yield json.dumps(item) + "\n"
+
+    return Response(event_stream(), mimetype='application/x-ndjson')
 
 
 @app.route('/api/agent/suggestions', methods=['POST'])

@@ -254,42 +254,7 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
     }
   };
 
-  const [dynamicLoadingText, setDynamicLoadingText] = useState('Starting the diagram agent...');
-
-  useEffect(() => {
-    if (!isLoading && !isRefining) return;
-
-    const messages = isRefining ? [
-      "Initializing refinement agent...",
-      "Parsing existing diagram structure...",
-      "Applying requested changes...",
-      "Re-routing connection lines...",
-      "Validating syntax correctness...",
-      "Checking layout styling...",
-      "Finalizing styles..."
-    ] : [
-      "Starting diagram agent...",
-      "Analyzing requirements & extracting components...",
-      "Mapping system containers and subgraphs...",
-      "Defining connection types and protocols...",
-      "Drafting Mermaid JS specifications...",
-      "Checking syntax correctness...",
-      "Validating layout styling rules...",
-      "Repair PASS: Found syntax warning, repairing...",
-      "Almost ready, compiling diagram..."
-    ];
-
-    setDynamicLoadingText(messages[0]);
-    let index = 0;
-    
-    const interval = setInterval(() => {
-      index = (index + 1) % messages.length;
-      setDynamicLoadingText(messages[index]);
-    }, 2500);
-
-    return () => clearInterval(interval);
-  }, [isLoading, isRefining]);
-
+  const [dynamicLoadingText, setDynamicLoadingText] = useState('Starting diagram agent...');
 
   // Suggestion Engine State
   const [suggestions, setSuggestions] = useState([]);
@@ -419,6 +384,7 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
 
     const gen = async () => {
       setIsLoading(true);
+      setDynamicLoadingText('Starting diagram agent...');
       setRenderError(null);
       setAgentError('');
       setAgentSteps(['Starting the diagram agent...']);
@@ -444,7 +410,15 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
       }
 
       try {
-        const byokResult = await agentGenerateDiagram(prompt, diagramType, abortController.signal);
+        const byokResult = await agentGenerateDiagram(prompt, diagramType, {
+          signal: abortController.signal,
+          onProgress: (step) => {
+            if (!cancelled) {
+              setDynamicLoadingText(step);
+              setAgentSteps(prev => [...prev, step]);
+            }
+          }
+        });
         if (cancelled) return;
 
         if (byokResult && byokResult.mermaid_code) {
@@ -981,6 +955,7 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
     const finalPrompt = overridePrompt || refinePrompt;
     if (!finalPrompt.trim()) return;
     setIsRefining(true);
+    setDynamicLoadingText('Initializing refinement agent...');
     setAgentError('');
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
@@ -988,7 +963,11 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
       const byokResult = await agentRefineDiagram(finalPrompt, mermaidCode, diagramType, {
         visionPrompt,
         selectedContext,
-        signal: abortController.signal
+        signal: abortController.signal,
+        onProgress: (step) => {
+          setDynamicLoadingText(step);
+          setAgentSteps(prev => [...prev, step]);
+        }
       });
       let resultCode = null;
 
@@ -1514,8 +1493,18 @@ ${mermaidCode}`;
               }}
             >
               <div className="loader"></div>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
-                <span style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '1.1rem', fontFamily: 'var(--font-mono)', textAlign: 'center', maxWidth: '80%', lineHeight: '1.5' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem', width: '100%' }}>
+                <span style={{ 
+                  fontWeight: 400, 
+                  color: 'var(--text-main)', 
+                  fontSize: '1.1rem', 
+                  fontFamily: 'var(--font-mono)', 
+                  textAlign: 'center', 
+                  maxWidth: '90%', 
+                  whiteSpace: 'nowrap', 
+                  overflow: 'hidden', 
+                  textOverflow: 'ellipsis' 
+                }}>
                   {dynamicLoadingText}
                 </span>
                 <button 
