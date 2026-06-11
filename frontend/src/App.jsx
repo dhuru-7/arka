@@ -32,6 +32,15 @@ const DiagramsPage = () => {
   const [placeholderText, setPlaceholderText] = useState('Describe your flowchart...');
   const textareaRef = useRef(null);
   const pinNoticeTimerRef = useRef(null);
+  const suggestAbortControllerRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (suggestAbortControllerRef.current) {
+        suggestAbortControllerRef.current.abort();
+      }
+    };
+  }, []);
   const [historyItems, setHistoryItems] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [currentDiagramId, setCurrentDiagramId] = useState(() => localStorage.getItem('arka_diagramId') || null);
@@ -149,6 +158,14 @@ const DiagramsPage = () => {
       return;
     }
 
+    // Abort any previous pending suggestion call
+    if (suggestAbortControllerRef.current) {
+      suggestAbortControllerRef.current.abort();
+    }
+
+    const controller = new AbortController();
+    suggestAbortControllerRef.current = controller;
+
     setCurrentDiagramId(Date.now().toString());
     localStorage.removeItem('arka_last_mermaid_code');
     localStorage.removeItem('arka_vision_prompt');
@@ -159,17 +176,33 @@ const DiagramsPage = () => {
     setViewState('loading');
 
     try {
-      const suggestResult = await agentSuggestDiagramType(prompt);
+      const suggestResult = await agentSuggestDiagramType(prompt, controller.signal);
       const nextType = suggestResult?.suggestions?.[0]?.type || suggestResult?.suggested_type;
       if (!nextType) throw new Error('The selected AI model returned no diagram suggestions.');
       setSuggestedType(nextType);
       setAgentSuggestion(suggestResult || null);
       setViewState('result');
     } catch (error) {
+      if (error.name === 'AbortError') {
+        console.log("Suggestion call aborted by user.");
+        return;
+      }
       console.error("AI Error:", error);
       setSuggestionError(error.message || 'The selected AI model could not analyze this prompt.');
       setViewState('input');
+    } finally {
+      if (suggestAbortControllerRef.current === controller) {
+        suggestAbortControllerRef.current = null;
+      }
     }
+  };
+
+  const handleCancelSuggestion = () => {
+    if (suggestAbortControllerRef.current) {
+      suggestAbortControllerRef.current.abort();
+      suggestAbortControllerRef.current = null;
+    }
+    setViewState('input');
   };
 
   const handleReset = () => {
@@ -424,14 +457,49 @@ const DiagramsPage = () => {
                                 height: '100vh',
                                 zIndex: 5000,
                                 backgroundColor: '#f5f5f5',
-                                backdropFilter: 'none',
-                                WebkitBackdropFilter: 'none',
                                 display: 'flex',
+                                flexDirection: 'column',
                                 alignItems: 'center',
-                                justifyContent: 'center'
+                                justifyContent: 'center',
+                                gap: '2rem'
                               }}
                             >
-                              <div className="loader"></div>
+                              <div className="alien-loader"></div>
+                              <div style={{
+                                fontFamily: 'var(--font-mono)',
+                                fontSize: '0.9rem',
+                                color: 'var(--text-alt)',
+                                textAlign: 'center',
+                                maxWidth: '80%',
+                                padding: '0 1rem'
+                              }}>
+                                Analyzing prompt and recommending diagram types...
+                              </div>
+                              <button 
+                                onClick={handleCancelSuggestion}
+                                style={{
+                                  padding: '0.6rem 1.5rem',
+                                  borderRadius: '12px',
+                                  border: '1px solid #e5e7eb',
+                                  background: '#ffffff',
+                                  color: '#ef4444',
+                                  fontWeight: 600,
+                                  fontSize: '0.85rem',
+                                  cursor: 'pointer',
+                                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+                                  transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.borderColor = '#fca5a5';
+                                  e.currentTarget.style.background = '#fef2f2';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.borderColor = '#e5e7eb';
+                                  e.currentTarget.style.background = '#ffffff';
+                                }}
+                              >
+                                Cancel Process
+                              </button>
                             </motion.div>
                           ) : (
                             <motion.div
