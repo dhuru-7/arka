@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import ProfileDropdown from './ProfileDropdown';
 import { auth, db } from './firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { isBYOK, generateDiagram, refineDiagram, getProviderLabel } from './aiService';
+import { agentGenerateDiagram, agentInterpretRefine, agentRefineDiagram, agentSuggestImprovements, getProviderLabel } from './aiService';
 import './Arena.css';
 
 let mermaidPromise = null;
@@ -246,6 +246,9 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
   const [currentSugIdx, setCurrentSugIdx] = useState(0);
   const [isSugLoading, setIsSugLoading] = useState(false);
   const [lastSuggestedCode, setLastSuggestedCode] = useState('');
+  const [agentSteps, setAgentSteps] = useState([]);
+  const [agentRepairLog, setAgentRepairLog] = useState([]);
+  const [agentError, setAgentError] = useState('');
 
   // Vision Engine State
   const [isVisionModalOpen, setIsVisionModalOpen] = useState(false);
@@ -363,19 +366,12 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
     const abortController = new AbortController();
     let cancelled = false;
 
-    const FALLBACK_DIAGRAMS = {
-      flowchart: 'flowchart TD\n    A(["Start"]) --> B["Process Input"]\n    B --> C{"Is Valid?"}\n    C -->|Yes| D["Success"]\n    C -->|No| E["Handle Error"]\n    E --> B\n    D --> F(["End"])',
-      architecture: 'flowchart LR\n    user((("User"))) --> lb(["API Gateway"])\n    subgraph Services\n        lb --> api["Backend API"]\n        api --> auth["Auth Service"]\n    end\n    subgraph Data\n        api --> db[("Database")]\n        api --> cache{{"Cache"}}\n    end',
-      sequence: 'sequenceDiagram\n    actor User\n    participant API as API Server\n    participant DB as Database\n    User->>+API: Send Request\n    API->>+DB: Query Data\n    DB-->>-API: Return Results\n    API-->>-User: Send Response',
-      erDiagram: 'erDiagram\n    Customer {\n        int id PK\n        string name\n        string email UK\n    }\n    Order {\n        int id PK\n        int customerId FK\n        date orderDate\n    }\n    Customer ||--o{ Order : "places"',
-      gantt: 'gantt\n    title Project Timeline\n    dateFormat YYYY-MM-DD\n    section Planning\n    Requirements : done, req1, 2024-01-01, 2024-01-10\n    Design : active, des1, after req1, 10d\n    section Development\n    Backend : dev1, after des1, 21d',
-      pie: 'pie\n    title Distribution\n    "Category A" : 40\n    "Category B" : 30\n    "Category C" : 20\n    "Category D" : 10',
-      xy: 'xychart-beta\n    title "Data Overview"\n    x-axis ["Q1", "Q2", "Q3", "Q4"]\n    y-axis "Value" 0 --> 100\n    bar [30, 55, 72, 90]',
-    };
-
     const gen = async () => {
       setIsLoading(true);
       setRenderError(null);
+      setAgentError('');
+      setAgentSteps(['Starting the diagram agent...']);
+      setAgentRepairLog([]);
 
       const savedCode = localStorage.getItem('arka_last_mermaid_code');
       const savedVision = localStorage.getItem('arka_vision_prompt');
@@ -384,6 +380,7 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
         setMermaidCode(savedCode);
         setHistory([savedCode]);
         setHistoryIndex(0);
+        setAgentSteps(['Loaded saved diagram.']);
         if (savedVision) {
           setVisionPrompt(savedVision);
           setOriginalVisionPrompt(savedVision);
@@ -396,7 +393,7 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
       }
 
       try {
-        const byokResult = await generateDiagram(prompt, diagramType, abortController.signal);
+        const byokResult = await agentGenerateDiagram(prompt, diagramType, abortController.signal);
         if (cancelled) return;
 
         if (byokResult && byokResult.mermaid_code) {
@@ -404,17 +401,21 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
           setMermaidCode(code);
           setHistory([code]);
           setHistoryIndex(0);
+          setAgentSteps(byokResult.agent_steps || ['Agent generated the diagram.']);
+          setAgentRepairLog(byokResult.repair_log || []);
+          if (Array.isArray(byokResult.suggestions)) {
+            setSuggestions(byokResult.suggestions);
+            setCurrentSugIdx(0);
+            setLastSuggestedCode(code);
+          }
         } else {
           throw new Error('Empty response from AI model');
         }
       } catch (err) {
         if (cancelled || err.name === 'AbortError') return;
         console.error("Generation Error:", err);
-        alert(`AI Generation Failed: ${err.message || 'Unknown Error'}\nFalling back to default diagrams. Please check your API key / model settings.`);
-        const fallback = FALLBACK_DIAGRAMS[diagramType] || FALLBACK_DIAGRAMS.flowchart;
-        setMermaidCode(fallback);
-        setHistory([fallback]);
-        setHistoryIndex(0);
+        setAgentError(err.message || 'Agent generation failed.');
+        setAgentSteps(prev => [...prev, 'Generation stopped before a valid diagram was produced.']);
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -929,12 +930,23 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
     const finalPrompt = overridePrompt || refinePrompt;
     if (!finalPrompt.trim()) return;
     setIsRefining(true);
+    setAgentError('');
     try {
-      const byokResult = await refineDiagram(finalPrompt, mermaidCode, diagramType);
+      const byokResult = await agentRefineDiagram(finalPrompt, mermaidCode, diagramType, {
+        visionPrompt,
+        selectedContext
+      });
       let resultCode = null;
 
       if (byokResult && byokResult.mermaid_code) {
         resultCode = byokResult.mermaid_code;
+        setAgentSteps(byokResult.agent_steps || ['Agent refined the diagram.']);
+        setAgentRepairLog(byokResult.repair_log || []);
+        if (Array.isArray(byokResult.suggestions)) {
+          setSuggestions(byokResult.suggestions);
+          setCurrentSugIdx(0);
+          setLastSuggestedCode(resultCode);
+        }
       } else {
         throw new Error("Invalid response from AI model");
       }
@@ -952,7 +964,7 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
       }
     } catch (err) {
       console.error("Refine Error:", err);
-      alert("Failed to connect to refine API.");
+      setAgentError(err.message || "Failed to connect to refine API.");
     } finally {
       setIsRefining(false);
     }
@@ -964,18 +976,10 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
     setIsInterpreting(true);
     setInterpretation(null);
     try {
-      const res = await fetch('/api/interpret_refine', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: finalPrompt,
-          mermaid_code: mermaidCode,
-          diagramType,
-          vision_prompt: visionPrompt,
-          selected_context: selectedContext
-        })
+      const data = await agentInterpretRefine(finalPrompt, mermaidCode, diagramType, {
+        visionPrompt,
+        selectedContext
       });
-      const data = await res.json();
       if (data.confirmation) {
         setInterpretation(data);
         setIsRefineOpen(true);
@@ -1002,28 +1006,16 @@ ${mermaidCode}`;
     if (mermaidCode === lastSuggestedCode) return;
     setIsSugLoading(true);
     try {
-      const res = await fetch('/api/suggest_improvements', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt,
-          mermaid_code: mermaidCode,
-          diagramType,
-          vision_prompt: visionPrompt // Pass vision context here too
-        })
+      const data = await agentSuggestImprovements(prompt, mermaidCode, diagramType, {
+        visionPrompt
       });
-      const data = await res.json();
-      setSuggestions(data.suggestions || []);
+      if (data?.suggestions?.length) {
+        setSuggestions(data.suggestions);
+      }
       setCurrentSugIdx(0);
       setLastSuggestedCode(mermaidCode);
     } catch (err) {
       console.error("Suggestions Error:", err);
-      setSuggestions([
-        "Optimize terminal nodes for better flow clarity.",
-        "Use distinct colors to separate logical layers.",
-        "Add meaningful labels to edge connections.",
-        "Review spacing between complex components."
-      ]);
     } finally {
       setIsSugLoading(false);
     }
@@ -1262,10 +1254,10 @@ ${mermaidCode}`;
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
                                 transition={{ duration: 0.2, ease: "easeOut" }}
                                 className="suggestion-card magical-glow"
-                                onClick={() => { handleRefine(suggestions[currentSugIdx]); setIsRefineOpen(false); }}
+                                onClick={() => handleInterpretRefine(suggestions[currentSugIdx])}
                               >
                                 <p>{suggestions[currentSugIdx] || "No suggestions available."}</p>
-                                <div className="sug-apply-hint">Click to apply</div>
+                                <div className="sug-apply-hint">Click to review</div>
                               </motion.div>
                             )}
                             <div className="sug-dots">
@@ -1444,10 +1436,39 @@ ${mermaidCode}`;
           {(isLoading || isRefining) && (
             <motion.div key="loader" className="arena-loader-overlay"
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
-              <div className="new-loader-container"><div className="loader" /></div>
+              <div className="new-loader-container">
+                <div className="loader" />
+                <div className="agent-progress-card">
+                  <div className="agent-progress-title">{isRefining ? 'Refinement agent working' : 'Diagram agent working'}</div>
+                  {(agentSteps.length ? agentSteps : ['Starting the diagram agent...']).slice(-4).map((step, idx) => (
+                    <div className="agent-progress-step" key={`${step}-${idx}`}>{step}</div>
+                  ))}
+                </div>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
+
+        {!isLoading && agentError && !mermaidCode && (
+          <div className="agent-error-panel">
+            <strong>Agent could not generate the diagram.</strong>
+            <span>{agentError}</span>
+          </div>
+        )}
+
+        {!isLoading && mermaidCode && (agentSteps.length > 0 || agentRepairLog.length > 0) && (
+          <div className="agent-status-panel">
+            <div className="agent-status-title">Agent Run</div>
+            {agentSteps.slice(-3).map((step, idx) => (
+              <div className="agent-status-line" key={`${step}-${idx}`}>{step}</div>
+            ))}
+            {agentRepairLog.length > 0 && (
+              <div className="agent-status-line muted">
+                {agentRepairLog.filter(item => item.status === 'needs_repair').length} repair pass(es), final validation ready.
+              </div>
+            )}
+          </div>
+        )}
 
       </div>
 

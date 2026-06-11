@@ -6,6 +6,8 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from dotenv import load_dotenv
 import fitz  # PyMuPDF
+from diagram_agent import DiagramAgent
+from mermaid_validator import validate_mermaid_code
 
 load_dotenv()
 
@@ -27,6 +29,14 @@ KNOWLEDGE_FILES = {
 }
 
 
+def agent_from_request(data):
+    """Create a stateless agent from request settings. API keys are not stored."""
+    provider = data.get("provider")
+    model = data.get("model")
+    api_key = data.get("apiKey")
+    return DiagramAgent(api_key=api_key, provider=provider, model=model, knowledge_dir=KNOWLEDGE_DIR)
+
+
 def load_knowledge(diagram_type):
     """Load the knowledge bank rules for a given diagram type."""
     filename = KNOWLEDGE_FILES.get(diagram_type)
@@ -42,103 +52,118 @@ def load_knowledge(diagram_type):
         return ""
 
 
-@app.route('/api/suggest', methods=['POST'])
-def suggest_diagram():
-    data = request.json
+@app.route('/api/agent/suggest', methods=['POST'])
+def agent_suggest_diagram():
+    data = request.json or {}
     user_prompt = data.get('prompt', '')
-    
     if not user_prompt:
         return jsonify({"error": "No prompt provided"}), 400
 
-    headers = {
-        "Authorization": f"Bearer {SARVAM_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    
-    system_prompt = (
-        "You are an expert architect. Given a user prompt describing a system or process, "
-        "classify it into exactly one of these categories: 'flowchart', 'architecture', 'xy', 'pie', 'sequence', 'erDiagram', or 'gantt'. "
-        "Use 'sequence' for interaction flows between systems/actors/APIs showing step-by-step message exchanges. "
-        "Use 'erDiagram' for database schemas, data models, entity relationships, or table structures. "
-        "Use 'gantt' for project timelines, schedules, sprint plans, roadmaps, or task scheduling. "
-        "Respond with ONLY the category name (case-sensitive). No explanation, no punctuation."
-    )
-    
-    payload = {
-        "model": "sarvam-30b",
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
-        ],
-        "temperature": 0.1
-    }
-    
     try:
-        # 1. First, check explicitly if the user mentioned a diagram type in the prompt!
-        user_lower = user_prompt.lower()
-        explicit_category = None
-        
-        # Check explicit keywords
-        if 'sequence diagram' in user_lower or 'sequence format' in user_lower:
-            explicit_category = 'sequence'
-        elif 'er diagram' in user_lower or 'entity relationship' in user_lower or 'database schema' in user_lower:
-            explicit_category = 'erDiagram'
-        elif 'gantt' in user_lower or 'timeline' in user_lower or 'roadmap' in user_lower:
-            explicit_category = 'gantt'
-        elif 'pie chart' in user_lower or 'distribution' in user_lower:
-            explicit_category = 'pie'
-        elif 'xy chart' in user_lower or 'bar chart' in user_lower or 'line chart' in user_lower:
-            explicit_category = 'xy'
-        elif 'architecture' in user_lower or 'system design' in user_lower or 'infrastructure' in user_lower:
-            explicit_category = 'architecture'
-        elif 'flowchart' in user_lower or 'flow chart' in user_lower:
-            explicit_category = 'flowchart'
-            
-        if explicit_category:
-            return jsonify({"category": explicit_category})
-
-        response = requests.post(
-            "https://api.sarvam.ai/v1/chat/completions",
-            headers=headers,
-            json=payload,
-            timeout=10
-        )
-        response.raise_for_status()
-        result = response.json()
-        content_lower = result['choices'][0]['message']['content'].strip().lower()
-        
-        category_map = {
-            'flowchart': 'flowchart',
-            'architecture': 'architecture',
-            'xy': 'xy',
-            'pie': 'pie',
-            'sequence': 'sequence',
-            'erdiagram': 'erDiagram',
-            'er_diagram': 'erDiagram',
-            'er ': 'erDiagram',
-            'gantt': 'gantt'
-        }
-        
-        category = 'architecture'
-        for key, val in category_map.items():
-            if key in content_lower:
-                category = val
-                if key != 'er ': break  # break early unless it was a weak match
-            
-        return jsonify({"category": category})
-        
+        result = agent_from_request(data).suggest_type(user_prompt)
+        return jsonify(result)
     except Exception as e:
-        print(f"Error calling Sarvam: {e}")
-        lower = user_prompt.lower()
-        if any(word in lower for word in ['flow', 'step', 'process']):
-            return jsonify({"category": "flowchart"})
-        if any(word in lower for word in ['sequence', 'interaction', 'message', 'api call', 'handshake']):
-            return jsonify({"category": "sequence"})
-        if any(word in lower for word in ['entity', 'relationship', 'database schema', 'data model', 'table', 'er ']):
-            return jsonify({"category": "erDiagram"})
-        if any(word in lower for word in ['timeline', 'schedule', 'gantt', 'roadmap', 'sprint', 'project plan']):
-            return jsonify({"category": "gantt"})
-        return jsonify({"category": "architecture"})
+        print(f"Agent suggest error: {e}")
+        return jsonify({"error": f"Agent suggestion failed: {str(e)}"}), 500
+
+
+@app.route('/api/agent/generate', methods=['POST'])
+def agent_generate_diagram():
+    data = request.json or {}
+    user_prompt = data.get('prompt', '')
+    diagram_type = data.get('diagramType', 'flowchart')
+    if not user_prompt:
+        return jsonify({"error": "No prompt provided"}), 400
+
+    try:
+        result = agent_from_request(data).generate(user_prompt, diagram_type)
+        return jsonify(result)
+    except Exception as e:
+        print(f"Agent generate error: {e}")
+        return jsonify({"error": f"Agent generation failed: {str(e)}"}), 500
+
+
+@app.route('/api/agent/validate', methods=['POST'])
+def agent_validate_diagram():
+    data = request.json or {}
+    code = data.get('mermaid_code', '')
+    diagram_type = data.get('diagramType', 'flowchart')
+    if not code:
+        return jsonify({"error": "Missing mermaid_code"}), 400
+    return jsonify(validate_mermaid_code(code, diagram_type))
+
+
+@app.route('/api/agent/interpret-refine', methods=['POST'])
+def agent_interpret_refine():
+    data = request.json or {}
+    user_prompt = data.get('prompt', '')
+    mermaid_code = data.get('mermaid_code', '')
+    diagram_type = data.get('diagramType', 'flowchart')
+    if not user_prompt or not mermaid_code:
+        return jsonify({"error": "Missing prompt or mermaid_code"}), 400
+
+    try:
+        result = agent_from_request(data).interpret_refine(
+            user_prompt,
+            mermaid_code,
+            diagram_type,
+            vision_prompt=data.get('vision_prompt', ''),
+            selected_context=data.get('selected_context', []),
+        )
+        return jsonify(result)
+    except Exception as e:
+        print(f"Agent interpret refine error: {e}")
+        return jsonify({"error": f"Agent interpretation failed: {str(e)}"}), 500
+
+
+@app.route('/api/agent/refine', methods=['POST'])
+def agent_refine_diagram():
+    data = request.json or {}
+    user_prompt = data.get('prompt', '')
+    mermaid_code = data.get('mermaid_code', '')
+    diagram_type = data.get('diagramType', 'flowchart')
+    if not user_prompt or not mermaid_code:
+        return jsonify({"error": "Missing prompt or mermaid_code"}), 400
+
+    try:
+        result = agent_from_request(data).refine(
+            user_prompt,
+            mermaid_code,
+            diagram_type,
+            vision_prompt=data.get('vision_prompt', ''),
+            selected_context=data.get('selected_context', []),
+        )
+        return jsonify(result)
+    except Exception as e:
+        print(f"Agent refine error: {e}")
+        return jsonify({"error": f"Agent refine failed: {str(e)}"}), 500
+
+
+@app.route('/api/agent/suggestions', methods=['POST'])
+def agent_suggest_improvements():
+    data = request.json or {}
+    mermaid_code = data.get('mermaid_code', '')
+    if not mermaid_code:
+        return jsonify({"error": "Missing mermaid_code"}), 400
+
+    try:
+        suggestions = agent_from_request(data).suggest_improvements(
+            data.get('prompt', ''),
+            mermaid_code,
+            data.get('diagramType', 'flowchart'),
+            vision_prompt=data.get('vision_prompt', ''),
+        )
+        return jsonify({"suggestions": suggestions})
+    except Exception as e:
+        print(f"Agent suggestions error: {e}")
+        return jsonify({"error": f"Agent suggestions failed: {str(e)}"}), 500
+
+
+@app.route('/api/suggest', methods=['POST'])
+def suggest_diagram():
+    return jsonify({
+        "error": "This endpoint was retired. Use /api/agent/suggest with the user's selected provider and model."
+    }), 410
 
 
 @app.route('/api/vision', methods=['POST'])

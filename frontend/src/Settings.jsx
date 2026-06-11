@@ -8,13 +8,13 @@ import { getSettings, saveSettings, CLOUD_PROVIDERS, LOCAL_MODELS } from './aiSe
 const Settings = () => {
   const navigate = useNavigate();
   const [authLoading, setAuthLoading] = useState(true);
-  const [providerType, setProviderType] = useState('cloud');
-  const [cloudProvider, setCloudProvider] = useState('gemini');
-  const [cloudModel, setCloudModel] = useState('gemini-combo-3');
+  const [providerType, setProviderType] = useState('');
+  const [cloudProvider, setCloudProvider] = useState('');
+  const [cloudModel, setCloudModel] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [localUrl, setLocalUrl] = useState('http://localhost:11434');
-  const [localModel, setLocalModel] = useState('gemma3:12b');
+  const [localModel, setLocalModel] = useState('');
   const [saved, setSaved] = useState(false);
   const [savedModel, setSavedModel] = useState(null);
 
@@ -44,6 +44,18 @@ const Settings = () => {
 
 
   const handleSave = () => {
+    if (!providerType) {
+      alert('Select Cloud API or Local AI first.');
+      return;
+    }
+    if (providerType === 'cloud' && (!cloudProvider || !cloudModel || !apiKey.trim())) {
+      alert('Select a cloud provider and model, then enter its API key.');
+      return;
+    }
+    if (providerType === 'local' && !localModel) {
+      alert('Select a local AI model.');
+      return;
+    }
     saveSettings({ providerType, cloudProvider, cloudModel, apiKey, localUrl, localModel });
     setSavedModel(providerType === 'cloud' ? cloudModel : localModel);
     setSaved(true);
@@ -105,7 +117,7 @@ const Settings = () => {
                 <label style={labelStyle}>Provider</label>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   {Object.entries(CLOUD_PROVIDERS).map(([key, prov]) => (
-                    <button key={key} onClick={() => { setCloudProvider(key); setCloudModel(prov.models[0].id); setSavedModel(null); }} style={{
+                    <button key={key} onClick={() => { setCloudProvider(key); setCloudModel(''); setSavedModel(null); }} style={{
                       flex: 1, padding: '0.6rem', borderRadius: '0.5rem', fontSize: '0.85rem', fontWeight: 600,
                       border: cloudProvider === key ? '2px solid #000' : '1px solid #e5e7eb',
                       background: cloudProvider === key ? '#f0f0f0' : '#fff', cursor: 'pointer', fontFamily: 'var(--font-sans)', color: '#000'

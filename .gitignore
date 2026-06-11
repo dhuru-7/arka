@@ -8,3 +8,10 @@ coverage/
 .idea/
 .vscode/
 *.log
+
+# Python
+__pycache__/
+*.pyc
+venv/
+backend/venv/
+.planning/

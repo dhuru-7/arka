@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, User, ArrowUp, Send, Layout, Zap, Boxes, Plus, Network, Layers, LineChart, PieChart, ChevronLeft, Grid, Paintbrush, Paperclip, GitBranch, Image as ImageIcon, PenTool, SlidersHorizontal, ArrowDown, History, X, MessageSquareDot, Table2, CalendarRange, Trash2 } from './googleIcons';
+import { Search, User, ArrowUp, Send, Layout, Zap, Boxes, Plus, Network, Layers, LineChart, PieChart, ChevronLeft, Grid, Paintbrush, Paperclip, GitBranch, Image as ImageIcon, PenTool, SlidersHorizontal, ArrowDown, History, X, MessageSquareDot, Table2, CalendarRange, Trash2, Info } from './googleIcons';
 import Arena from './Arena';
 import Auth from './Auth';
 import Settings from './Settings';
@@ -11,7 +11,7 @@ import ProfileDropdown from './ProfileDropdown';
 import { auth, db } from './firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { collection, query, orderBy, limit, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
-import { suggestDiagramType, getSettings } from './aiService';
+import { agentSuggestDiagramType } from './aiService';
 
 
 // Lander import removed
@@ -25,7 +25,10 @@ const DiagramsPage = () => {
   const [showPinNotice, setShowPinNotice] = useState(false);
   const [viewState, setViewState] = useState(() => localStorage.getItem('arka_viewState') || 'input'); // 'input', 'loading', 'result', 'arena'
   const [suggestedType, setSuggestedType] = useState(() => localStorage.getItem('arka_diagramType') || null);
+  const [agentSuggestion, setAgentSuggestion] = useState(null);
+  const [suggestionError, setSuggestionError] = useState('');
   const [showAll, setShowAll] = useState(false);
+  const [expandedCardType, setExpandedCardType] = useState(null);
   const [placeholderText, setPlaceholderText] = useState('Describe your flowchart...');
   const textareaRef = useRef(null);
   const pinNoticeTimerRef = useRef(null);
@@ -87,7 +90,7 @@ const DiagramsPage = () => {
 
     const typePlaceholder = () => {
       const currentPhrase = phrases[currentPhraseIndex];
-      
+
       if (isDeleting) {
         setPlaceholderText(`Describe your design ${currentPhrase.substring(0, charIndex)}`);
         charIndex--;
@@ -120,10 +123,10 @@ const DiagramsPage = () => {
 
   useEffect(() => {
     if (!auth?.currentUser) return;
-    
+
     setHistoryLoading(true);
     const q = query(collection(db, 'users', auth.currentUser.uid, 'diagrams'), orderBy('updatedAt', 'desc'), limit(50));
-    
+
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setHistoryItems(items);
@@ -140,7 +143,7 @@ const DiagramsPage = () => {
 
   const handleSubmit = async () => {
     if (!prompt.trim() || viewState !== 'input') return;
-    
+
     if (auth?.currentUser && historyItems.length >= 50) {
       alert("You have reached the 50 diagram limit. Please delete some diagrams from History to save new ones.");
       return;
@@ -149,16 +152,23 @@ const DiagramsPage = () => {
     setCurrentDiagramId(Date.now().toString());
     localStorage.removeItem('arka_last_mermaid_code');
     localStorage.removeItem('arka_vision_prompt');
+    setSuggestedType(null);
+    setAgentSuggestion(null);
+    setExpandedCardType(null);
+    setSuggestionError('');
     setViewState('loading');
-    
+
     try {
-      const suggestResult = await suggestDiagramType(prompt);
-      setSuggestedType(suggestResult?.category || 'flowchart');
+      const suggestResult = await agentSuggestDiagramType(prompt);
+      const nextType = suggestResult?.suggestions?.[0]?.type || suggestResult?.suggested_type;
+      if (!nextType) throw new Error('The selected AI model returned no diagram suggestions.');
+      setSuggestedType(nextType);
+      setAgentSuggestion(suggestResult || null);
       setViewState('result');
     } catch (error) {
       console.error("AI Error:", error);
-      setSuggestedType('flowchart');
-      setViewState('result');
+      setSuggestionError(error.message || 'The selected AI model could not analyze this prompt.');
+      setViewState('input');
     }
   };
 
@@ -166,13 +176,23 @@ const DiagramsPage = () => {
     setPrompt('');
     setViewState('input');
     setSuggestedType(null);
+    setAgentSuggestion(null);
+    setSuggestionError('');
     setCurrentDiagramId(null);
     setShowAll(false);
+    setExpandedCardType(null);
     localStorage.removeItem('arka_prompt');
     localStorage.removeItem('arka_last_mermaid_code');
     localStorage.removeItem('arka_diagramId');
     localStorage.removeItem('arka_viewState');
     localStorage.removeItem('arka_diagramType');
+  };
+
+  const handleProceed = () => {
+    if (!suggestedType) return;
+    localStorage.removeItem('arka_last_mermaid_code');
+    localStorage.removeItem('arka_vision_prompt');
+    setViewState('arena');
   };
 
   const loadHistoryItem = (item) => {
@@ -217,8 +237,8 @@ const DiagramsPage = () => {
     <div className="diagrams-container">
 
       {/* Sidebar Overlay */}
-      <div 
-        className={`sidebar-overlay ${isSidebarOpen ? 'active' : ''}`} 
+      <div
+        className={`sidebar-overlay ${isSidebarOpen ? 'active' : ''}`}
         onClick={() => setIsSidebarOpen(false)}
       ></div>
 
@@ -247,8 +267,8 @@ const DiagramsPage = () => {
                 <div className="history-item-preview">
                   {getDiagramIcon(item.diagramType)}
                 </div>
-                <button 
-                  className="history-item-delete" 
+                <button
+                  className="history-item-delete"
                   onClick={(e) => handleDeleteHistoryItem(e, item.id)}
                   title="Delete diagram"
                 >
@@ -262,7 +282,7 @@ const DiagramsPage = () => {
 
       <AnimatePresence mode="wait">
         {viewState === 'arena' ? (
-          <motion.div 
+          <motion.div
             key="arena-view"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -270,16 +290,16 @@ const DiagramsPage = () => {
             transition={{ duration: 0.4 }}
             className="arena-full-page"
           >
-             <Arena 
-               prompt={prompt} 
-               diagramType={suggestedType} 
-               diagramId={currentDiagramId}
-               onBack={handleReset} 
-               onShowHistory={() => setIsSidebarOpen(true)}
-             />
+            <Arena
+              prompt={prompt}
+              diagramType={suggestedType}
+              diagramId={currentDiagramId}
+              onBack={handleReset}
+              onShowHistory={() => setIsSidebarOpen(true)}
+            />
           </motion.div>
         ) : (
-          <motion.div 
+          <motion.div
             key="planner-view"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -289,74 +309,74 @@ const DiagramsPage = () => {
             {/* Top Navigation */}
             <header className="fixed-navbar">
               <div className="nav-left-group">
-                 
-                 {viewState === 'input' ? (
-                   <div style={{ display: 'flex', alignItems: 'center', marginRight: '-0.17rem' }}>
-                     <div
-                       className="nav-expandable-group"
-                       onMouseEnter={() => setIsNavHovered(true)}
-                       onMouseLeave={() => setIsNavHovered(false)}
-                     >
-                       <button className="nav-btn-main" onClick={handleReset} title="New Diagram">
-                         <Plus size={20} />
-                       </button>
-                       <button 
-                         className={`nav-btn-secondary ${isNavHovered ? 'visible' : ''}`} 
-                         onClick={() => setIsSidebarOpen(true)} 
-                         title="History"
-                       >
-                         HISTORY
-                       </button>
-                     </div>
-                   </div>
-                 ) : (
-                   <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <button 
-                        className="nav-btn-main" 
-                        onClick={viewState === 'result' || viewState === 'loading' || viewState === 'arena' ? handleReset : undefined}
-                        title="New Diagram"
-                        style={{ borderRadius: '50%', height: '38px', border: '1px solid #e5e7eb' }}
-                        >
-                        <ChevronLeft size={20} />
-                      </button>
-                   </div>
-                 )}
-                 
-                  {/* Logo or Suggestion Title */}
-                  {viewState === 'result' || viewState === 'loading' ? (
-                     <span className="suggestion-title-updated" style={{ marginLeft: '1rem' }}>Ai suggested diagram/s</span>
-                  ) : (
-                    <motion.div layout className="logo-wrapper" transition={fastTransition} style={{ transform: isHovered ? 'translateX(5px)' : 'translateX(0)' }}>
-                      <span className="logo-arka">ARKA</span>
-                      <span className="logo-diagrams">DIAGRAMS</span>
-                    </motion.div>
-                  )}
-              </div>
-              
-              <div className="nav-actions">
-                  {viewState === 'result' || viewState === 'loading' ? (
-                    <button 
-                      className="show-all-header-btn"
-                      onClick={() => setShowAll(!showAll)}
-                      style={{ 
-                        padding: '0.6rem 1.2rem', 
-                        borderRadius: '12px',
-                        opacity: viewState === 'loading' ? 0.5 : 1,
-                        pointerEvents: viewState === 'loading' ? 'none' : 'auto'
-                      }}
+
+                {viewState === 'input' ? (
+                  <div style={{ display: 'flex', alignItems: 'center', marginRight: '-0.17rem' }}>
+                    <div
+                      className="nav-expandable-group"
+                      onMouseEnter={() => setIsNavHovered(true)}
+                      onMouseLeave={() => setIsNavHovered(false)}
                     >
-                      <Grid size={18} /> {showAll ? "Hide All" : "Show all diagrams"}
+                      <button className="nav-btn-main" onClick={handleReset} title="New Diagram">
+                        <Plus size={20} />
+                      </button>
+                      <button
+                        className={`nav-btn-secondary ${isNavHovered ? 'visible' : ''}`}
+                        onClick={() => setIsSidebarOpen(true)}
+                        title="History"
+                      >
+                        HISTORY
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <button
+                      className="nav-btn-main"
+                      onClick={viewState === 'result' || viewState === 'loading' || viewState === 'arena' ? handleReset : undefined}
+                      title="New Diagram"
+                      style={{ borderRadius: '50%', height: '38px', border: '1px solid #e5e7eb' }}
+                    >
+                      <ChevronLeft size={20} />
                     </button>
-                  ) : (
-                    <ProfileDropdown />
-                  )}
+                  </div>
+                )}
+
+                {/* Logo or Suggestion Title */}
+                {viewState === 'result' || viewState === 'loading' ? (
+                  <span className="suggestion-title-updated" style={{ marginLeft: '1rem' }}>Ai suggested diagram/s</span>
+                ) : (
+                  <motion.div layout className="logo-wrapper" transition={fastTransition} style={{ transform: isHovered ? 'translateX(5px)' : 'translateX(0)' }}>
+                    <span className="logo-arka">ARKA</span>
+                    <span className="logo-diagrams">DIAGRAMS</span>
+                  </motion.div>
+                )}
+              </div>
+
+              <div className="nav-actions">
+                {viewState === 'result' || viewState === 'loading' ? (
+                  <button
+                    className="show-all-header-btn"
+                    onClick={() => setShowAll(!showAll)}
+                    style={{
+                      padding: '0.6rem 1.2rem',
+                      borderRadius: '12px',
+                      opacity: viewState === 'loading' ? 0.5 : 1,
+                      pointerEvents: viewState === 'loading' ? 'none' : 'auto'
+                    }}
+                  >
+                    <Grid size={18} /> {showAll ? "Hide All" : "Show all diagrams"}
+                  </button>
+                ) : (
+                  <ProfileDropdown />
+                )}
               </div>
             </header>
 
             <main className="diagrams-hero">
               <AnimatePresence mode="wait">
                 {viewState === 'input' || viewState === 'loading' ? (
-                  <motion.div 
+                  <motion.div
                     key="prompt-view"
                     initial={{ opacity: 0, y: 0 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -364,116 +384,117 @@ const DiagramsPage = () => {
                     transition={{ duration: 0.3 }}
                     className="hero-content"
                   >
-                    
+
                     {/* Hero Wrapper ensuring Prompt Box Centers exactly on the screen */}
                     <div className="hero-top-spacer">
                       <div className="hero-heading-area">
-                        <motion.h1 
+                        <motion.h1
                           initial={{ opacity: 0, y: 12 }}
-                          animate={{ 
-                            opacity: viewState === 'input' ? 1 : 0, 
-                            y: viewState === 'input' ? 0 : -10 
+                          animate={{
+                            opacity: viewState === 'input' ? 1 : 0,
+                            y: viewState === 'input' ? 0 : -10
                           }}
                           className="hero-prompt-title"
-                          style={{ 
+                          style={{
                             pointerEvents: viewState === 'input' ? 'auto' : 'none',
                             visibility: viewState === 'input' || viewState === 'loading' ? 'visible' : 'hidden'
                           }}
                         >
-                          What are we building <span style={{position: 'relative', display: 'inline-block', padding: '0 8px'}}>
-                            <span style={{position: 'relative', zIndex: 10}}>today?</span>
-                            <span style={{position: 'absolute', bottom: '6px', left: 0, width: '100%', height: '9px', background: 'var(--accent)', zIndex: -1, transform: 'rotate(-2deg) skewX(12deg)', opacity: 0.8}}></span>
+                          What are we building <span style={{ position: 'relative', display: 'inline-block', padding: '0 8px' }}>
+                            <span style={{ position: 'relative', zIndex: 10 }}>today?</span>
+                            <span style={{ position: 'absolute', bottom: '6px', left: 0, width: '100%', height: '9px', background: 'var(--accent)', zIndex: -1, transform: 'rotate(-2deg) skewX(12deg)', opacity: 0.8 }}></span>
                           </span>
                         </motion.h1>
                       </div>
-                      
+
                       <div className="prompt-container">
                         <AnimatePresence mode="popLayout">
-                           {viewState === 'loading' ? (
-                             <motion.div 
-                               key="loader-only"
-                               initial={{ opacity: 0 }}
-                               animate={{ opacity: 1 }}
-                               exit={{ opacity: 0 }}
-                               className="new-loader-container" 
-                               style={{ 
-                                 position: 'fixed', 
-                                 top: 0, 
-                                 left: 0, 
-                                 width: '100vw', 
-                                 height: '100vh', 
-                                 zIndex: 5000, 
-                                 backgroundColor: '#f5f5f5',
-                                 backdropFilter: 'none',
-                                 WebkitBackdropFilter: 'none',
-                                 display: 'flex',
-                                 alignItems: 'center',
-                                 justifyContent: 'center'
-                               }}
-                             >
-                                <div className="loader"></div>
-                             </motion.div>
-                           ) : (
-                             <motion.div 
-                               key="prompt-card"
-                               initial={{ opacity: 0, y: 10 }}
-                               animate={{ opacity: 1, y: 0 }}
-                               exit={{ opacity: 0, scale: 0.98 }}
-                               transition={{ type: "spring", stiffness: 260, damping: 26 }}
-                               className="prompt-box-wrapper"
-                             >
-                               <div className="prompt-box-main">
-                                 <textarea 
-                                   ref={textareaRef}
-                                   rows={1}
-                                   placeholder={placeholderText}
-                                   value={prompt}
-                                   onChange={(e) => setPrompt(e.target.value)}
-                                   onKeyDown={(e) => {
-                                     if (e.key === 'Enter' && !e.shiftKey) {
-                                       e.preventDefault();
-                                       if (hasText) handleSubmit();
-                                     }
-                                   }}
-                                   className="prompt-input-textarea"
-                                 />
-                                 
-                                 <div className="prompt-bottom-toolbar">
-                                    <div className="toolbar-left" style={{ display: 'flex', gap: '0.25rem' }}>
-                                       <button
-                                         className="tool-icon-btn"
-                                         title="Attach context"
-                                         type="button"
-                                         onClick={openPinNotice}
-                                       >
-                                          <Paperclip size={20} />
-                                       </button>
-                                       <AnimatePresence>
-                                         {showPinNotice && (
-                                           <motion.div
-                                             className="pin-notice-popover"
-                                             initial={{ opacity: 0, y: 8, scale: 0.96 }}
-                                             animate={{ opacity: 1, y: 0, scale: 1 }}
-                                             exit={{ opacity: 0, y: 8, scale: 0.96 }}
-                                             transition={{ duration: 0.16 }}
-                                           >
-                                             This feature is under development.
-                                           </motion.div>
-                                         )}
-                                       </AnimatePresence>
-                                    </div>
-                                    <motion.button 
-                                      onClick={handleSubmit}
-                                      whileTap={hasText ? { scale: 0.9 } : {}}
-                                      disabled={!hasText}
-                                      className={`submit-btn ${hasText ? 'active' : 'inactive'}`}
+                          {viewState === 'loading' ? (
+                            <motion.div
+                              key="loader-only"
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              exit={{ opacity: 0 }}
+                              className="new-loader-container"
+                              style={{
+                                position: 'fixed',
+                                top: 0,
+                                left: 0,
+                                width: '100vw',
+                                height: '100vh',
+                                zIndex: 5000,
+                                backgroundColor: '#f5f5f5',
+                                backdropFilter: 'none',
+                                WebkitBackdropFilter: 'none',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                            >
+                              <div className="loader"></div>
+                            </motion.div>
+                          ) : (
+                            <motion.div
+                              key="prompt-card"
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, scale: 0.98 }}
+                              transition={{ type: "spring", stiffness: 260, damping: 26 }}
+                              className="prompt-box-wrapper"
+                            >
+                              <div className="prompt-box-main">
+                                <textarea
+                                  ref={textareaRef}
+                                  rows={1}
+                                  placeholder={placeholderText}
+                                  value={prompt}
+                                  onChange={(e) => setPrompt(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                      e.preventDefault();
+                                      if (hasText) handleSubmit();
+                                    }
+                                  }}
+                                  className="prompt-input-textarea"
+                                />
+
+                                <div className="prompt-bottom-toolbar">
+                                  <div className="toolbar-left" style={{ display: 'flex', gap: '0.25rem' }}>
+                                    <button
+                                      className="tool-icon-btn"
+                                      title="Attach context"
+                                      type="button"
+                                      onClick={openPinNotice}
                                     >
-                                      <Send size={22} />
-                                    </motion.button>
-                                 </div>
-                               </div>
-                             </motion.div>
-                           )}
+                                      <Paperclip size={20} />
+                                    </button>
+                                    <AnimatePresence>
+                                      {showPinNotice && (
+                                        <motion.div
+                                          className="pin-notice-popover"
+                                          initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                                          exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                                          transition={{ duration: 0.16 }}
+                                        >
+                                          This feature is under development.
+                                        </motion.div>
+                                      )}
+                                    </AnimatePresence>
+                                  </div>
+                                  <motion.button
+                                    onClick={handleSubmit}
+                                    whileTap={hasText ? { scale: 0.9 } : {}}
+                                    disabled={!hasText}
+                                    className={`submit-btn ${hasText ? 'active' : 'inactive'}`}
+                                  >
+                                    <Send size={22} />
+                                  </motion.button>
+                                </div>
+                              </div>
+                              {suggestionError && <div className="agent-suggestion-error">{suggestionError}</div>}
+                            </motion.div>
+                          )}
                         </AnimatePresence>
                         <p className="footer-hint">
                           ARKA AI can make mistakes. Verify important details.
@@ -484,7 +505,7 @@ const DiagramsPage = () => {
 
                   </motion.div>
                 ) : (
-                  <motion.div 
+                  <motion.div
                     key="suggestion-view"
                     initial={{ opacity: 0, scale: 0.98 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -496,30 +517,86 @@ const DiagramsPage = () => {
 
                     <div className="suggestion-scroll-area">
                       {!showAll ? (
-                        <div className="suggestion-highlight-container">
-                            <motion.div
-                              layoutId={suggestedType}
-                              className="type-card suggested"
-                              style={{ borderColor: diagramTypes.find(t => t.id === suggestedType)?.color }}
-                            >
-                              <div className="icon-box-static" style={{ color: diagramTypes.find(t => t.id === suggestedType)?.color }}>
-                                 {(() => {
-                                    const Icon = diagramTypes.find(t => t.id === suggestedType)?.icon;
-                                    return Icon ? (
-                                      <>
-                                        <Icon size={40} strokeWidth={1.2} />
-                                        {isBetaDiagram(suggestedType) && <span className="beta-icon-badge">Beta</span>}
-                                      </>
-                                    ) : null;
-                                 })()}
-                              </div>
-                              <span className="type-label">{diagramTypes.find(t => t.id === suggestedType)?.label}</span>
-                            </motion.div>
-                            
-                            <button className="confirm-btn" onClick={() => setViewState('arena')}>Confirm Generation</button>
+                        <div className="suggestion-highlight-container" style={{ width: '100%' }}>
+                          <div className="suggested-diagrams-grid">
+                            <AnimatePresence mode="popLayout">
+                              {(() => {
+                                const suggestionsList = [...(agentSuggestion?.suggestions || [])];
+                                const isSuggestedTypeInSuggestions = suggestionsList.some(s => s.type === suggestedType);
+                                if (suggestedType && !isSuggestedTypeInSuggestions) {
+                                  suggestionsList.push({
+                                    type: suggestedType,
+                                    confidence: 0,
+                                    reason: "Manually selected from the diagram list.",
+                                    isManual: true
+                                  });
+                                }
+                                return suggestionsList;
+                              })()
+                                .filter(suggestion => !expandedCardType || expandedCardType === suggestion.type)
+                                .map((suggestion) => {
+                                  const type = diagramTypes.find(item => item.id === suggestion.type);
+                                  if (!type) return null;
+                                  const Icon = type.icon;
+                                  const isSelected = suggestedType === suggestion.type;
+                                  const isExpanded = expandedCardType === suggestion.type;
+
+                                  return (
+                                    <motion.div
+                                      key={suggestion.type}
+                                      layout
+                                      initial={{ opacity: 0, scale: 0.9 }}
+                                      animate={{ opacity: 1, scale: 1 }}
+                                      exit={{ opacity: 0, scale: 0.9 }}
+                                      transition={{ type: "spring", stiffness: 220, damping: 18 }}
+                                      className={`type-card grid-card suggested-card-updated ${isSelected ? 'highlight-border' : ''} ${isExpanded ? 'expanded' : ''}`}
+                                      onClick={() => {
+                                        if (!isExpanded) {
+                                          setSuggestedType(suggestion.type);
+                                        }
+                                      }}
+                                    >
+                                      <button
+                                        className={`card-info-btn ${isExpanded ? 'btn-close-red' : 'btn-info-aqua'}`}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setExpandedCardType(isExpanded ? null : suggestion.type);
+                                        }}
+                                        title={isExpanded ? "Close explanation" : "Show explanation"}
+                                      >
+                                        {isExpanded ? <X size={16} /> : <Info size={16} />}
+                                      </button>
+
+                                      <div className="icon-box-static" style={{ color: type.color }}>
+                                        <Icon size={32} strokeWidth={1.5} />
+                                      </div>
+                                      <span className="type-label">{type.label}</span>
+
+                                      {isExpanded && (
+                                        <motion.div
+                                          initial={{ opacity: 0, y: 10 }}
+                                          animate={{ opacity: 1, y: 0 }}
+                                          transition={{ delay: 0.1 }}
+                                          className="suggestion-expanded-content"
+                                        >
+                                          <div className="suggestion-confidence">
+                                            Confidence: <span>{suggestion.isManual ? "Manual Selection" : `${Math.round(suggestion.confidence * 100)}%`}</span>
+                                          </div>
+                                          <p className="suggestion-explanation">{suggestion.reason}</p>
+                                        </motion.div>
+                                      )}
+                                    </motion.div>
+                                  );
+                                })}
+                            </AnimatePresence>
+                          </div>
+
+                          {!expandedCardType && (
+                            <button className="confirm-btn" onClick={handleProceed} style={{ marginTop: '2rem' }}>Proceed</button>
+                          )}
                         </div>
                       ) : (
-                        <motion.div 
+                        <motion.div
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           className="all-diagrams-grid"
@@ -532,11 +609,11 @@ const DiagramsPage = () => {
                               className={`type-card grid-card ${suggestedType === type.id ? 'highlight-border' : ''}`}
                               onClick={() => { setSuggestedType(type.id); setShowAll(false); }}
                             >
-                               <div className="icon-box-static" style={{ color: type.color }}>
-                                 <type.icon size={32} strokeWidth={1.5} />
-                                 {isBetaDiagram(type.id) && <span className="beta-icon-badge">Beta</span>}
-                               </div>
-                               <span className="type-label">{type.label}</span>
+                              <div className="icon-box-static" style={{ color: type.color }}>
+                                <type.icon size={32} strokeWidth={1.5} />
+                                {isBetaDiagram(type.id) && <span className="beta-icon-badge">Beta</span>}
+                              </div>
+                              <span className="type-label">{type.label}</span>
                             </motion.div>
                           ))}
                         </motion.div>

@@ -59,15 +59,13 @@ export const LOCAL_MODELS = [
 // ─── Settings helpers ───
 
 export function getSettings() {
-  const type = localStorage.getItem('arka_provider_type');
-  const providerType = (type && type !== 'free') ? type : 'cloud';
   return {
-    providerType,
-    cloudProvider: localStorage.getItem('arka_cloud_provider') || 'gemini',
-    cloudModel: localStorage.getItem('arka_cloud_model') || 'gemini-combo-1.5',
+    providerType: localStorage.getItem('arka_provider_type') || '',
+    cloudProvider: localStorage.getItem('arka_cloud_provider') || '',
+    cloudModel: localStorage.getItem('arka_cloud_model') || '',
     apiKey: localStorage.getItem('arka_api_key') || '',
     localUrl: localStorage.getItem('arka_local_url') || 'http://localhost:11434',
-    localModel: localStorage.getItem('arka_local_model') || 'gemma3:12b',
+    localModel: localStorage.getItem('arka_local_model') || '',
   };
 }
 
@@ -87,10 +85,15 @@ export function saveSettings(settings) {
 function resolveModels(purpose) {
   const s = getSettings();
   if (s.providerType === 'local') {
+    if (!s.localModel) throw new Error('Select and save a local AI model in Settings.');
     return { provider: 'local', model: s.localModel, url: s.localUrl };
   }
+  if (s.providerType !== 'cloud') throw new Error('Select an AI provider in Settings.');
+  if (!s.cloudProvider || !s.cloudModel) throw new Error('Select and save a cloud AI model in Settings.');
+  if (!s.apiKey) throw new Error('Enter and save the selected provider API key in Settings.');
   const providerDef = CLOUD_PROVIDERS[s.cloudProvider];
-  const modelDef = providerDef?.models.find(m => m.id === s.cloudModel) || providerDef?.models[0];
+  const modelDef = providerDef?.models.find(m => m.id === s.cloudModel);
+  if (!modelDef) throw new Error('The saved AI model is not available. Select it again in Settings.');
   const model = purpose === 'suggest' ? modelDef.suggestModel : modelDef.generateModel;
   return { provider: s.cloudProvider, model, apiKey: s.apiKey };
 }
@@ -213,13 +216,35 @@ export function getProviderLabel() {
  * Returns { category: string } or null if using free tier (caller uses backend).
  */
 export async function suggestDiagramType(prompt, signal) {
-  const systemPrompt = `You are an expert architect. Given a user prompt, classify it into exactly one of: 'flowchart', 'architecture', 'xy', 'pie', 'sequence', 'erDiagram', or 'gantt'. Respond with ONLY the category name. No explanation.`;
-  const result = await callModel('suggest', systemPrompt, prompt, { temperature: 0.1, maxTokens: 20, signal });
-  if (result === null) return null; // free tier
-  const lower = result.toLowerCase().trim();
-  const map = { flowchart: 'flowchart', architecture: 'architecture', xy: 'xy', pie: 'pie', sequence: 'sequence', erdiagram: 'erDiagram', er_diagram: 'erDiagram', gantt: 'gantt' };
-  for (const [k, v] of Object.entries(map)) { if (lower.includes(k)) return { category: v }; }
-  return { category: 'architecture' };
+  const systemPrompt = `You are Arka's diagram selection agent. Analyze the user's communication goal semantically. Allowed types: flowchart, architecture, sequence, erDiagram, gantt, xy, pie. Return one or more genuinely suitable types ranked best first. Return ONLY JSON: {"suggestions":[{"type":"flowchart","confidence":0.9,"reason":"..."}]}. Do not include weak options.`;
+  const result = await callModel('suggest', systemPrompt, prompt, { temperature: 0.1, maxTokens: 2500, signal });
+  const fenced = result?.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const match = fenced?.[1] || result?.match(/[\{\[][\s\S]*[\}\]]/)?.[0];
+  if (!match) throw new Error('The selected AI model did not return diagram suggestions.');
+  const parsed = JSON.parse(match);
+  const data = Array.isArray(parsed) ? { suggestions: parsed } : parsed;
+  const typeMap = { flowchart: 'flowchart', architecture: 'architecture', sequence: 'sequence', erdiagram: 'erDiagram', gantt: 'gantt', xy: 'xy', pie: 'pie' };
+  const seenTypes = new Set();
+  const suggestions = (Array.isArray(data.suggestions) ? data.suggestions : [])
+    .map(item => ({
+      type: typeMap[String(item?.type || '').toLowerCase().replace(/[_-]/g, '')],
+      confidence: Math.max(0, Math.min(Number(item?.confidence), 1)),
+      reason: String(item?.reason || '').trim()
+    }))
+    .filter(item => {
+      if (!item.type || !Number.isFinite(item.confidence) || !item.reason || seenTypes.has(item.type)) return false;
+      seenTypes.add(item.type);
+      return true;
+    })
+    .sort((a, b) => b.confidence - a.confidence);
+  if (!suggestions.length) throw new Error('The selected AI model returned no valid diagram suggestions.');
+  return {
+    suggestions,
+    suggested_type: suggestions[0].type,
+    category: suggestions[0].type,
+    confidence: suggestions[0].confidence,
+    reason: suggestions[0].reason
+  };
 }
 
 /**
@@ -249,6 +274,122 @@ export async function refineDiagram(prompt, mermaidCode, diagramType, signal) {
 }
 
 // ─── System prompt builder (mirrors backend logic) ───
+
+function buildAgentProviderPayload(purpose = 'generate') {
+  const resolved = resolveModels(purpose);
+  if (resolved.provider === 'local') {
+    return { provider: 'local', model: resolved.model, localUrl: resolved.url };
+  }
+  return {
+    provider: resolved.provider,
+    model: resolved.model,
+    apiKey: resolved.apiKey || '',
+  };
+}
+
+async function callAgentEndpoint(path, body, signal) {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Agent API error: ${res.status}`);
+  return data;
+}
+
+export async function agentSuggestDiagramType(prompt, signal) {
+  const providerPayload = buildAgentProviderPayload('suggest');
+
+  if (providerPayload.provider === 'local' || providerPayload.provider === 'gemini') {
+    return suggestDiagramType(prompt, signal);
+  }
+
+  return callAgentEndpoint('/api/agent/suggest', {
+    prompt,
+    ...providerPayload
+  }, signal);
+}
+
+export async function agentGenerateDiagram(prompt, diagramType, signal) {
+  const providerPayload = buildAgentProviderPayload('generate');
+
+  if (providerPayload.provider === 'local' || providerPayload.provider === 'gemini') {
+    const result = await generateDiagram(prompt, diagramType, signal);
+    return {
+      ...result,
+      agent_steps: ['Generated with the selected local model.'],
+      repair_log: [],
+      suggestions: []
+    };
+  }
+
+  return callAgentEndpoint('/api/agent/generate', {
+    prompt,
+    diagramType,
+    ...providerPayload
+  }, signal);
+}
+
+export async function agentInterpretRefine(prompt, mermaidCode, diagramType, options = {}) {
+  const providerPayload = buildAgentProviderPayload('generate');
+
+  if (providerPayload.provider === 'local' || providerPayload.provider === 'gemini') {
+    return {
+      confirmation: `I'll update the diagram based on: ${prompt}`,
+      technical_instructions: prompt
+    };
+  }
+
+  return callAgentEndpoint('/api/agent/interpret-refine', {
+    prompt,
+    mermaid_code: mermaidCode,
+    diagramType,
+    vision_prompt: options.visionPrompt || '',
+    selected_context: options.selectedContext || [],
+    ...providerPayload
+  }, options.signal);
+}
+
+export async function agentRefineDiagram(prompt, mermaidCode, diagramType, options = {}) {
+  const providerPayload = buildAgentProviderPayload('generate');
+
+  if (providerPayload.provider === 'local' || providerPayload.provider === 'gemini') {
+    const result = await refineDiagram(prompt, mermaidCode, diagramType, options.signal);
+    return {
+      ...result,
+      agent_steps: ['Refined with the selected local model.'],
+      repair_log: [],
+      suggestions: []
+    };
+  }
+
+  return callAgentEndpoint('/api/agent/refine', {
+    prompt,
+    mermaid_code: mermaidCode,
+    diagramType,
+    vision_prompt: options.visionPrompt || '',
+    selected_context: options.selectedContext || [],
+    ...providerPayload
+  }, options.signal);
+}
+
+export async function agentSuggestImprovements(prompt, mermaidCode, diagramType, options = {}) {
+  const providerPayload = buildAgentProviderPayload('generate');
+
+  if (providerPayload.provider === 'local' || providerPayload.provider === 'gemini') {
+    return null;
+  }
+
+  return callAgentEndpoint('/api/agent/suggestions', {
+    prompt,
+    mermaid_code: mermaidCode,
+    diagramType,
+    vision_prompt: options.visionPrompt || '',
+    ...providerPayload
+  }, options.signal);
+}
 
 function buildGeneratePrompt(diagramType) {
   const shared = `- Output ONLY valid Mermaid JS code.\n- Do NOT wrap in markdown code blocks (no \`\`\`mermaid).\n- Do NOT include any explanation before/after the code.\n- ALWAYS wrap node text in double quotes.\n`;

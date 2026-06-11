@@ -13,7 +13,11 @@ const ProfileDropdown = () => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
+      if (currentUser) {
+        setUser(currentUser);
+      } else {
+        setUser(null);
+      }
     });
     return () => unsubscribe();
   }, []);
@@ -31,10 +35,10 @@ const ProfileDropdown = () => {
           </button>
         </Link>
       )}
-      
+
       <AnimatePresence>
         {profileOpen && user && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
@@ -66,40 +70,45 @@ const ProfileDropdown = () => {
                 </div>
               </div>
             </div>
-            
 
 
-            <button 
+
+            <button
               onClick={() => { setProfileOpen(false); navigate('/settings'); }}
-              style={{ width: '100%', textAlign: 'left', padding: '0.5rem 0.5rem', background: 'transparent', border: 'none', cursor: 'pointer', borderRadius: '0.5rem', fontSize: '0.85rem', fontWeight: 600, transition: 'background 0.2s' }} 
-              onMouseOver={e => e.currentTarget.style.background = '#f3f4f6'} 
+              style={{ width: '100%', textAlign: 'left', padding: '0.5rem 0.5rem', background: 'transparent', border: 'none', cursor: 'pointer', borderRadius: '0.5rem', fontSize: '0.85rem', fontWeight: 600, transition: 'background 0.2s' }}
+              onMouseOver={e => e.currentTarget.style.background = '#f3f4f6'}
               onMouseOut={e => e.currentTarget.style.background = 'transparent'}
             >
               Settings
             </button>
 
-            <button 
+            <button
               onClick={() => { setProfileOpen(false); navigate('/help'); }}
-              style={{ width: '100%', textAlign: 'left', padding: '0.5rem 0.5rem', background: 'transparent', border: 'none', cursor: 'pointer', borderRadius: '0.5rem', fontSize: '0.85rem', fontWeight: 600, transition: 'background 0.2s' }} 
-              onMouseOver={e => e.currentTarget.style.background = '#f3f4f6'} 
+              style={{ width: '100%', textAlign: 'left', padding: '0.5rem 0.5rem', background: 'transparent', border: 'none', cursor: 'pointer', borderRadius: '0.5rem', fontSize: '0.85rem', fontWeight: 600, transition: 'background 0.2s' }}
+              onMouseOver={e => e.currentTarget.style.background = '#f3f4f6'}
               onMouseOut={e => e.currentTarget.style.background = 'transparent'}
             >
               Help & Setup Guide
             </button>
 
-            <button 
+            <button
               onClick={() => { setProfileOpen(false); navigate('/docs'); }}
-              style={{ width: '100%', textAlign: 'left', padding: '0.5rem 0.5rem', background: 'transparent', border: 'none', cursor: 'pointer', borderRadius: '0.5rem', fontSize: '0.85rem', fontWeight: 600, transition: 'background 0.2s' }} 
-              onMouseOver={e => e.currentTarget.style.background = '#f3f4f6'} 
+              style={{ width: '100%', textAlign: 'left', padding: '0.5rem 0.5rem', background: 'transparent', border: 'none', cursor: 'pointer', borderRadius: '0.5rem', fontSize: '0.85rem', fontWeight: 600, transition: 'background 0.2s' }}
+              onMouseOver={e => e.currentTarget.style.background = '#f3f4f6'}
               onMouseOut={e => e.currentTarget.style.background = 'transparent'}
             >
               Documentation
             </button>
 
-            <button 
-              onClick={() => { signOut(auth); setProfileOpen(false); }}
-              style={{ width: '100%', textAlign: 'left', padding: '0.5rem 0.5rem', background: 'transparent', border: 'none', cursor: 'pointer', borderRadius: '0.5rem', fontSize: '0.85rem', fontWeight: 600, color: '#ef4444', transition: 'background 0.2s' }} 
-              onMouseOver={e => e.currentTarget.style.background = '#fee2e2'} 
+            <button
+              onClick={() => {
+                signOut(auth);
+                setUser(null);
+                setProfileOpen(false);
+                navigate('/auth');
+              }}
+              style={{ width: '100%', textAlign: 'left', padding: '0.5rem 0.5rem', background: 'transparent', border: 'none', cursor: 'pointer', borderRadius: '0.5rem', fontSize: '0.85rem', fontWeight: 600, color: '#ef4444', transition: 'background 0.2s' }}
+              onMouseOver={e => e.currentTarget.style.background = '#fee2e2'}
               onMouseOut={e => e.currentTarget.style.background = 'transparent'}
             >
               Sign out

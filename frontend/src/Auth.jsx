@@ -10,6 +10,8 @@ const Auth = () => {
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
+
+
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     setError(null);
@@ -107,6 +109,7 @@ const Auth = () => {
             </>
           )}
         </button>
+
       </motion.div>
     </div>
   );

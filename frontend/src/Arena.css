@@ -767,3 +767,103 @@
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+.agent-progress-card {
+  min-width: 280px;
+  max-width: 420px;
+  margin-top: 1.25rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 18px 40px -26px rgba(15, 23, 42, 0.45);
+  text-align: left;
+}
+
+.agent-progress-title {
+  margin-bottom: 0.65rem;
+  color: #111827;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.agent-progress-step {
+  position: relative;
+  padding-left: 0.9rem;
+  color: #475569;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.agent-progress-step::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.52rem;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: #111827;
+}
+
+.agent-error-panel {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  z-index: 9;
+  width: min(460px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid #fecaca;
+  border-radius: 14px;
+  background: #fff1f2;
+  color: #991b1b;
+  box-shadow: 0 18px 40px -28px rgba(127, 29, 29, 0.5);
+}
+
+.agent-error-panel strong {
+  color: #7f1d1d;
+  font-size: 0.9rem;
+}
+
+.agent-error-panel span {
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.agent-status-panel {
+  position: absolute;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 8;
+  width: min(330px, calc(100vw - 32px));
+  padding: 0.8rem 0.9rem;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 16px 34px -26px rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(10px);
+}
+
+.agent-status-title {
+  margin-bottom: 0.35rem;
+  color: #111827;
+  font-size: 0.67rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.agent-status-line {
+  color: #475569;
+  font-size: 0.72rem;
+  line-height: 1.38;
+}
+
+.agent-status-line.muted {
+  margin-top: 0.3rem;
+  color: #64748b;
+}
