@@ -254,6 +254,43 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
     }
   };
 
+  const [dynamicLoadingText, setDynamicLoadingText] = useState('Starting the diagram agent...');
+
+  useEffect(() => {
+    if (!isLoading && !isRefining) return;
+
+    const messages = isRefining ? [
+      "Initializing refinement agent...",
+      "Parsing existing diagram structure...",
+      "Applying requested changes...",
+      "Re-routing connection lines...",
+      "Validating syntax correctness...",
+      "Checking layout styling...",
+      "Finalizing styles..."
+    ] : [
+      "Starting diagram agent...",
+      "Analyzing requirements & extracting components...",
+      "Mapping system containers and subgraphs...",
+      "Defining connection types and protocols...",
+      "Drafting Mermaid JS specifications...",
+      "Checking syntax correctness...",
+      "Validating layout styling rules...",
+      "Repair PASS: Found syntax warning, repairing...",
+      "Almost ready, compiling diagram..."
+    ];
+
+    setDynamicLoadingText(messages[0]);
+    let index = 0;
+    
+    const interval = setInterval(() => {
+      index = (index + 1) % messages.length;
+      setDynamicLoadingText(messages[index]);
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, [isLoading, isRefining]);
+
+
   // Suggestion Engine State
   const [suggestions, setSuggestions] = useState([]);
   const [currentSugIdx, setCurrentSugIdx] = useState(0);
@@ -1455,51 +1492,62 @@ ${mermaidCode}`;
         {/* Loader overlay on top */}
         <AnimatePresence>
           {(isLoading || isRefining) && (
-            <motion.div key="loader" className="arena-loader-overlay"
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
-              <div className="new-loader-container">
-                <div className="loader" />
-                <div className="agent-progress-card">
-                  <div className="agent-progress-title">{isRefining ? 'Refinement agent working' : 'Diagram agent working'}</div>
-                  {(agentSteps.length ? agentSteps : ['Starting the diagram agent...']).slice(-4).map((step, idx) => (
-                    <div className="agent-progress-step" key={`${step}-${idx}`}>{step}</div>
-                  ))}
-                  <button 
-                    className="agent-cancel-btn"
-                    onClick={handleCancelRequest}
-                    style={{
-                      marginTop: '1.25rem',
-                      padding: '0.6rem 1.25rem',
-                      borderRadius: '0.75rem',
-                      border: '1px solid #e5e7eb',
-                      background: '#ffffff',
-                      color: '#ef4444',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      fontSize: '0.85rem',
-                      fontFamily: 'var(--font-body)',
-                      transition: 'all 0.2s ease',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      justifyContent: 'center',
-                      width: '100%',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
-                    }}
-                    onMouseOver={e => {
-                      e.currentTarget.style.background = '#fef2f2';
-                      e.currentTarget.style.borderColor = '#fca5a5';
-                      e.currentTarget.style.transform = 'translateY(-1px)';
-                    }}
-                    onMouseOut={e => {
-                      e.currentTarget.style.background = '#ffffff';
-                      e.currentTarget.style.borderColor = '#e5e7eb';
-                      e.currentTarget.style.transform = 'translateY(0)';
-                    }}
-                  >
-                    Cancel Task
-                  </button>
-                </div>
+            <motion.div 
+              key="loader" 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              transition={{ duration: 0.25 }}
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                width: '100vw',
+                height: '100vh',
+                zIndex: 5000,
+                backgroundColor: '#f5f5f5',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '2rem'
+              }}
+            >
+              <div className="loader"></div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+                <span style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '1.1rem', fontFamily: 'var(--font-mono)', textAlign: 'center', maxWidth: '80%', lineHeight: '1.5' }}>
+                  {dynamicLoadingText}
+                </span>
+                <button 
+                  className="agent-cancel-btn"
+                  onClick={handleCancelRequest}
+                  style={{
+                    marginTop: '1rem',
+                    padding: '0.6rem 1.5rem',
+                    borderRadius: '0.75rem',
+                    border: '1px solid #e5e7eb',
+                    background: '#ffffff',
+                    color: '#ef4444',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    fontSize: '0.9rem',
+                    fontFamily: 'var(--font-body)',
+                    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseOver={e => {
+                    e.currentTarget.style.background = '#fef2f2';
+                    e.currentTarget.style.borderColor = '#fca5a5';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                  }}
+                  onMouseOut={e => {
+                    e.currentTarget.style.background = '#ffffff';
+                    e.currentTarget.style.borderColor = '#e5e7eb';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  Cancel Task
+                </button>
               </div>
             </motion.div>
           )}
