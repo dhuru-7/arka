@@ -1814,14 +1814,14 @@ User's latest message: ${userText}`;
             </div>
             
             <div className="chat-input-area">
-              <div className={`chat-input-wrapper ${(isChatLoading || isRefining) ? 'disabled' : ''}`}>
+              <div className={`chat-input-wrapper ${isRefining ? 'disabled' : ''}`}>
                 <textarea
                   ref={chatInputRef}
                   className="chat-input-textarea"
                   value={chatInput}
                   onChange={handleInputChange}
                   placeholder="Ask agent to change the diagram..."
-                  disabled={isChatLoading || isRefining}
+                  disabled={isRefining}
                   onKeyDown={e => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
