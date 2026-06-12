@@ -21,19 +21,6 @@ const loadMermaid = () => {
   });
 };
 
-const getFlowchartCurve = (code) => {
-  if (!code) return 'basis';
-  const cleanCode = code.trim();
-  if (cleanCode.includes('flowchart LR') || cleanCode.includes('graph LR')) {
-    return 'bumpX';
-  }
-  if (cleanCode.includes('flowchart TD') || cleanCode.includes('flowchart TB') || cleanCode.includes('graph TD') || cleanCode.includes('graph TB')) {
-    return 'bumpY';
-  }
-  return 'basis';
-};
-
-
 const TEMPLATES = {
   midnight: {
     name: 'Midnight', preview: 'linear-gradient(135deg, #0f0f23, #1a1a3e, #2d1b69)',
@@ -973,7 +960,7 @@ User's latest message: ${userText}`;
           startOnLoad: false,
           securityLevel: 'loose',
           ...tmpl.config,
-          flowchart: { htmlLabels: false, curve: getFlowchartCurve(mermaidCode), padding: 15, nodeSpacing: 90, rankSpacing: 110, useMaxWidth: true },
+          flowchart: { htmlLabels: false, curve: 'basis', padding: 15, nodeSpacing: 90, rankSpacing: 110, useMaxWidth: true },
           pie: { useMaxWidth: false, textPosition: 0.75 },
           sequence: { useMaxWidth: false, showSequenceNumbers: false, actorMargin: 80, mirrorActors: false, messageAlign: 'center', messageFontSize: 13, noteFontSize: 12, wrap: true },
           er: { useMaxWidth: false, layoutDirection: 'TB', entityPadding: 15, fontSize: 13 },
