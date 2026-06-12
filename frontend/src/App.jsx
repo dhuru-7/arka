@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, User, ArrowUp, Send, Layout, Zap, Boxes, Plus, Network, Layers, LineChart, PieChart, ChevronLeft, Grid, Paintbrush, Paperclip, GitBranch, Image as ImageIcon, PenTool, SlidersHorizontal, ArrowDown, History, X, MessageSquareDot, Table2, CalendarRange, Trash2, Info } from './googleIcons';
+import { Search, User, ArrowUp, Send, Layout, Zap, Boxes, Plus, Network, Layers, LineChart, PieChart, ChevronLeft, Grid, Paintbrush, Paperclip, GitBranch, Image as ImageIcon, PenTool, SlidersHorizontal, ArrowDown, History, X, MessageSquareDot, Table2, CalendarRange, Trash2, Info, Loader2 } from './googleIcons';
 import Arena from './Arena';
 import Auth from './Auth';
 import Settings from './Settings';
@@ -11,7 +11,7 @@ import ProfileDropdown from './ProfileDropdown';
 import { auth, db } from './firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { collection, query, orderBy, limit, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
-import { agentSuggestDiagramType } from './aiService';
+import { agentSuggestDiagramType, optimizePrompt } from './aiService';
 
 
 // Lander import removed
@@ -36,6 +36,33 @@ const DiagramsPage = () => {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [currentDiagramId, setCurrentDiagramId] = useState(() => localStorage.getItem('arka_diagramId') || null);
   const suggestAbortControllerRef = useRef(null);
+  const optimizeAbortControllerRef = useRef(null);
+  const [showBrushMenu, setShowBrushMenu] = useState(false);
+  const [highlightColor] = useState(() => {
+    const colors = [
+      '#D5F3D8', // Green
+      '#A5F3FC', // Aqua
+      '#FBCFE8', // Baby Pink
+      '#FECACA'  // Light Red
+    ];
+    const lastIndexStr = localStorage.getItem('arka_highlight_index');
+    let index = 0;
+    if (lastIndexStr !== null) {
+      index = parseInt(lastIndexStr, 10);
+      if (isNaN(index)) index = 0;
+    }
+    if (!window.__arka_highlight_incremented) {
+      window.__arka_highlight_incremented = true;
+      const nextIndex = (index + 1) % colors.length;
+      localStorage.setItem('arka_highlight_index', String(nextIndex));
+      return colors[nextIndex];
+    }
+    return colors[index];
+  });
+  const [isOptimizingPrompt, setIsOptimizingPrompt] = useState(false);
+  const [animatingText, setAnimatingText] = useState(null);
+  const [animationTokens, setAnimationTokens] = useState([]);
+  const [staggerDelay, setStaggerDelay] = useState(0.015);
 
   const handleCancelSuggest = () => {
     if (suggestAbortControllerRef.current) {
@@ -80,13 +107,14 @@ const DiagramsPage = () => {
     pinNoticeTimerRef.current = window.setTimeout(() => setShowPinNotice(false), 2600);
   };
 
-  // Auto-resize textarea
+  // Auto-resize textarea to expand up to 184px (base 130px + 2 lines)
   useEffect(() => {
     if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 180)}px`;
+      textareaRef.current.style.height = '130px';
+      const newHeight = Math.max(130, Math.min(textareaRef.current.scrollHeight, 184));
+      textareaRef.current.style.height = `${newHeight}px`;
     }
-  }, [prompt, viewState]);
+  }, [prompt]);
 
   // Animated Placeholder Typing Effect
   useEffect(() => {
@@ -148,6 +176,68 @@ const DiagramsPage = () => {
   }, [isSidebarOpen, auth?.currentUser]);
 
 
+
+  const handleOptimizePrompt = async () => {
+    if (!prompt.trim() || isOptimizingPrompt || animatingText) return;
+
+    setIsOptimizingPrompt(true);
+    setSuggestionError('');
+
+    const abortController = new AbortController();
+    optimizeAbortControllerRef.current = abortController;
+
+    try {
+      const optimized = await optimizePrompt(prompt, abortController.signal);
+      if (!optimized) {
+        throw new Error("Could not optimize prompt.");
+      }
+
+      // Prepare animation tokens
+      const useWords = optimized.length > 200;
+      const tokens = useWords ? optimized.split(/(\s+)/) : Array.from(optimized);
+      const delay = Math.min(1.2 / tokens.length, useWords ? 0.035 : 0.015);
+
+      setAnimationTokens(tokens);
+      setStaggerDelay(delay);
+      setAnimatingText(optimized);
+      setIsOptimizingPrompt(false);
+
+      // Duration: total stagger delay + fade-in duration (0.5s)
+      const durationMs = (tokens.length * delay * 1000) + 500;
+      setTimeout(() => {
+        setPrompt(optimized);
+        setAnimatingText(null);
+        setAnimationTokens([]);
+      }, durationMs);
+
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        console.log("Optimize prompt request aborted.");
+        setIsOptimizingPrompt(false);
+        return;
+      }
+      console.error("Optimize prompt error:", err);
+      setSuggestionError(err.message || "Failed to optimize prompt. Please try again.");
+      setIsOptimizingPrompt(false);
+    }
+  };
+
+  const handleCancelOptimize = () => {
+    if (optimizeAbortControllerRef.current) {
+      optimizeAbortControllerRef.current.abort();
+      optimizeAbortControllerRef.current = null;
+    }
+    setIsOptimizingPrompt(false);
+  };
+
+  const handleBrushClick = (e) => {
+    e.stopPropagation();
+    if (isOptimizingPrompt) {
+      handleCancelOptimize();
+    } else if (!animatingText) {
+      setShowBrushMenu(!showBrushMenu);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!prompt.trim() || viewState !== 'input') return;
@@ -232,7 +322,7 @@ const DiagramsPage = () => {
   };
 
   const fastTransition = { type: "spring", stiffness: 450, damping: 30 };
-  const hasText = prompt.trim().length > 0;
+  const hasText = prompt.length > 0;
 
   if (authLoading) {
     return (
@@ -409,9 +499,9 @@ const DiagramsPage = () => {
                             visibility: viewState === 'input' || viewState === 'loading' ? 'visible' : 'hidden'
                           }}
                         >
-                          What are we building <span style={{ position: 'relative', display: 'inline-block', padding: '0 8px' }}>
+                          What are we building <span style={{ position: 'relative', display: 'inline-block', padding: '0 8px', isolation: 'isolate' }}>
+                            <span style={{ position: 'absolute', bottom: '6px', left: 0, width: '100%', height: '9px', backgroundColor: highlightColor, transform: 'rotate(-2deg) skewX(12deg)', opacity: 0.8, zIndex: -1 }}></span>
                             <span style={{ position: 'relative', zIndex: 10 }}>today?</span>
-                            <span style={{ position: 'absolute', bottom: '6px', left: 0, width: '100%', height: '9px', background: 'var(--accent)', zIndex: -1, transform: 'rotate(-2deg) skewX(12deg)', opacity: 0.8 }}></span>
                           </span>
                         </motion.h1>
                       </div>
@@ -494,53 +584,180 @@ const DiagramsPage = () => {
                               transition={{ type: "spring", stiffness: 260, damping: 26 }}
                               className="prompt-box-wrapper"
                             >
-                              <div className="prompt-box-main">
-                                <textarea
-                                  ref={textareaRef}
-                                  rows={1}
-                                  placeholder={placeholderText}
-                                  value={prompt}
-                                  onChange={(e) => setPrompt(e.target.value)}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter' && !e.shiftKey) {
-                                      e.preventDefault();
-                                      if (hasText) handleSubmit();
-                                    }
-                                  }}
-                                  className="prompt-input-textarea"
-                                />
+                              <div className={`prompt-box-main ${(isOptimizingPrompt || animatingText) ? 'optimizing' : ''}`}>
+                                <div className="prompt-textarea-mask-container">
+                                  <div className="prompt-textarea-fade-top"></div>
+                                  <textarea
+                                    ref={textareaRef}
+                                    rows={1}
+                                    placeholder={placeholderText}
+                                    value={prompt}
+                                    onChange={(e) => setPrompt(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault();
+                                        if (hasText && !isOptimizingPrompt && !animatingText) handleSubmit();
+                                      }
+                                    }}
+                                    className={`prompt-input-textarea ${isOptimizingPrompt ? 'textarea-optimizing' : ''}`}
+                                    style={{
+                                      color: (isOptimizingPrompt || animatingText) ? 'transparent' : 'inherit',
+                                      caretColor: (isOptimizingPrompt || animatingText) ? 'transparent' : 'auto',
+                                    }}
+                                    disabled={isOptimizingPrompt || !!animatingText}
+                                  />
+                                  {(isOptimizingPrompt || animatingText) && (
+                                    <div className="prompt-animation-overlay">
+                                      {isOptimizingPrompt && !animatingText && (
+                                        <span className="prompt-blur-placeholder">
+                                          {prompt}
+                                        </span>
+                                      )}
+                                      {animatingText && (
+                                        <>
+                                          {animationTokens.map((token, idx) => (
+                                            <span 
+                                              key={idx} 
+                                              className="polish-token" 
+                                              style={{ 
+                                                animationDelay: `${idx * staggerDelay}s` 
+                                              }}
+                                            >
+                                              {token}
+                                            </span>
+                                          ))}
+                                        </>
+                                      )}
+                                    </div>
+                                  )}
+                                  <div className="prompt-textarea-fade-bottom"></div>
+                                </div>
 
                                 <div className="prompt-bottom-toolbar">
-                                  <div className="toolbar-left" style={{ display: 'flex', gap: '0.25rem' }}>
-                                    <button
-                                      className="tool-icon-btn"
-                                      title="Attach context"
-                                      type="button"
-                                      onClick={openPinNotice}
-                                    >
-                                      <Paperclip size={20} />
-                                    </button>
-                                    <AnimatePresence>
-                                      {showPinNotice && (
-                                        <motion.div
-                                          className="pin-notice-popover"
-                                          initial={{ opacity: 0, y: 8, scale: 0.96 }}
-                                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                                          exit={{ opacity: 0, y: 8, scale: 0.96 }}
-                                          transition={{ duration: 0.16 }}
-                                        >
-                                          This feature is under development.
-                                        </motion.div>
-                                      )}
-                                    </AnimatePresence>
-                                  </div>
+                                   <div className="toolbar-left" style={{ display: 'flex', gap: '0.25rem', alignItems: 'center', position: 'relative' }}>
+                                     <AnimatePresence mode="wait">
+                                       {(!hasText || showPinNotice) ? (
+                                         <motion.button
+                                           key="paperclip"
+                                           initial={{ opacity: 0, scale: 0.8 }}
+                                           animate={{ opacity: 1, scale: 1 }}
+                                           exit={{ opacity: 0, scale: 0.8 }}
+                                           transition={{ duration: 0.15 }}
+                                           className="tool-icon-btn"
+                                           title="Attach context"
+                                           type="button"
+                                           onClick={openPinNotice}
+                                         >
+                                           <Paperclip size={17} />
+                                         </motion.button>
+                                       ) : (
+                                         <motion.button
+                                           key="brush"
+                                           initial={{ opacity: 0, scale: 0.8 }}
+                                           animate={{ opacity: 1, scale: 1 }}
+                                           exit={{ opacity: 0, scale: 0.8 }}
+                                           transition={{ duration: 0.15 }}
+                                           className="tool-icon-btn"
+                                           title={isOptimizingPrompt ? "Cancel Polish" : "AI Polish & Files"}
+                                           type="button"
+                                           onClick={handleBrushClick}
+                                           disabled={!!animatingText}
+                                           style={{
+                                             color: (isOptimizingPrompt || animatingText) ? '#0ea5e9' : 'inherit',
+                                            }}
+                                         >
+                                           {isOptimizingPrompt ? (
+                                             <Loader2 className="spin" size={17} />
+                                           ) : (
+                                             <svg 
+                                               xmlns="http://www.w3.org/2000/svg" 
+                                               height="17" 
+                                               viewBox="0 -960 960 960" 
+                                               width="17" 
+                                               fill="currentColor"
+                                             >
+                                               <path d="M240-120q-45 0-89-22t-71-58q26 0 53-20.5t27-59.5q0-50 35-85t85-35q50 0 85 35t35 85q0 66-47 113t-113 47Zm0-80q33 0 56.5-23.5T320-280q0-17-11.5-28.5T280-320q-17 0-28.5 11.5T240-280q0 23-5.5 42T220-202q5 2 10 2h10Zm230-160L360-470l358-358q11-11 27.5-11.5T774-828l54 54q12 12 12 28t-12 28L470-360Zm-190 80Z"/>
+                                             </svg>
+                                           )}
+                                         </motion.button>
+                                       )}
+                                     </AnimatePresence>
+
+                                     <AnimatePresence>
+                                       {showPinNotice && (
+                                         <motion.div
+                                           className="pin-notice-popover"
+                                           initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                                           animate={{ opacity: 1, y: 0, scale: 1 }}
+                                           exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                                           transition={{ duration: 0.16 }}
+                                         >
+                                           This feature is under development.
+                                         </motion.div>
+                                       )}
+                                     </AnimatePresence>
+
+                                     {showBrushMenu && (
+                                       <>
+                                         <div 
+                                           style={{
+                                             position: 'fixed',
+                                             top: 0,
+                                             left: 0,
+                                             right: 0,
+                                             bottom: 0,
+                                             zIndex: 40,
+                                             background: 'transparent',
+                                             cursor: 'default'
+                                           }} 
+                                           onClick={() => setShowBrushMenu(false)}
+                                         />
+                                         <motion.div
+                                           className="brush-menu-popover"
+                                           initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                                           animate={{ opacity: 1, y: 0, scale: 1 }}
+                                           exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                                           transition={{ duration: 0.16 }}
+                                         >
+                                           <button 
+                                             className="brush-menu-item" 
+                                             onClick={() => {
+                                               setShowBrushMenu(false);
+                                               handleOptimizePrompt();
+                                             }}
+                                           >
+                                             <svg 
+                                               xmlns="http://www.w3.org/2000/svg" 
+                                               height="16" 
+                                               viewBox="0 -960 960 960" 
+                                               width="16" 
+                                               fill="currentColor"
+                                             >
+                                               <path d="M240-120q-45 0-89-22t-71-58q26 0 53-20.5t27-59.5q0-50 35-85t85-35q50 0 85 35t35 85q0 66-47 113t-113 47Zm0-80q33 0 56.5-23.5T320-280q0-17-11.5-28.5T280-320q-17 0-28.5 11.5T240-280q0 23-5.5 42T220-202q5 2 10 2h10Zm230-160L360-470l358-358q11-11 27.5-11.5T774-828l54 54q12 12 12 28t-12 28L470-360Zm-190 80Z"/>
+                                             </svg>
+                                             <span>Polish</span>
+                                           </button>
+                                           <button 
+                                             className="brush-menu-item" 
+                                             onClick={() => {
+                                               setShowBrushMenu(false);
+                                               openPinNotice();
+                                             }}
+                                           >
+                                             <Paperclip size={16} />
+                                             <span>Add files</span>
+                                           </button>
+                                         </motion.div>
+                                       </>
+                                     )}
+                                   </div>
                                   <motion.button
                                     onClick={handleSubmit}
                                     whileTap={hasText ? { scale: 0.9 } : {}}
-                                    disabled={!hasText}
-                                    className={`submit-btn ${hasText ? 'active' : 'inactive'}`}
+                                    disabled={!hasText || isOptimizingPrompt || !!animatingText}
+                                    className={`submit-btn ${hasText && !isOptimizingPrompt && !animatingText ? 'active' : 'inactive'}`}
                                   >
-                                    <Send size={22} />
+                                    <Send size={18} />
                                   </motion.button>
                                 </div>
                               </div>

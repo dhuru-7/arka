@@ -251,6 +251,49 @@ def agent_chat():
         return jsonify({"error": f"Agent chat failed: {str(e)}"}), 500
 
 
+@app.route('/api/agent/optimize-prompt', methods=['POST'])
+def agent_optimize_prompt():
+    data = request.json or {}
+    user_prompt = data.get('prompt', '')
+    if not user_prompt:
+        return jsonify({"error": "No prompt provided"}), 400
+
+    try:
+        agent = agent_from_request(data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+    system_prompt = (
+        "You are an expert prompt optimizer for generating high-quality Mermaid JS diagrams.\n"
+        "Your task is to take the user's input prompt (which may have spelling mistakes, typos, or be extremely short/simple) and optimize it.\n\n"
+        "Optimization rules:\n"
+        "1. Correct all spelling, grammar, and structural mistakes.\n"
+        "2. If the prompt is short (like 'water cycle' or 'photosynthesis'), rewrite it into a detailed, structured, step-by-step description of the flow, processes, components, and relationships. This detailed prompt will be used to generate a rich, accurate, and comprehensive diagram.\n"
+        "3. Output ONLY the final optimized, expanded prompt itself.\n"
+        "4. Do NOT include any explanations, introductions, headers, list of changes, markdown code blocks, or preamble.\n"
+        "5. Start immediately with the optimized prompt text.\n\n"
+        "Example 1:\n"
+        "Input: photosintesis\n"
+        "Output: A detailed process flowchart of Photosynthesis. It starts with light absorption by chlorophyll in the leaves. Carbon dioxide enters through the stomata, and water is absorbed by the roots. Under light energy, the light-dependent reactions produce ATP and NADPH while releasing Oxygen. Then, the light-independent Calvin Cycle uses ATP, NADPH, and Carbon Dioxide to synthesize Glucose (sugar).\n\n"
+        "Example 2:\n"
+        "Input: login logic with bad password\n"
+        "Output: A flow diagram showing user login logic. The user enters their username and password. The system checks if the username exists. If no, show user not found error. If yes, check password. If password is incorrect, increment failed attempts, check if attempts exceed 3. If yes, lock account and notify user. If no, show incorrect password error and prompt retry. If password is correct, reset failed attempts counter, generate session token, and redirect to dashboard."
+    )
+
+    try:
+        content = agent.call_model(system_prompt, user_prompt, temperature=0.3, max_tokens=1500)
+        # Clean any accidental quotes around the output
+        if content.startswith('"') and content.endswith('"'):
+            content = content[1:-1].strip()
+        elif content.startswith("'") and content.endswith("'"):
+            content = content[1:-1].strip()
+        return jsonify({"optimized_prompt": content})
+    except Exception as e:
+        print(f"Agent optimize prompt error: {e}")
+        return jsonify({"error": f"Agent prompt optimization failed: {str(e)}"}), 500
+
+
+
 @app.route('/api/suggest', methods=['POST'])
 def suggest_diagram():
     return jsonify({

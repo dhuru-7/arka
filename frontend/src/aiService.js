@@ -229,6 +229,74 @@ export function getProviderLabel() {
   return `${prov?.name} · ${model?.label || s.cloudModel}`;
 }
 
+export async function optimizePrompt(prompt, signal) {
+  const systemPrompt = `You are an expert prompt optimizer for generating high-quality Mermaid JS diagrams.
+Your task is to take the user's input prompt (which may have spelling mistakes, typos, or be extremely short/simple) and optimize it.
+
+Optimization rules:
+1. Correct all spelling, grammar, and structural mistakes.
+2. If the prompt is short (like "water cycle" or "photosynthesis"), rewrite it into a detailed, structured, step-by-step description of the flow, processes, components, and relationships. This detailed prompt will be used to generate a rich, accurate, and comprehensive diagram.
+3. Output ONLY the final optimized, expanded prompt itself.
+4. Do NOT include any explanations, introductions, headers, list of changes, markdown code blocks, or preamble.
+5. Start immediately with the optimized prompt text.
+
+Example 1:
+Input: photosintesis
+Output: A detailed process flowchart of Photosynthesis. It starts with light absorption by chlorophyll in the leaves. Carbon dioxide enters through the stomata, and water is absorbed by the roots. Under light energy, the light-dependent reactions produce ATP and NADPH while releasing Oxygen. Then, the light-independent Calvin Cycle uses ATP, NADPH, and Carbon Dioxide to synthesize Glucose (sugar).
+
+Example 2:
+Input: login logic with bad password
+Output: A flow diagram showing user login logic. The user enters their username and password. The system checks if the username exists. If no, show user not found error. If yes, check password. If password is incorrect, increment failed attempts, check if attempts exceed 3. If yes, lock account and notify user. If no, show incorrect password error and prompt retry. If password is correct, reset failed attempts counter, generate session token, and redirect to dashboard.`;
+
+  let providerPayload = {};
+  try {
+    providerPayload = buildAgentProviderPayload('generate');
+  } catch (e) {
+    providerPayload = { provider: 'free' };
+  }
+
+  if (providerPayload.provider === 'local') {
+    return callOllama(
+      providerPayload.localUrl,
+      providerPayload.model,
+      systemPrompt,
+      prompt,
+      signal
+    );
+  }
+
+  if (providerPayload.provider === 'gemini') {
+    return callGemini(
+      providerPayload.apiKey,
+      providerPayload.model,
+      systemPrompt,
+      prompt,
+      0.3,
+      1500,
+      signal
+    );
+  }
+
+  const res = await fetch('/api/agent/optimize-prompt', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      prompt,
+      ...providerPayload
+    }),
+    signal
+  });
+  
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `Failed to optimize prompt: ${res.status}`);
+  }
+  
+  const data = await res.json();
+  return data.optimized_prompt;
+}
+
+
 /**
  * Suggest diagram type from user prompt.
  * Returns { category: string } or null if using free tier (caller uses backend).
