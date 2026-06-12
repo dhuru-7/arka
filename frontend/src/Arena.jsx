@@ -409,6 +409,19 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [isNavHovered, setIsNavHovered] = useState(false);
+  const [curveType, setCurveType] = useState(() => localStorage.getItem('arka_curve_type') || 'step');
+
+  useEffect(() => {
+    localStorage.setItem('arka_curve_type', curveType);
+  }, [curveType]);
+
+  const toggleCurveType = () => {
+    setCurveType(prev => {
+      if (prev === 'step') return 'linear';
+      if (prev === 'linear') return 'basis';
+      return 'step';
+    });
+  };
 
   // Diagram update state
   const [isRefining, setIsRefining] = useState(false);
@@ -953,7 +966,7 @@ User's latest message: ${userText}`;
           startOnLoad: false,
           securityLevel: 'loose',
           ...tmpl.config,
-          flowchart: { htmlLabels: false, curve: 'step', padding: 20, nodeSpacing: 100, rankSpacing: 120, useMaxWidth: true },
+          flowchart: { htmlLabels: false, curve: curveType, padding: 20, nodeSpacing: 100, rankSpacing: 120, useMaxWidth: true },
           pie: { useMaxWidth: false, textPosition: 0.75 },
           sequence: { useMaxWidth: false, showSequenceNumbers: false, actorMargin: 80, mirrorActors: false, messageAlign: 'center', messageFontSize: 13, noteFontSize: 12, wrap: true },
           er: { useMaxWidth: false, layoutDirection: 'TB', entityPadding: 15, fontSize: 13 },
@@ -994,7 +1007,7 @@ User's latest message: ${userText}`;
 
     const t = setTimeout(render, 50);
     return () => clearTimeout(t);
-  }, [mermaidCode, activeTemplate, isLoading, renderKey]);
+  }, [mermaidCode, activeTemplate, isLoading, renderKey, curveType]);
 
   // Re-attach listeners when tool changes
   useEffect(() => {
@@ -1861,6 +1874,9 @@ User's latest message: ${userText}`;
               <div className="tool-divider" />
               <button className={`tool-btn-theme ${showTemplates ? 'active' : ''}`} onClick={() => setShowTemplates(!showTemplates)} title="Themes">
                 <span>{TEMPLATES[activeTemplate]?.name || 'Theme'}</span>
+              </button>
+              <button className="tool-btn-theme" onClick={toggleCurveType} title="Change Connector Style">
+                <span>{curveType === 'step' ? 'Orthogonal' : curveType === 'linear' ? 'Straight' : 'Curved'}</span>
               </button>
               <button className={`tool-btn ${showCodeEditor ? 'active' : ''}`} onClick={openCodeEditor} title="Edit Code"><Code2 size={18} /></button>
               <div className="tool-divider" />
