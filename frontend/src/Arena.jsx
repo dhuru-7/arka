@@ -19,6 +19,7 @@ const loadMermaid = () => {
     script.onerror = reject;
     document.head.appendChild(script);
   });
+  return mermaidPromise;
 };
 
 const TEMPLATES = {
@@ -535,7 +536,6 @@ Follow these formatting and response rules strictly:
 - **FORMATTING**: Use **bold headings** and bullet points when suggesting options or outlining steps. Keep your paragraphs to 1-2 short sentences.
 - **DIRECT ANSWERS**: If the user asks a question, answer it directly in the first sentence (e.g. "Yes, we can add colors to this flowchart." or "No, sequence diagrams do not support custom colors for individual nodes in standard Mermaid.").
 - **PROPOSALS**: Only append a proposal block wrapped in [PROPOSAL] and [/PROPOSAL] at the very end of your response if a diagram modification is actually required. Do not output proposal cards for general questions, greetings, or error complaints.
-- **PROPOSAL CONTENT FORMAT (CRITICAL)**: Inside the [PROPOSAL] and [/PROPOSAL] tags, you MUST NOT write raw Mermaid JS code, syntax, style statements, or technical code blocks. Instead, write a clear, descriptive, human-readable natural language summary of the changes you plan to make. For example: "I will color node A light green with a dark green outline and change the database connection style", or "I will add a new database node named 'DB' and connect it to 'API Server'", or "I will change the shape of node X from a rectangle to a diamond".
 - **NO MERMAID CODE**: Never print raw Mermaid JS blocks in the chat response.
 
 DIAGRAM STYLING RULES:
@@ -552,15 +552,10 @@ DIRECT CODE ACCESS RULES:
   2. If the current code is fully valid and correct, explain that the Mermaid code itself appears completely correct and valid, and suggest browser-side troubleshooting steps like refreshing the page, resizing the window, or trying a different browser.
   3. If the current code has syntax errors or is broken, analyze the code, identify the issue, and output a [PROPOSAL] block to fix it.
 
-Example 1:
+Example:
 User: "Add a database node"
 Response: "I will add a new Database component to store records.
-[PROPOSAL] Add a database node and connect it from the API Service [/PROPOSAL]"
-
-Example 2:
-User: "Make node A orange and B have a blue border"
-Response: "I will style the nodes to make Node A orange and Node B have a blue border.
-[PROPOSAL] Color node A orange and style node B with a blue outline [/PROPOSAL]"`;
+[PROPOSAL] Add a database node and connect it from the API Service [/PROPOSAL]"`;
 
     const userMessageWithHistory = `Here is our conversation history:
 ${updatedMessages.slice(0, -1).map(m => `${m.sender === 'user' ? 'User' : 'Agent'}: ${m.text}`).join('\n')}
@@ -960,7 +955,7 @@ User's latest message: ${userText}`;
           startOnLoad: false,
           securityLevel: 'loose',
           ...tmpl.config,
-          flowchart: { htmlLabels: false, curve: 'basis', padding: 15, nodeSpacing: 90, rankSpacing: 110, useMaxWidth: true },
+          flowchart: { htmlLabels: false, curve: 'linear', padding: 15, nodeSpacing: 60, rankSpacing: 80, useMaxWidth: true },
           pie: { useMaxWidth: false, textPosition: 0.75 },
           sequence: { useMaxWidth: false, showSequenceNumbers: false, actorMargin: 80, mirrorActors: false, messageAlign: 'center', messageFontSize: 13, noteFontSize: 12, wrap: true },
           er: { useMaxWidth: false, layoutDirection: 'TB', entityPadding: 15, fontSize: 13 },
