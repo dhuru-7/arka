@@ -12,13 +12,11 @@ let mermaidPromise = null;
 const loadMermaid = () => {
   if (window.mermaid) return Promise.resolve(window.mermaid);
   if (mermaidPromise) return mermaidPromise;
-  mermaidPromise = new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js';
-    script.onload = () => resolve(window.mermaid);
-    script.onerror = reject;
-    document.head.appendChild(script);
-  });
+  mermaidPromise = import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs')
+    .then((module) => {
+      window.mermaid = module.default;
+      return module.default;
+    });
   return mermaidPromise;
 };
 
