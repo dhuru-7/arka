@@ -961,7 +961,7 @@ User's latest message: ${userText}`;
           startOnLoad: false,
           securityLevel: 'loose',
           ...tmpl.config,
-          flowchart: { htmlLabels: false, curve: 'linear', padding: 15, nodeSpacing: 60, rankSpacing: 80, useMaxWidth: true },
+          flowchart: { htmlLabels: false, curve: 'step', padding: 15, nodeSpacing: 90, rankSpacing: 110, useMaxWidth: true },
           pie: { useMaxWidth: false, textPosition: 0.75 },
           sequence: { useMaxWidth: false, showSequenceNumbers: false, actorMargin: 80, mirrorActors: false, messageAlign: 'center', messageFontSize: 13, noteFontSize: 12, wrap: true },
           er: { useMaxWidth: false, layoutDirection: 'TB', entityPadding: 15, fontSize: 13 },
