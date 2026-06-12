@@ -5,9 +5,14 @@ import re
 from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
 from dotenv import load_dotenv
-import fitz  # PyMuPDF
+try:
+    import fitz  # PyMuPDF
+    pymupdf_available = True
+except ImportError:
+    pymupdf_available = False
 from diagram_agent import DiagramAgent
 from mermaid_validator import validate_mermaid_code
+
 
 load_dotenv()
 
@@ -34,6 +39,14 @@ def agent_from_request(data):
     provider = data.get("provider")
     model = data.get("model")
     api_key = data.get("apiKey")
+    
+    if not provider or provider == 'free':
+        provider = 'sarvam'
+        model = 'sarvam-105b'
+        api_key = SARVAM_API_KEY
+        if not api_key:
+            raise RuntimeError("Sarvam API key (free tier) is not configured on the server. Please configure your own API key in Settings.")
+            
     return DiagramAgent(api_key=api_key, provider=provider, model=model, knowledge_dir=KNOWLEDGE_DIR)
 
 
@@ -75,7 +88,30 @@ def agent_generate_diagram():
     if not user_prompt:
         return jsonify({"error": "No prompt provided"}), 400
 
-    agent = agent_from_request(data)
+    try:
+        agent = agent_from_request(data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+    is_vercel = os.getenv('VERCEL') == '1' or 'VERCEL' in os.environ
+    if is_vercel:
+        try:
+            steps = []
+            def on_progress(step):
+                steps.append(step)
+            
+            result = agent.generate(user_prompt, diagram_type, on_progress=on_progress)
+            
+            response_data = []
+            for step in steps:
+                response_data.append(json.dumps({"type": "progress", "content": step}) + "\n")
+            response_data.append(json.dumps({"type": "result", "content": result}) + "\n")
+            
+            return Response("".join(response_data), mimetype='application/x-ndjson')
+        except Exception as e:
+            error_line = json.dumps({"type": "error", "content": str(e)}) + "\n"
+            return Response(error_line, mimetype='application/x-ndjson')
+
     import queue
     import threading
     q = queue.Queue()
@@ -123,7 +159,36 @@ def agent_refine_diagram():
     if not user_prompt or not mermaid_code:
         return jsonify({"error": "Missing prompt or mermaid_code"}), 400
 
-    agent = agent_from_request(data)
+    try:
+        agent = agent_from_request(data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+    is_vercel = os.getenv('VERCEL') == '1' or 'VERCEL' in os.environ
+    if is_vercel:
+        try:
+            steps = []
+            def on_progress(step):
+                steps.append(step)
+            
+            result = agent.refine(
+                user_prompt,
+                mermaid_code,
+                diagram_type,
+                selected_context=data.get('selected_context', []),
+                on_progress=on_progress
+            )
+            
+            response_data = []
+            for step in steps:
+                response_data.append(json.dumps({"type": "progress", "content": step}) + "\n")
+            response_data.append(json.dumps({"type": "result", "content": result}) + "\n")
+            
+            return Response("".join(response_data), mimetype='application/x-ndjson')
+        except Exception as e:
+            error_line = json.dumps({"type": "error", "content": str(e)}) + "\n"
+            return Response(error_line, mimetype='application/x-ndjson')
+
     import queue
     import threading
     q = queue.Queue()
@@ -680,6 +745,8 @@ def upload_document():
     
     try:
         if filename.endswith('.pdf'):
+            if not pymupdf_available:
+                return jsonify({"error": "PDF text extraction is not available on this server environment (missing dependencies)."}), 400
             # Use PyMuPDF for PDF extraction
             pdf_bytes = file.read()
             doc = fitz.open(stream=pdf_bytes, filetype="pdf")

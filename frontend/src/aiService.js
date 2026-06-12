@@ -60,7 +60,7 @@ export const LOCAL_MODELS = [
 
 export function getSettings() {
   return {
-    providerType: localStorage.getItem('arka_provider_type') || '',
+    providerType: localStorage.getItem('arka_provider_type') || 'free',
     cloudProvider: localStorage.getItem('arka_cloud_provider') || '',
     cloudModel: localStorage.getItem('arka_cloud_model') || '',
     apiKey: localStorage.getItem('arka_api_key') || '',
@@ -84,6 +84,9 @@ export function saveSettings(settings) {
 
 function resolveModels(purpose) {
   const s = getSettings();
+  if (s.providerType === 'free' || !s.providerType) {
+    return { provider: 'free', model: 'sarvam-105b', apiKey: '' };
+  }
   if (s.providerType === 'local') {
     if (!s.localModel) throw new Error('Select and save a local AI model in Settings.');
     return { provider: 'local', model: s.localModel, url: s.localUrl };
