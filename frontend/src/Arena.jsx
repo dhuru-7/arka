@@ -12,11 +12,15 @@ let mermaidPromise = null;
 const loadMermaid = () => {
   if (window.mermaid) return Promise.resolve(window.mermaid);
   if (mermaidPromise) return mermaidPromise;
-  mermaidPromise = import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs')
-    .then((module) => {
-      window.mermaid = module.default;
-      return module.default;
-    });
+  mermaidPromise = Promise.all([
+    import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs'),
+    import('https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@latest/dist/mermaid-layout-elk.esm.min.mjs')
+  ]).then(([mermaidModule, elkModule]) => {
+    const mermaid = mermaidModule.default;
+    mermaid.registerLayoutLoaders(elkModule.default);
+    window.mermaid = mermaid;
+    return mermaid;
+  });
   return mermaidPromise;
 };
 
@@ -953,7 +957,7 @@ User's latest message: ${userText}`;
           startOnLoad: false,
           securityLevel: 'loose',
           ...tmpl.config,
-          flowchart: { htmlLabels: false, curve: 'linear', padding: 15, nodeSpacing: 60, rankSpacing: 80, useMaxWidth: true },
+          flowchart: { htmlLabels: false, defaultRenderer: 'elk', curve: 'step', padding: 15, nodeSpacing: 60, rankSpacing: 80, useMaxWidth: true },
           pie: { useMaxWidth: false, textPosition: 0.75 },
           sequence: { useMaxWidth: false, showSequenceNumbers: false, actorMargin: 80, mirrorActors: false, messageAlign: 'center', messageFontSize: 13, noteFontSize: 12, wrap: true },
           er: { useMaxWidth: false, layoutDirection: 'TB', entityPadding: 15, fontSize: 13 },
