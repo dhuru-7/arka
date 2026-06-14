@@ -1455,6 +1455,7 @@ User's latest message: ${userText}`;
       rect.style.filter = 'drop-shadow(0 0 5px rgba(0, 0, 0, 0.2))';
 
       svg.appendChild(rect);
+      node.classList.add('node-overlay-active');
     } catch (err) {
       console.error('Failed to mount selection overlay:', err);
     }
@@ -1474,8 +1475,10 @@ User's latest message: ${userText}`;
     const containerRect = containerRef.current?.getBoundingClientRect() || { left: 0, top: 0 };
     const currentShape = detectNodeShape(nodeId, label);
 
-    // Mount a clean SVG overlay for complex shapes (stadium, etc.)
-    setTimeout(() => mountSelectionOverlay(node), 10);
+    // Mount a clean SVG overlay only for stadium shapes (complex path geometry)
+    if (currentShape === 'stadium') {
+      setTimeout(() => mountSelectionOverlay(node), 10);
+    }
 
     setSelectedNode({ id: nodeId, rawId: rawId, label, element: node });
     setEditText(label);
@@ -1597,8 +1600,8 @@ User's latest message: ${userText}`;
 
   const clearSelection = (keepChatOpen = false) => {
     if (canvasRef.current) {
-      canvasRef.current.querySelectorAll('.node-selected, .node-brush-selected').forEach(n => {
-        n.classList.remove('node-selected', 'node-brush-selected');
+      canvasRef.current.querySelectorAll('.node-selected, .node-brush-selected, .node-overlay-active').forEach(n => {
+        n.classList.remove('node-selected', 'node-brush-selected', 'node-overlay-active');
       });
       canvasRef.current.querySelectorAll('.edge-selected, .edge-brush-highlight').forEach(e => {
         e.classList.remove('edge-selected', 'edge-brush-highlight');
