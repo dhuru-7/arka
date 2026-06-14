@@ -1147,6 +1147,194 @@ User's latest message: ${userText}`;
     return -1;
   };
 
+  /* ─── Edge Drag Handles & Reconnection Logic ─── */
+  const mountEdgeDragHandles = (edgeElement) => {
+    if (!canvasRef.current) return;
+    const path = edgeElement.tagName === 'path' ? edgeElement : edgeElement.querySelector('path');
+    if (!path) return;
+
+    const svg = canvasRef.current.querySelector('svg');
+    if (!svg) return;
+
+    // Clean up existing handles
+    svg.querySelector('#edge-drag-handles')?.remove();
+
+    try {
+      const pathLength = path.getTotalLength();
+      if (!pathLength || pathLength <= 0) return;
+      const startPt = path.getPointAtLength(0);
+      const endPt = path.getPointAtLength(pathLength);
+
+      const handlesGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      handlesGroup.id = 'edge-drag-handles';
+
+      const createCircleHandle = (pt, type) => {
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', pt.x);
+        circle.setAttribute('cy', pt.y);
+        circle.setAttribute('r', 8);
+        circle.setAttribute('fill', '#10b981'); // Match green select highlight
+        circle.setAttribute('stroke', '#ffffff');
+        circle.setAttribute('stroke-width', 2);
+        circle.setAttribute('class', `edge-drag-handle ${type}-handle`);
+        circle.style.cursor = 'grab';
+        circle.style.filter = 'drop-shadow(0px 2px 4px rgba(0,0,0,0.2))';
+
+        circle.onmousedown = (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          startEdgeDrag(e, type, path, startPt, endPt, svg, circle);
+        };
+
+        return circle;
+      };
+
+      const srcHandle = createCircleHandle(startPt, 'source');
+      const dstHandle = createCircleHandle(endPt, 'target');
+
+      handlesGroup.appendChild(srcHandle);
+      handlesGroup.appendChild(dstHandle);
+      svg.appendChild(handlesGroup);
+    } catch (err) {
+      console.error("Failed to mount edge drag handles:", err);
+    }
+  };
+
+  const startEdgeDrag = (e, type, path, startPt, endPt, svg, handleCircle) => {
+    handleCircle.style.cursor = 'grabbing';
+    const originalD = path.getAttribute('d');
+    let currentHoverNodeId = null;
+
+    const handleMouseMove = (moveEvent) => {
+      // 1. Translate client coordinates to SVG coordinates
+      const pt = svg.createSVGPoint();
+      pt.x = moveEvent.clientX;
+      pt.y = moveEvent.clientY;
+      const svgPt = pt.matrixTransform(svg.getScreenCTM().inverse());
+
+      // 2. Move the handle visual position
+      handleCircle.setAttribute('cx', svgPt.x);
+      handleCircle.setAttribute('cy', svgPt.y);
+
+      // 3. Update connection path 'd' attribute preview
+      if (type === 'source') {
+        path.setAttribute('d', `M ${svgPt.x} ${svgPt.y} L ${endPt.x} ${endPt.y}`);
+      } else {
+        path.setAttribute('d', `M ${startPt.x} ${startPt.y} L ${svgPt.x} ${svgPt.y}`);
+      }
+
+      // 4. Hover detection over nodes
+      canvasRef.current.querySelectorAll('.node-drag-hover').forEach(node => {
+        node.classList.remove('node-drag-hover');
+      });
+
+      const hoveredElement = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY);
+      const nodeEl = hoveredElement?.closest('.node');
+      if (nodeEl) {
+        nodeEl.classList.add('node-drag-hover');
+
+        const rawId = nodeEl.id || '';
+        let nodeId = rawId;
+        const match = rawId.match(/flowchart-(.+?)-\d+/);
+        if (match) nodeId = match[1];
+
+        currentHoverNodeId = nodeId;
+      } else {
+        currentHoverNodeId = null;
+      }
+    };
+
+    const handleMouseUp = () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      handleCircle.style.cursor = 'grab';
+
+      canvasRef.current.querySelectorAll('.node-drag-hover').forEach(node => {
+        node.classList.remove('node-drag-hover');
+      });
+
+      if (currentHoverNodeId) {
+        const nodeInfo = parseEdgeNodes(path);
+        if (nodeInfo) {
+          const { sourceId, targetId } = nodeInfo;
+          const isChangingSource = type === 'source';
+          const oldId = isChangingSource ? sourceId : targetId;
+          const otherId = isChangingSource ? targetId : sourceId;
+
+          if (currentHoverNodeId !== oldId && currentHoverNodeId !== otherId) {
+            reconnectEdgeInCode(sourceId, targetId, currentHoverNodeId, isChangingSource);
+            return;
+          }
+        }
+      }
+
+      // Reset path if canceled or invalid drop target
+      path.setAttribute('d', originalD);
+      
+      // Reset handles position to match path start/end
+      try {
+        const pathLength = path.getTotalLength();
+        const newStart = path.getPointAtLength(0);
+        const newEnd = path.getPointAtLength(pathLength);
+        svg.querySelector('.source-handle')?.setAttribute('cx', newStart.x);
+        svg.querySelector('.source-handle')?.setAttribute('cy', newStart.y);
+        svg.querySelector('.target-handle')?.setAttribute('cx', newEnd.x);
+        svg.querySelector('.target-handle')?.setAttribute('cy', newEnd.y);
+      } catch (err) {}
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+  };
+
+  const reconnectEdgeInCode = (oldSourceId, oldTargetId, newNodeId, isChangingSource) => {
+    let lines = mermaidCode.split('\n');
+    let targetLineIndex = -1;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.includes(oldSourceId) && line.includes(oldTargetId)) {
+        const srcIndex = line.indexOf(oldSourceId);
+        const dstIndex = line.indexOf(oldTargetId);
+        if (srcIndex < dstIndex) {
+          const between = line.substring(srcIndex + oldSourceId.length, dstIndex);
+          const arrowMatch = between.match(/(-->|-\.-\->|==>|---|-.->|==>|\-\-\-)/);
+          if (arrowMatch) {
+            targetLineIndex = i;
+            break;
+          }
+        }
+      }
+    }
+
+    if (targetLineIndex === -1) {
+      clearSelection();
+      return;
+    }
+
+    const line = lines[targetLineIndex];
+    const srcIndex = line.indexOf(oldSourceId);
+    const dstIndex = line.indexOf(oldTargetId);
+    let newLine = '';
+
+    if (isChangingSource) {
+      const prefix = line.substring(0, srcIndex);
+      const suffix = line.substring(srcIndex + oldSourceId.length);
+      newLine = prefix + newNodeId + suffix;
+    } else {
+      const prefix = line.substring(0, dstIndex);
+      const suffix = line.substring(dstIndex + oldTargetId.length);
+      newLine = prefix + newNodeId + suffix;
+    }
+
+    lines[targetLineIndex] = newLine;
+    const newCode = lines.join('\n');
+    if (newCode !== mermaidCode) {
+      pushHistory(newCode);
+    }
+    clearSelection();
+  };
+
   /* ─── Node Click → Edit Popover ─── */
   const handleNodeClick = (node, e) => {
     clearSelection();
@@ -1257,6 +1445,8 @@ User's latest message: ${userText}`;
       x: Math.min(e.clientX - containerRect.left + 16, window.innerWidth - 300),
       y: Math.min(e.clientY - containerRect.top, window.innerHeight - 450),
     });
+
+    setTimeout(() => mountEdgeDragHandles(edge), 10);
   };
 
   const detectNodeShape = (nodeId, label) => {
@@ -1288,6 +1478,10 @@ User's latest message: ${userText}`;
       });
       canvasRef.current.querySelectorAll('.label-selected').forEach(el => {
         el.classList.remove('label-selected');
+      });
+      canvasRef.current.querySelector('#edge-drag-handles')?.remove();
+      canvasRef.current.querySelectorAll('.node-drag-hover').forEach(n => {
+        n.classList.remove('node-drag-hover');
       });
     }
     setSelectedNode(null);
