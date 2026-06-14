@@ -1387,6 +1387,79 @@ User's latest message: ${userText}`;
   };
 
   /* ─── Node Click → Edit Popover ─── */
+  /* ─── Selection Overlay for Complex Shapes ─── */
+  const mountSelectionOverlay = (node) => {
+    // Only needed for nodes with .label-container (stadium, subroutine, etc.)
+    const labelContainer = node.querySelector('.label-container');
+    if (!labelContainer) return;
+
+    const svg = canvasRef.current?.querySelector('svg');
+    if (!svg) return;
+
+    // Remove any existing overlay
+    svg.querySelector('#node-selection-overlay')?.remove();
+
+    try {
+      // Get the bounding box of the label container in SVG space
+      const bbox = labelContainer.getBBox();
+      if (!bbox || bbox.width <= 0 || bbox.height <= 0) return;
+
+      // Build the transform chain from the node up to the SVG root
+      let transform = svg.createSVGMatrix();
+      let el = labelContainer;
+      const transforms = [];
+      while (el && el !== svg) {
+        if (el.transform && el.transform.baseVal && el.transform.baseVal.numberOfItems > 0) {
+          for (let i = 0; i < el.transform.baseVal.numberOfItems; i++) {
+            transforms.unshift(el.transform.baseVal.getItem(i).matrix);
+          }
+        }
+        el = el.parentElement;
+      }
+      for (const m of transforms) {
+        transform = transform.multiply(m);
+      }
+
+      // Apply the transform to the bbox corners to get the position in SVG root space
+      const topLeft = svg.createSVGPoint();
+      topLeft.x = bbox.x;
+      topLeft.y = bbox.y;
+      const tl = topLeft.matrixTransform(transform);
+
+      const bottomRight = svg.createSVGPoint();
+      bottomRight.x = bbox.x + bbox.width;
+      bottomRight.y = bbox.y + bbox.height;
+      const br = bottomRight.matrixTransform(transform);
+
+      const w = br.x - tl.x;
+      const h = br.y - tl.y;
+
+      // Determine rx/ry based on shape — stadium gets fully rounded ends
+      const ry = h / 2;
+      const rx = ry;
+
+      const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      rect.id = 'node-selection-overlay';
+      rect.setAttribute('x', tl.x);
+      rect.setAttribute('y', tl.y);
+      rect.setAttribute('width', w);
+      rect.setAttribute('height', h);
+      rect.setAttribute('rx', rx);
+      rect.setAttribute('ry', ry);
+      rect.setAttribute('fill', 'none');
+      rect.setAttribute('stroke', '#000');
+      rect.setAttribute('stroke-width', '3');
+      rect.setAttribute('stroke-dasharray', '8 8');
+      rect.setAttribute('pointer-events', 'none');
+      rect.style.animation = 'marching-ants 0.8s linear infinite';
+      rect.style.filter = 'drop-shadow(0 0 5px rgba(0, 0, 0, 0.2))';
+
+      svg.appendChild(rect);
+    } catch (err) {
+      console.error('Failed to mount selection overlay:', err);
+    }
+  };
+
   const handleNodeClick = (node, e) => {
     clearSelection();
 
@@ -1400,6 +1473,9 @@ User's latest message: ${userText}`;
     node.classList.add('node-selected');
     const containerRect = containerRef.current?.getBoundingClientRect() || { left: 0, top: 0 };
     const currentShape = detectNodeShape(nodeId, label);
+
+    // Mount a clean SVG overlay for complex shapes (stadium, etc.)
+    setTimeout(() => mountSelectionOverlay(node), 10);
 
     setSelectedNode({ id: nodeId, rawId: rawId, label, element: node });
     setEditText(label);
@@ -1531,6 +1607,7 @@ User's latest message: ${userText}`;
         el.classList.remove('label-selected');
       });
       canvasRef.current.querySelector('#edge-drag-handles')?.remove();
+      canvasRef.current.querySelector('#node-selection-overlay')?.remove();
       canvasRef.current.querySelectorAll('.node-drag-hover').forEach(n => {
         n.classList.remove('node-drag-hover');
       });
