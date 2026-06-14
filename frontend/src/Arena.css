@@ -96,12 +96,15 @@
 .mermaid-render-target .node-selected .label-container polygon,
 .mermaid-render-target .node-selected .label-container circle,
 .mermaid-render-target .node-selected .label-container ellipse,
-.mermaid-render-target .node-selected .label-container path,
+.mermaid-render-target .node-selected .label-container path:first-child,
 .mermaid-render-target .node-selected > rect,
 .mermaid-render-target .node-selected > polygon,
 .mermaid-render-target .node-selected > circle,
 .mermaid-render-target .node-selected > ellipse,
 .mermaid-render-target .node-selected > path { stroke: #000 !important; stroke-width: 3px !important; stroke-dasharray: 8 8 !important; animation: marching-ants 0.8s linear infinite !important; filter: drop-shadow(0 0 5px rgba(0, 0, 0, 0.2)); }
+.mermaid-render-target .node-selected .label-container path:nth-of-type(2) {
+  stroke: transparent !important;
+}
 /* Selected edge paths and their arrowheads (green highlight) */
 .mermaid-render-target path.edge-selected,
 .mermaid-render-target .edge-selected path {
@@ -1021,15 +1024,18 @@
 .edge-drag-handle:active {
   cursor: grabbing;
 }
-
 /* Node drop target hover highlight during edge dragging */
 .mermaid-render-target .node.node-drag-hover rect,
 .mermaid-render-target .node.node-drag-hover polygon,
 .mermaid-render-target .node.node-drag-hover circle,
 .mermaid-render-target .node.node-drag-hover ellipse,
-.mermaid-render-target .node.node-drag-hover path {
+.mermaid-render-target .node.node-drag-hover path:first-child,
+.mermaid-render-target .node.node-drag-hover > path {
   stroke: #10b981 !important;
   stroke-width: 3px !important;
   stroke-dasharray: 5 5 !important;
   filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.6)) !important;
+}
+.mermaid-render-target .node.node-drag-hover path:nth-of-type(2) {
+  stroke: transparent !important;
 }
