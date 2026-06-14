@@ -1203,7 +1203,15 @@ User's latest message: ${userText}`;
   const startEdgeDrag = (e, type, path, startPt, endPt, svg, handleCircle) => {
     handleCircle.style.cursor = 'grabbing';
     const originalD = path.getAttribute('d');
+    const originalPathPointerEvents = path.style.pointerEvents;
     let currentHoverNodeId = null;
+
+    // Disable pointer-events on path and drag handles group so document.elementFromPoint hits the underlying nodes
+    path.style.pointerEvents = 'none';
+    const handlesGroup = svg.querySelector('#edge-drag-handles');
+    if (handlesGroup) {
+      handlesGroup.style.pointerEvents = 'none';
+    }
 
     const handleMouseMove = (moveEvent) => {
       // 1. Translate client coordinates to SVG coordinates
@@ -1253,6 +1261,12 @@ User's latest message: ${userText}`;
         node.classList.remove('node-drag-hover');
       });
 
+      // Restore pointer events
+      path.style.pointerEvents = originalPathPointerEvents;
+      if (handlesGroup) {
+        handlesGroup.style.pointerEvents = 'auto';
+      }
+
       if (currentHoverNodeId) {
         const nodeInfo = parseEdgeNodes(path);
         if (nodeInfo) {
@@ -1290,18 +1304,46 @@ User's latest message: ${userText}`;
   const reconnectEdgeInCode = (oldSourceId, oldTargetId, newNodeId, isChangingSource) => {
     let lines = mermaidCode.split('\n');
     let targetLineIndex = -1;
+    let matchResult = null;
+    let connRegex = null;
 
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      if (line.includes(oldSourceId) && line.includes(oldTargetId)) {
-        const srcIndex = line.indexOf(oldSourceId);
-        const dstIndex = line.indexOf(oldTargetId);
-        if (srcIndex < dstIndex) {
-          const between = line.substring(srcIndex + oldSourceId.length, dstIndex);
-          const arrowMatch = between.match(/(-->|-\.-\->|==>|---|-.->|==>|\-\-\-)/);
-          if (arrowMatch) {
-            targetLineIndex = i;
-            break;
+    const escapeRegExp = (string) => {
+      return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    };
+
+    try {
+      const escapedSource = escapeRegExp(oldSourceId);
+      const escapedTarget = escapeRegExp(oldTargetId);
+      connRegex = new RegExp(
+        `^(.*?(?:^|[^a-zA-Z0-9_-]))(${escapedSource})((?:[^a-zA-Z0-9_-].*?)?(?:-->|-\\.-\\->|==>|---|-.->|==\\>|\\-\\-\\-)(?:.*?[^\n]*?[^a-zA-Z0-9_-])?)(${escapedTarget})((?:[^a-zA-Z0-9_-].*?)?)$`
+      );
+
+      for (let i = 0; i < lines.length; i++) {
+        const match = lines[i].match(connRegex);
+        if (match) {
+          targetLineIndex = i;
+          matchResult = match;
+          break;
+        }
+      }
+    } catch (err) {
+      console.error("Error constructing regex for edge reconnection:", err);
+    }
+
+    if (targetLineIndex === -1) {
+      // Fallback to simpler index search if regex fails
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (line.includes(oldSourceId) && line.includes(oldTargetId)) {
+          const srcIndex = line.indexOf(oldSourceId);
+          const dstIndex = line.indexOf(oldTargetId);
+          if (srcIndex < dstIndex) {
+            const between = line.substring(srcIndex + oldSourceId.length, dstIndex);
+            const arrowMatch = between.match(/(-->|-\.-\->|==>|---|-.->|==>|\-\-\-)/);
+            if (arrowMatch) {
+              targetLineIndex = i;
+              break;
+            }
           }
         }
       }
@@ -1312,19 +1354,28 @@ User's latest message: ${userText}`;
       return;
     }
 
-    const line = lines[targetLineIndex];
-    const srcIndex = line.indexOf(oldSourceId);
-    const dstIndex = line.indexOf(oldTargetId);
     let newLine = '';
-
-    if (isChangingSource) {
-      const prefix = line.substring(0, srcIndex);
-      const suffix = line.substring(srcIndex + oldSourceId.length);
-      newLine = prefix + newNodeId + suffix;
+    if (matchResult) {
+      const [, g1, g2, g3, g4, g5] = matchResult;
+      if (isChangingSource) {
+        newLine = g1 + newNodeId + g3 + g4 + g5;
+      } else {
+        newLine = g1 + g2 + g3 + newNodeId + g5;
+      }
     } else {
-      const prefix = line.substring(0, dstIndex);
-      const suffix = line.substring(dstIndex + oldTargetId.length);
-      newLine = prefix + newNodeId + suffix;
+      // Fallback replacement logic
+      const line = lines[targetLineIndex];
+      const srcIndex = line.indexOf(oldSourceId);
+      const dstIndex = line.indexOf(oldTargetId);
+      if (isChangingSource) {
+        const prefix = line.substring(0, srcIndex);
+        const suffix = line.substring(srcIndex + oldSourceId.length);
+        newLine = prefix + newNodeId + suffix;
+      } else {
+        const prefix = line.substring(0, dstIndex);
+        const suffix = line.substring(dstIndex + oldTargetId.length);
+        newLine = prefix + newNodeId + suffix;
+      }
     }
 
     lines[targetLineIndex] = newLine;
