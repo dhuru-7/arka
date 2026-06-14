@@ -1064,7 +1064,7 @@ User's latest message: ${userText}`;
     });
 
     // Edges
-    canvasRef.current.querySelectorAll('.edgePath').forEach(edge => {
+    canvasRef.current.querySelectorAll('.edgePath, .edgePaths path, path.flowchart-link').forEach(edge => {
       edge.style.cursor = 'pointer';
       edge.onclick = (e) => {
         if (activeTool !== 'select') return;
@@ -1072,6 +1072,79 @@ User's latest message: ${userText}`;
         handleEdgeClick(edge, e);
       };
     });
+
+    // Edge Labels
+    canvasRef.current.querySelectorAll('.edgeLabel, .edgeLabel .label').forEach(labelEl => {
+      labelEl.style.cursor = 'pointer';
+      labelEl.onclick = (e) => {
+        if (activeTool !== 'select') return;
+        e.stopPropagation();
+        
+        // Find corresponding edge path by matching data-id attribute
+        const dataId = labelEl.getAttribute('data-id') || labelEl.querySelector('.label')?.getAttribute('data-id');
+        if (dataId) {
+          const edgePath = canvasRef.current.querySelector(`[data-id="${dataId}"], #${dataId}, [id$="${dataId}"]`);
+          if (edgePath) {
+            handleEdgeClick(edgePath, e);
+            return;
+          }
+        }
+      };
+    });
+  };
+
+  /* ─── Node/Edge Parsing Helper Functions ─── */
+  const getCleanNodeIds = () => {
+    if (!canvasRef.current) return [];
+    return Array.from(canvasRef.current.querySelectorAll('.node')).map(node => {
+      const rawId = node.id || '';
+      const match = rawId.match(/flowchart-(.+?)-\d+/);
+      return match ? match[1] : rawId;
+    });
+  };
+
+  const parseEdgeNodes = (edgeElement) => {
+    const dataId = edgeElement.getAttribute('data-id') || edgeElement.id || '';
+    if (!dataId) return null;
+
+    // Clean prefixes and suffixes (such as L_, L-, edge_, edge-, and trailing index _0, -0)
+    let cleanId = dataId
+      .replace(/^(L_|L-|edge_|edge-)/, '')
+      .replace(/[_-]\d+$/, '');
+
+    const nodeIds = getCleanNodeIds();
+    
+    // 1. Try matching with underscore or hyphen connectors using currently rendered node IDs
+    for (const src of nodeIds) {
+      if (cleanId.startsWith(src + '_') || cleanId.startsWith(src + '-')) {
+        const possibleDst = cleanId.substring(src.length + 1);
+        if (nodeIds.includes(possibleDst)) {
+          return { sourceId: src, targetId: possibleDst };
+        }
+      }
+    }
+
+    // 2. Fallback: split by common separators if we couldn't match exactly
+    const parts = cleanId.split(/[_-]/);
+    if (parts.length >= 2) {
+      return { sourceId: parts[0], targetId: parts[1] };
+    }
+
+    return null;
+  };
+
+  const getEdgeIndexInCode = (lines, targetLineIndex) => {
+    let edgeCount = 0;
+    for (let i = 0; i < lines.length; i++) {
+      if (i === targetLineIndex) {
+        return edgeCount;
+      }
+      const line = lines[i];
+      if (line.includes('-->') || line.includes('-.->') || line.includes('==>') || line.includes('---') || line.includes('-.-') || line.includes('===')) {
+        edgeCount++;
+      }
+    }
+    return -1;
   };
 
   /* ─── Node Click → Edit Popover ─── */
@@ -1105,18 +1178,84 @@ User's latest message: ${userText}`;
     clearSelection();
 
     edge.classList.add('edge-selected');
+    const parentGroup = edge.closest('.edgePath, .edgePaths > g');
+    if (parentGroup) {
+      parentGroup.classList.add('edge-selected');
+    }
+    
+    // Also highlight the corresponding label if it exists
+    const dataId = edge.getAttribute('data-id') || edge.id || '';
+    if (dataId) {
+      const labelEl = canvasRef.current.querySelector(`.edgeLabel .label[data-id="${dataId}"]`);
+      if (labelEl) {
+        labelEl.classList.add('label-selected');
+      }
+    }
+
     const containerRect = containerRef.current?.getBoundingClientRect() || { left: 0, top: 0 };
+    const nodeInfo = parseEdgeNodes(edge);
+    
+    let label = '';
+    let style = 'solid';
+    let color = '';
 
-    // Attempt to extract edge info from class/id
-    const edgeId = edge.id || '';
+    if (nodeInfo) {
+      const { sourceId, targetId } = nodeInfo;
+      const lines = mermaidCode.split('\n');
+      
+      // Find the edge definition in the code to get current label and style
+      let targetLineIndex = -1;
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (line.includes(sourceId) && line.includes(targetId)) {
+          const srcIndex = line.indexOf(sourceId);
+          const dstIndex = line.indexOf(targetId);
+          if (srcIndex < dstIndex) {
+            const between = line.substring(srcIndex + sourceId.length, dstIndex);
+            const arrowMatch = between.match(/(-->|-\.-\->|==>|---|-.->|==>|\-\-\-)/);
+            if (arrowMatch) {
+              targetLineIndex = i;
+              const arrow = arrowMatch[0];
+              if (arrow === '-.->') style = 'dotted';
+              else if (arrow === '==>') style = 'thick';
+              
+              // Get current label
+              const pipeMatch = between.match(/\|([^|]+)\|/);
+              if (pipeMatch) {
+                label = pipeMatch[1];
+              } else {
+                const labelMatch = between.match(/(?:--|-\.-|==)\s*([^-.\n=]+)\s*(?:-->|-\.-\->|==>|---)/);
+                if (labelMatch) {
+                  label = labelMatch[1].trim();
+                }
+              }
+              break;
+            }
+          }
+        }
+      }
+      
+      // Find current color from linkStyle
+      if (targetLineIndex !== -1) {
+        const edgeIndex = getEdgeIndexInCode(lines, targetLineIndex);
+        if (edgeIndex !== -1) {
+          const styleRegex = new RegExp(`linkStyle\\s+${edgeIndex}\\s+[^;\\n]*stroke:([^,\\s;]+)`);
+          const styleMatch = mermaidCode.match(styleRegex);
+          if (styleMatch) {
+            color = styleMatch[1];
+          }
+        }
+      }
+    }
 
-    setSelectedEdge({ id: edgeId, element: edge });
-    setEdgeColor('');
-    setEdgeStyle('solid');
+    setSelectedEdge({ id: dataId, element: edge });
+    setEditText(label);
+    setEdgeColor(color);
+    setEdgeStyle(style);
     setEditPopover({
       type: 'edge',
       x: Math.min(e.clientX - containerRect.left + 16, window.innerWidth - 300),
-      y: Math.min(e.clientY - containerRect.top, window.innerHeight - 300),
+      y: Math.min(e.clientY - containerRect.top, window.innerHeight - 450),
     });
   };
 
@@ -1146,6 +1285,9 @@ User's latest message: ${userText}`;
       });
       canvasRef.current.querySelectorAll('.edge-selected, .edge-brush-highlight').forEach(e => {
         e.classList.remove('edge-selected', 'edge-brush-highlight');
+      });
+      canvasRef.current.querySelectorAll('.label-selected').forEach(el => {
+        el.classList.remove('label-selected');
       });
     }
     setSelectedNode(null);
@@ -1272,6 +1414,144 @@ User's latest message: ${userText}`;
 
   const applyEdgeEdit = () => {
     if (!selectedEdge) return;
+    
+    const nodeInfo = parseEdgeNodes(selectedEdge.element);
+    if (!nodeInfo) {
+      clearSelection();
+      return;
+    }
+    
+    const { sourceId, targetId } = nodeInfo;
+    const newLabel = editText.trim();
+    
+    let lines = mermaidCode.split('\n');
+    let targetLineIndex = -1;
+    
+    // 1. Find the line in the code
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.includes(sourceId) && line.includes(targetId)) {
+        const srcIndex = line.indexOf(sourceId);
+        const dstIndex = line.indexOf(targetId);
+        if (srcIndex < dstIndex) {
+          const between = line.substring(srcIndex + sourceId.length, dstIndex);
+          const arrowMatch = between.match(/(-->|-\.-\->|==>|---|-.->|==>|\-\-\-)/);
+          if (arrowMatch) {
+            targetLineIndex = i;
+            break;
+          }
+        }
+      }
+    }
+    
+    if (targetLineIndex === -1) {
+      clearSelection();
+      return;
+    }
+    
+    // Determine the new arrow representation based on style
+    let newArrow = '-->';
+    if (edgeStyle === 'dotted') {
+      newArrow = '-.->';
+    } else if (edgeStyle === 'thick') {
+      newArrow = '==>';
+    }
+    
+    // Determine the new line content
+    const line = lines[targetLineIndex];
+    const srcIndex = line.indexOf(sourceId);
+    const dstIndex = line.indexOf(targetId);
+    
+    const prefix = line.substring(0, srcIndex + sourceId.length);
+    const suffix = line.substring(dstIndex);
+    
+    let middle = '';
+    if (newLabel) {
+      middle = ` ${newArrow}|${newLabel.replace(/\|/g, '')}| `;
+    } else {
+      middle = ` ${newArrow} `;
+    }
+    
+    lines[targetLineIndex] = prefix + middle + suffix;
+    
+    // 2. Handle Edge Color using linkStyle
+    const edgeIndex = getEdgeIndexInCode(lines, targetLineIndex);
+    let newCode = lines.join('\n');
+    
+    if (edgeIndex !== -1) {
+      // Remove any existing linkStyle for this edge index
+      const linkStylePattern = new RegExp(`\\n\\s*linkStyle ${edgeIndex} .*`, 'g');
+      newCode = newCode.replace(linkStylePattern, '');
+      
+      if (edgeColor) {
+        const strokeWidth = edgeStyle === 'thick' ? '3.5px' : '2px';
+        newCode = newCode.trimEnd() + `\n    linkStyle ${edgeIndex} stroke:${edgeColor},stroke-width:${strokeWidth};`;
+      }
+    }
+    
+    if (newCode !== mermaidCode) {
+      pushHistory(newCode);
+    }
+    clearSelection();
+  };
+
+  const deleteEdge = () => {
+    if (!selectedEdge) return;
+    
+    const nodeInfo = parseEdgeNodes(selectedEdge.element);
+    if (!nodeInfo) {
+      clearSelection();
+      return;
+    }
+    
+    const { sourceId, targetId } = nodeInfo;
+    
+    let lines = mermaidCode.split('\n');
+    let targetLineIndex = -1;
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.includes(sourceId) && line.includes(targetId)) {
+        const srcIndex = line.indexOf(sourceId);
+        const dstIndex = line.indexOf(targetId);
+        if (srcIndex < dstIndex) {
+          const between = line.substring(srcIndex + sourceId.length, dstIndex);
+          const arrowMatch = between.match(/(-->|-\.-\->|==>|---|-.->|==>|\-\-\-)/);
+          if (arrowMatch) {
+            targetLineIndex = i;
+            break;
+          }
+        }
+      }
+    }
+    
+    if (targetLineIndex !== -1) {
+      const edgeIndex = getEdgeIndexInCode(lines, targetLineIndex);
+      lines.splice(targetLineIndex, 1);
+      
+      let newCode = lines.join('\n');
+      
+      // Shift linkStyle indices
+      if (edgeIndex !== -1) {
+        const linkStylePattern = new RegExp(`\\n\\s*linkStyle ${edgeIndex} .*`, 'g');
+        newCode = newCode.replace(linkStylePattern, '');
+        
+        const shiftRegex = /linkStyle\s+(\d+)\s+([^;\n]+);?/g;
+        newCode = newCode.replace(shiftRegex, (match, idxStr, styles) => {
+          const idx = parseInt(idxStr, 10);
+          if (idx === edgeIndex) {
+            return '';
+          } else if (idx > edgeIndex) {
+            return `linkStyle ${idx - 1} ${styles};`;
+          }
+          return match;
+        });
+      }
+      
+      if (newCode !== mermaidCode) {
+        pushHistory(newCode);
+      }
+    }
     clearSelection();
   };
 
@@ -1282,18 +1562,14 @@ User's latest message: ${userText}`;
     let lines = mermaidCode.split('\n');
     const escapedId = nodeId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-    // Improved regex to target the node ID specifically while avoiding partial matches in larger IDs
-    // It looks for the ID as a whole word, optionally surrounded by Mermaid syntax characters
     const nodeRefRegex = new RegExp(`(?:^|[^a-zA-Z0-9_-])${escapedId}(?:$|[^a-zA-Z0-9_-])`);
 
     const filteredLines = lines.filter(line => {
       const trimmed = line.trim();
       if (!trimmed) return true;
 
-      // Remove style directives for this node
       if (trimmed.startsWith(`style ${nodeId} `)) return false;
 
-      // Remove any line that references this node (definitions or connections)
       return !nodeRefRegex.test(trimmed);
     });
 
@@ -1305,7 +1581,16 @@ User's latest message: ${userText}`;
   };
 
   const handleCanvasClick = (e) => {
-    if (e.target.closest('.node-edit-popover') || e.target.closest('.edge-edit-popover') || e.target.closest('.node') || e.target.closest('.edgePath')) return;
+    if (
+      e.target.closest('.node-edit-popover') || 
+      e.target.closest('.edge-edit-popover') || 
+      e.target.closest('.node-edit-sidebar') ||
+      e.target.closest('.node') || 
+      e.target.closest('.edgePath') ||
+      e.target.closest('.edgePaths') ||
+      e.target.closest('.edgeLabel') ||
+      e.target.closest('path.flowchart-link')
+    ) return;
     clearSelection();
   };
 
@@ -1733,34 +2018,66 @@ User's latest message: ${userText}`;
 
         {editPopover && editPopover.type === 'edge' && selectedEdge && (
           <motion.div className="node-edit-sidebar"
-            initial={{ x: 340 }} animate={{ x: 0 }} exit={{ x: 340 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}>
+            initial={{ x: '100%', opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: '100%', opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 35 }}>
             <div className="popover-header">
-              <span className="popover-title">Edge Style</span>
+              <span className="popover-title">Edit Connection</span>
               <button className="popover-close" onClick={clearSelection}><X size={18} /></button>
             </div>
+            
+            <div className="popover-section">
+              <label className="popover-label-mini">Edge Text</label>
+              <input 
+                className="popover-input" 
+                value={editText} 
+                onChange={e => setEditText(e.target.value)}
+                placeholder="Enter connection text..." 
+                onKeyDown={e => e.key === 'Enter' && applyEdgeEdit()} 
+                autoFocus 
+              />
+            </div>
+
+            <div className="popover-section">
+              <label className="popover-label-mini">Line Style</label>
+              <div className="popover-shapes">
+                <button className={`shape-btn ${edgeStyle === 'solid' ? 'active' : ''}`} onClick={() => setEdgeStyle('solid')} title="Solid" style={{ gap: '4px' }}>
+                  <ArrowRight size={16} />
+                  <span style={{ fontSize: '0.65rem' }}>Solid</span>
+                </button>
+                <button className={`shape-btn ${edgeStyle === 'dotted' ? 'active' : ''}`} onClick={() => setEdgeStyle('dotted')} title="Dotted" style={{ gap: '4px' }}>
+                  <ArrowRight size={16} style={{ strokeDasharray: '4 2' }} />
+                  <span style={{ fontSize: '0.65rem' }}>Dotted</span>
+                </button>
+                <button className={`shape-btn ${edgeStyle === 'thick' ? 'active' : ''}`} onClick={() => setEdgeStyle('thick')} title="Thick" style={{ gap: '4px' }}>
+                  <ArrowRight size={16} style={{ strokeWidth: '3px' }} />
+                  <span style={{ fontSize: '0.65rem' }}>Thick</span>
+                </button>
+              </div>
+            </div>
+
             <div className="popover-section">
               <label className="popover-label-mini">Color</label>
               <div className="popover-colors">
                 {NODE_COLORS.map(c => (
                   <button key={c} className={`color-swatch ${edgeColor === c ? 'active' : ''}`}
-                    style={{ background: c }} onClick={() => setEdgeColor(c)} />
+                    style={{ background: c }} onClick={() => setEdgeColor(edgeColor === c ? '' : c)} />
                 ))}
-                <label className="color-plus-swatch"><PlusIcon size={12} /><input type="color" className="custom-color-input" onChange={e => setEdgeColor(e.target.value)} /></label>
+                <label className="color-plus-swatch">
+                  <PlusIcon size={12} />
+                  <input type="color" className="custom-color-input" onChange={e => setEdgeColor(e.target.value)} />
+                </label>
               </div>
             </div>
-            <div className="popover-section">
-              <label className="popover-label-mini">Line Style</label>
-              <div className="popover-shapes">
-                <button className={`shape-btn ${edgeStyle === 'solid' ? 'active' : ''}`} onClick={() => setEdgeStyle('solid')} title="Solid">
-                  <ArrowRight size={18} />
-                </button>
-                <button className={`shape-btn ${edgeStyle === 'dotted' ? 'active' : ''}`} onClick={() => setEdgeStyle('dotted')} title="Dotted">
-                  <ArrowRight size={18} style={{ strokeDasharray: '4 2' }} />
-                </button>
-              </div>
+
+            <div className="sidebar-footer-actions">
+              <button className="popover-apply-btn" onClick={applyEdgeEdit}><Check size={17} /> Update Connection</button>
+              <button className="popover-delete-btn" onClick={deleteEdge} title="Delete Connection">
+                <Trash2 size={17} />
+                <span>Delete</span>
+              </button>
             </div>
-            <button className="popover-apply-btn" onClick={clearSelection}><Check size={17} /> Done</button>
           </motion.div>
         )}
       </AnimatePresence>
