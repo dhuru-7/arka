@@ -82,7 +82,7 @@
   max-width: none; 
   max-height: none; 
 }
-.mermaid-render-target .node rect, .mermaid-render-target .node polygon, .mermaid-render-target .node circle, .mermaid-render-target .node ellipse { rx: 10; ry: 10; transition: filter 0.2s ease; }
+.mermaid-render-target .node rect, .mermaid-render-target .node polygon, .mermaid-render-target .node circle, .mermaid-render-target .node ellipse { transition: filter 0.2s ease; }
 .mermaid-render-target .node { transition: filter 0.2s ease; }
 .mermaid-render-target .node:hover { filter: brightness(0.95) drop-shadow(0 4px 6px rgba(0,0,0,0.1)); }
 .mermaid-render-target .edgePath path { stroke-width: 1.8; }
@@ -91,7 +91,17 @@
 .mermaid-render-target text { font-family: 'Space Grotesk', sans-serif !important; }
 
 @keyframes marching-ants { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -16; } }
-.mermaid-render-target .node-selected > rect, .mermaid-render-target .node-selected > polygon, .mermaid-render-target .node-selected > circle, .mermaid-render-target .node-selected > ellipse, .mermaid-render-target .node-selected > path { stroke: #000 !important; stroke-width: 3px !important; stroke-dasharray: 8 8 !important; animation: marching-ants 0.8s linear infinite !important; filter: drop-shadow(0 0 5px rgba(0, 0, 0, 0.2)); }
+.mermaid-render-target .node-selected .label-container,
+.mermaid-render-target .node-selected .label-container rect,
+.mermaid-render-target .node-selected .label-container polygon,
+.mermaid-render-target .node-selected .label-container circle,
+.mermaid-render-target .node-selected .label-container ellipse,
+.mermaid-render-target .node-selected .label-container path,
+.mermaid-render-target .node-selected > rect,
+.mermaid-render-target .node-selected > polygon,
+.mermaid-render-target .node-selected > circle,
+.mermaid-render-target .node-selected > ellipse,
+.mermaid-render-target .node-selected > path { stroke: #000 !important; stroke-width: 3px !important; stroke-dasharray: 8 8 !important; animation: marching-ants 0.8s linear infinite !important; filter: drop-shadow(0 0 5px rgba(0, 0, 0, 0.2)); }
 /* Selected edge paths and their arrowheads (green highlight) */
 .mermaid-render-target path.edge-selected,
 .mermaid-render-target .edge-selected path {
