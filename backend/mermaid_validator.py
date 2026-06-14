@@ -70,22 +70,37 @@ def clean_mermaid_code(content, diagram_type):
         has_activation_error = False
         for line in lines:
             stripped = line.strip()
-            if ":" in stripped and re.search(r"->|-->", stripped):
+            if stripped.startswith("activate "):
+                parts = stripped.split()
+                if len(parts) >= 2:
+                    alias = parts[1].strip()
+                    balance[alias] = balance.get(alias, 0) + 1
+            elif stripped.startswith("deactivate "):
+                parts = stripped.split()
+                if len(parts) >= 2:
+                    alias = parts[1].strip()
+                    balance[alias] = balance.get(alias, 0) - 1
+                    if balance.get(alias, 0) < 0:
+                        has_activation_error = True
+                        break
+            elif ":" in stripped and re.search(r"->|-->", stripped):
                 prefix = stripped.split(":", 1)[0]
                 actors = re.split(r"-+>>?[+-]?", prefix)
                 if len(actors) >= 2:
+                    src = actors[0].strip()
                     dst = actors[-1].strip()
-                    if "->>+" in prefix or "->+" in prefix or "activate " in stripped:
+                    if "->>+" in prefix or "->+" in prefix:
                         balance[dst] = balance.get(dst, 0) + 1
-                    if "-->>-" in prefix or "-->-" in prefix or "deactivate " in stripped:
-                        balance[dst] = balance.get(dst, 0) - 1
-                    if balance.get(dst, 0) < 0:
-                        has_activation_error = True
-                        break
-        for val in balance.values():
-            if val != 0:
-                has_activation_error = True
-                break
+                    if "-->>-" in prefix or "-->-" in prefix:
+                        balance[src] = balance.get(src, 0) - 1
+                        if balance.get(src, 0) < 0:
+                            has_activation_error = True
+                            break
+        if not has_activation_error:
+            for val in balance.values():
+                if val != 0:
+                    has_activation_error = True
+                    break
 
         fixed = []
         for line in lines:
@@ -227,7 +242,19 @@ def _validate_sequence(lines, issues):
         match = re.match(r"(participant|actor)\s+([A-Za-z0-9_]+)", stripped)
         if match:
             participants.add(match.group(2))
-        if ":" in stripped and re.search(r"->|-->", stripped):
+        if stripped.startswith("activate "):
+            parts = stripped.split()
+            if len(parts) >= 2:
+                alias = parts[1].strip()
+                balance[alias] = balance.get(alias, 0) + 1
+        elif stripped.startswith("deactivate "):
+            parts = stripped.split()
+            if len(parts) >= 2:
+                alias = parts[1].strip()
+                balance[alias] = balance.get(alias, 0) - 1
+                if balance.get(alias, 0) < 0:
+                    issues.append({"line": idx, "severity": "error", "message": f"Trying to deactivate inactive participant '{alias}'."})
+        elif ":" in stripped and re.search(r"->|-->", stripped):
             prefix, message = stripped.split(":", 1)
             if ":" in message or "<" in message or ">" in message:
                 issues.append({"line": idx, "severity": "error", "message": "Sequence message text contains a colon or angle bracket."})
@@ -241,9 +268,9 @@ def _validate_sequence(lines, issues):
                 if "->>+" in prefix or "->+" in prefix:
                     balance[dst] = balance.get(dst, 0) + 1
                 if "-->>-" in prefix or "-->-" in prefix:
-                    balance[dst] = balance.get(dst, 0) - 1
-                if balance.get(dst, 0) < 0:
-                    issues.append({"line": idx, "severity": "error", "message": f"Trying to deactivate inactive participant '{dst}'."})
+                    balance[src] = balance.get(src, 0) - 1
+                    if balance.get(src, 0) < 0:
+                        issues.append({"line": idx, "severity": "error", "message": f"Trying to deactivate inactive participant '{src}'."})
     for alias, count in balance.items():
         if count != 0:
             issues.append({"line": 1, "severity": "error", "message": f"Activation markers for '{alias}' are unbalanced."})

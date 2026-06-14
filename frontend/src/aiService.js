@@ -598,28 +598,47 @@ function cleanMermaidOutput(content, diagramType) {
     let hasActivationError = false;
     for (const line of lines) {
       const stripped = line.trim();
-      if (stripped.includes(':') && (stripped.includes('->') || stripped.includes('-->'))) {
-        const prefix = stripped.split(':')[0];
-        const parts = prefix.split(/-+>>?[+-]?/);
+      if (stripped.startsWith('activate ')) {
+        const parts = stripped.split(/\s+/);
         if (parts.length >= 2) {
-          const dst = parts[parts.length - 1].trim();
-          if (prefix.includes('->>+') || prefix.includes('->+') || stripped.startsWith('activate ')) {
-            balance[dst] = (balance[dst] || 0) + 1;
-          }
-          if (prefix.includes('-->>-') || prefix.includes('-->-') || stripped.startsWith('deactivate ')) {
-            balance[dst] = (balance[dst] || 0) - 1;
-          }
-          if ((balance[dst] || 0) < 0) {
+          const alias = parts[1].trim();
+          balance[alias] = (balance[alias] || 0) + 1;
+        }
+      } else if (stripped.startsWith('deactivate ')) {
+        const parts = stripped.split(/\s+/);
+        if (parts.length >= 2) {
+          const alias = parts[1].trim();
+          balance[alias] = (balance[alias] || 0) - 1;
+          if (balance[alias] < 0) {
             hasActivationError = true;
             break;
           }
         }
+      } else if (stripped.includes(':') && (stripped.includes('->') || stripped.includes('-->'))) {
+        const prefix = stripped.split(':')[0];
+        const parts = prefix.split(/-+>>?[+-]?/);
+        if (parts.length >= 2) {
+          const src = parts[0].trim();
+          const dst = parts[parts.length - 1].trim();
+          if (prefix.includes('->>+') || prefix.includes('->+')) {
+            balance[dst] = (balance[dst] || 0) + 1;
+          }
+          if (prefix.includes('-->>-') || prefix.includes('-->-')) {
+            balance[src] = (balance[src] || 0) - 1;
+            if (balance[src] < 0) {
+              hasActivationError = true;
+              break;
+            }
+          }
+        }
       }
     }
-    for (const val of Object.values(balance)) {
-      if (val !== 0) {
-        hasActivationError = true;
-        break;
+    if (!hasActivationError) {
+      for (const val of Object.values(balance)) {
+        if (val !== 0) {
+          hasActivationError = true;
+          break;
+        }
       }
     }
 

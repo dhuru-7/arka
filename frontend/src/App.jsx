@@ -99,7 +99,7 @@ const DiagramsPage = () => {
     { id: 'pie', label: 'Pie Charts', icon: PieChart, color: '#000000' }
   ];
 
-  const isBetaDiagram = (id) => id !== 'flowchart' && id !== 'architecture';
+  const isBetaDiagram = (id) => id !== 'flowchart' && id !== 'architecture' && id !== 'sequence';
 
   const openPinNotice = () => {
     setShowPinNotice(true);
