@@ -25,13 +25,8 @@
 ## Activation (Lifelines)
 - Use `activate` / `deactivate` or the `+` / `-` shorthand on arrows.
 - Every `activate` MUST have a matching `deactivate`.
-- **CRITICAL**: Every `->>+` (activate) on a participant MUST be matched by exactly one `-->>-` (deactivate) for that SAME participant.
+- **CRITICAL**: Every `->>+` (activate) on a participant MUST be matched by exactly one `-->>-` (deactivate) for that SAME participant BEFORE another activation of it.
 - **NEVER** use `-->>-` (deactivate) on a participant that was not previously activated with `->>+`.
-- **CORRECT ACTIVATION shorthand**:
-  - `A->>+B: Request` (activates B).
-  - `B-->>-A: Response` (deactivates B). The `-` goes before the target of the return arrow (`A`), which deactivates the *sender* (`B`).
-  - **AVOID** mismatched deactivations like `A-->>-B` (which would deactivate A, when A is the target, but A was never activated).
-- **CRITICAL**: Do NOT use `+` or `-` activation markers inside branching blocks (`alt`/`else`, `opt`, `loop`, `par`). This causes syntax errors because the state of activation cannot be guaranteed across all paths. Use plain arrows (`->>` and `-->>`) without any `+` or `-` symbols inside conditional or loop blocks.
 - **SIMPLE RULE**: If unsure about activation balance, do NOT use `+` or `-` markers at all — just use plain `->>` and `-->>` arrows. This always works.
 - Activations show the duration a participant is processing.
 - Do NOT nest more than 2 levels of activation — it becomes unreadable.
@@ -44,8 +39,6 @@
 - `critical` / `option` / `end` — critical region with fallback
 - `break` / `end` — break out of a sequence
 - **CRITICAL**: Every `alt`, `opt`, `loop`, `par`, `critical`, `break` MUST have a matching `end`.
-- **NO NESTED/COMPLEX RETRIES IN ALT**: Do not nest `alt` blocks multiple levels deep for retry mechanisms. Keep flows linear.
-- **NO ACTIVATIONS IN BRANCHES**: Never start or end activations inside a branch if it leaves the lifeline dangling at the end of the block. Keep all activations outside branching constructs.
 
 ## Notes
 - `Note right of Alice: Text` — note on the right side
