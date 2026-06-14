@@ -64,8 +64,38 @@ def clean_mermaid_code(content, diagram_type):
         lines = content.splitlines()
         if lines and lines[0].strip() != "sequenceDiagram":
             lines = ["sequenceDiagram"] + [line for line in lines if line.strip() != "sequenceDiagram"]
+        
+        # Check if activations are unbalanced or go negative
+        balance = {}
+        has_activation_error = False
+        for line in lines:
+            stripped = line.strip()
+            if ":" in stripped and re.search(r"->|-->", stripped):
+                prefix = stripped.split(":", 1)[0]
+                actors = re.split(r"-+>>?[+-]?", prefix)
+                if len(actors) >= 2:
+                    dst = actors[-1].strip()
+                    if "->>+" in prefix or "->+" in prefix or "activate " in stripped:
+                        balance[dst] = balance.get(dst, 0) + 1
+                    if "-->>-" in prefix or "-->-" in prefix or "deactivate " in stripped:
+                        balance[dst] = balance.get(dst, 0) - 1
+                    if balance.get(dst, 0) < 0:
+                        has_activation_error = True
+                        break
+        for val in balance.values():
+            if val != 0:
+                has_activation_error = True
+                break
+
         fixed = []
         for line in lines:
+            # If there is an activation error, strip all + and - from arrows
+            if has_activation_error:
+                line = re.sub(r"(-+>>?)\+", r"\1", line)
+                line = re.sub(r"(-+>>?)-", r"\1", line)
+                if line.strip().startswith(("activate ", "deactivate ")):
+                    continue
+
             match = re.match(r"(\s*\S+\s*-[->>x)]+[+-]?\s*\S+\s*:\s*)(.*)", line)
             if match:
                 message = re.sub(r"<[^>]*>", "", match.group(2))
@@ -208,13 +238,15 @@ def _validate_sequence(lines, issues):
                 for alias in (src, dst):
                     if alias and alias not in participants:
                         issues.append({"line": idx, "severity": "warning", "message": f"Participant '{alias}' was not declared at the top."})
-                if "->>+" in stripped:
+                if "->>+" in prefix or "->+" in prefix:
                     balance[dst] = balance.get(dst, 0) + 1
-                if "-->>-" in stripped:
+                if "-->>-" in prefix or "-->-" in prefix:
                     balance[dst] = balance.get(dst, 0) - 1
+                if balance.get(dst, 0) < 0:
+                    issues.append({"line": idx, "severity": "error", "message": f"Trying to deactivate inactive participant '{dst}'."})
     for alias, count in balance.items():
         if count != 0:
-            issues.append({"line": 1, "severity": "warning", "message": f"Activation markers for '{alias}' may be unbalanced."})
+            issues.append({"line": 1, "severity": "error", "message": f"Activation markers for '{alias}' are unbalanced."})
 
 
 def _validate_er(lines, issues):

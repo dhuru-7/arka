@@ -19,19 +19,22 @@
 - `-->>` Response direction: right-to-left (back to caller)
 - `->>+` Activate target lifeline (show processing)
 - `-->>-` Deactivate target lifeline (processing complete)
-- `-x`   Lost message / error
+- `-x`   Lost message / request failure (solid line with cross)
+- `--x`  Response failure (dotted line with cross)
 - `-)` 	 Async fire-and-forget
+- `--))` Async response
 
 ## Activation (Lifelines)
 - Use `activate` / `deactivate` or the `+` / `-` shorthand on arrows.
 - Every `activate` MUST have a matching `deactivate`.
 - **CRITICAL**: Every `->>+` (activate) on a participant MUST be matched by exactly one `-->>-` (deactivate) for that SAME participant BEFORE another activation of it.
 - **NEVER** use `-->>-` (deactivate) on a participant that was not previously activated with `->>+`.
-- **SIMPLE RULE**: If unsure about activation balance, do NOT use `+` or `-` markers at all — just use plain `->>` and `-->>` arrows. This always works.
+- **BRANCH / CONDITIONAL BALANCE**: If a participant is activated (`+`) inside an `alt`, `else`, `opt`, `loop`, or `par` block, it MUST be deactivated (`-`) *within that same block/path* before the block ends. Never leave activations open at the end of a block or the end of the diagram.
+- **SIMPLE RULE**: If unsure about activation balance, do NOT use `+` or `-` markers at all — just use plain `->>` and `-->>` arrows. This always works and is much safer.
 - Activations show the duration a participant is processing.
 - Do NOT nest more than 2 levels of activation — it becomes unreadable.
 
-## Grouping Constructs
+## Grouping & Conditionals
 - `alt` / `else` / `end` — if/else conditional branching
 - `opt` / `end` — optional block (runs only if condition is true)
 - `loop` / `end` — repeated interactions
@@ -39,6 +42,10 @@
 - `critical` / `option` / `end` — critical region with fallback
 - `break` / `end` — break out of a sequence
 - **CRITICAL**: Every `alt`, `opt`, `loop`, `par`, `critical`, `break` MUST have a matching `end`.
+- **PARALLEL (par) BLOCK SYNTAX**: The title of a parallel block must be enclosed in square brackets.
+  - BAD: `par Parallel processing`
+  - GOOD: `par [Parallel processing]`
+- **NESTING LIMITS**: Avoid nesting `alt` / `else` / `opt` blocks more than 2 levels deep, as it creates complex activation paths that often fail to render.
 
 ## Notes
 - `Note right of Alice: Text` — note on the right side
@@ -87,3 +94,54 @@ sequenceDiagram
 - Messages longer than 50 characters
 - Using colons (`:`) inside message text after the first colon separator
 - Forgetting to close grouping blocks with `end`
+
+## Customization Capabilities in Sequence Diagrams
+Here is a list of the customizations supported by Mermaid JS sequence diagrams:
+
+1. **Node & Participant Customizations**:
+   - **Shapes**:
+     - `actor alias as Label`: Stick figure representation for human users.
+     - `participant alias as Label`: Rectangle box for systems/microservices/databases.
+   - **Grouping Boxes**:
+     - Use `box "Group Title" ... end` to group participants inside a vertical background container.
+     - Color grouping box: `box rgb(230, 240, 255) Group Title`.
+       Example:
+       ```mermaid
+       box rgb(230, 240, 255) Frontend
+           participant User
+           participant App
+       end
+       ```
+
+2. **Arrow & Line Customizations**:
+   - **Arrowheads / Line Styles**:
+     - `->>` (Synchronous solid arrow)
+     - `-->>` (Asynchronous/callback dotted arrow)
+     - `-x` (Lost request / error with cross marker)
+     - `--x` (Lost response / error with cross marker)
+     - `-)` (Async fire-and-forget message)
+     - `--))` (Async response message)
+   - **Arrow Colors**:
+     - Individual lines/arrows *cannot* be styled using custom inline styling commands. They inherit colors from the global diagram theme.
+
+3. **Background Highlights & Color Rectangles**:
+   - **Highlight Regions**:
+     - Use `rect rgb(R, G, B)` (or `rect rgba(...)`, `rect yellow`) followed by messages and `end` to draw a colored background rect over a group of interaction steps.
+       Example:
+       ```mermaid
+       rect rgb(235, 255, 235)
+           Client->>Server: Send payment
+           Server-->>Client: Success confirmation
+       end
+       ```
+
+4. **Themes & Directives**:
+   - Set custom themes at the top of the diagram:
+     - `%%{init: {'theme': 'dark'}}%%` (Supported values: `default`, `forest`, `dark`, `neutral`, `base`).
+
+5. **Interactivity & Metadata**:
+   - **Automatic Step Numbering**:
+     - Add `autonumber` on the second line (just below `sequenceDiagram`) to automatically prefix step numbers (e.g. 1, 2, 3) to arrow messages.
+   - **Links & Callbacks**:
+     - `link ParticipantAlias: {"Label": "https://example.com"}` to add external links.
+     - `click ParticipantAlias call callbackName()` for custom javascript execution when clicking a participant node.

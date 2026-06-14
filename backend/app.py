@@ -387,11 +387,12 @@ def generate_diagram():
             "- ALWAYS declare ALL participants at the top using 'participant alias as Full Name' or 'actor alias as Full Name'.\n"
             "- Use 'actor' for human users and 'participant' for systems/services.\n"
             "- Participant aliases MUST be simple alphanumeric strings (no spaces, no hyphens, no special chars).\n"
-            "- Use ->>+ and -->>- for activation/deactivation to show processing lifelines.\n"
+            "- Use ->>+ and -->>- for activation/deactivation to show processing lifelines. Ensure activations are balanced: any '+' inside a block (alt, else, par, loop) must be deactivated with '-' before that block ends.\n"
             "- Keep to 3-6 participants maximum.\n"
             "- Message text after the colon MUST NOT contain colons, semicolons, or angle brackets.\n"
             "- Keep message text under 40 characters.\n"
             "- Use alt/else/end for conditional branching sparingly (max 1-2 blocks).\n"
+            "- Parallel blocks MUST use brackets: 'par [Title]' (not 'par Title').\n"
             "- Show clear request-response pairs.\n"
             "- Every activate must have a matching deactivate.\n"
         )

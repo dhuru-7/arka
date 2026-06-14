@@ -411,7 +411,9 @@ def build_generation_prompt(diagram_type, knowledge):
         ),
         "sequence": (
             "Start with sequenceDiagram. Declare all actors/participants at the top. "
-            "Use request-response pairs. Message text must not contain colons or angle brackets."
+            "Use request-response pairs. Message text must not contain colons or angle brackets. "
+            "Ensure activations (+/-) are balanced within blocks (alt, else, par, loop). "
+            "Parallel block titles MUST use brackets, e.g. 'par [Title]'."
         ),
         "erDiagram": (
             "Start with erDiagram. Entity names must be PascalCase. Relationship labels must be quoted."

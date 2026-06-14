@@ -558,7 +558,7 @@ function buildGeneratePrompt(diagramType) {
   const prompts = {
     flowchart: `You are an expert process designer generating Mermaid JS diagrams.\n\nCRITICAL INSTRUCTIONS:\n${shared}- Start with 'flowchart TD'.\n- SIMPLICITY FIRST: Keep diagrams CLEAN. Focus on the happy path.\n- Use correct shapes: diamonds for decisions, stadiums for start/end.\n- Keep 4-10 nodes max.\n- Node IDs MUST be simple alphanumeric strings.`,
     architecture: `You are an expert systems architect generating Mermaid JS diagrams.\n\nCRITICAL INSTRUCTIONS:\n${shared}- Start with 'flowchart LR' or 'flowchart TD'.\n- Divide into clear subgraphs (Frontend, Backend, Data Layer).\n- Max 3-4 nodes per subgraph.\n- Use cylinders for databases, hexagons for caches, stadiums for gateways.\n- Label edges with protocols.\n- Keep 4-15 nodes max.`,
-    sequence: `You are an expert generating Mermaid JS sequence diagrams.\n\nCRITICAL INSTRUCTIONS:\n${shared}- First line MUST be 'sequenceDiagram'.\n- Declare ALL participants at top.\n- Aliases MUST be simple alphanumeric.\n- Keep 3-6 participants max.\n- Message text must NOT contain colons or angle brackets.`,
+    sequence: `You are an expert generating Mermaid JS sequence diagrams.\n\nCRITICAL INSTRUCTIONS:\n${shared}- First line MUST be 'sequenceDiagram'.\n- Declare ALL participants at top.\n- Aliases MUST be simple alphanumeric.\n- Keep 3-6 participants max.\n- Message text must NOT contain colons or angle brackets.\n- Activations (+/-) must be balanced: if a participant is activated with '+' inside an alt, else, par, or loop block, it MUST be deactivated with '-' before that block ends. Never leave activations open at the end of a block/diagram.\n- Parallel block titles MUST use brackets: 'par [Title]' (not 'par Title').`,
     erDiagram: `You are an expert database architect generating Mermaid JS ER diagrams.\n\nCRITICAL INSTRUCTIONS:\n${shared}- First line MUST be 'erDiagram'.\n- Entity names MUST be single PascalCase words.\n- 3-6 attributes per entity.\n- Every relationship MUST have a quoted label.\n- Use proper cardinality notation.`,
     gantt: `You are an expert generating Mermaid JS Gantt charts.\n\nCRITICAL INSTRUCTIONS:\n${shared}- First line MUST be 'gantt'.\n- Include 'dateFormat YYYY-MM-DD'.\n- Group tasks into 3-5 sections.\n- Every task MUST have a unique alphanumeric ID.\n- Keep 10-25 tasks for readability.`,
     pie: `You are an expert generating Mermaid JS pie charts.\n\nCRITICAL INSTRUCTIONS:\n${shared}- Start with 'pie showData'.\n- Include a title.\n- Each slice: "Label" : value\n- Keep 3-8 categories.`,
@@ -589,6 +589,48 @@ function cleanMermaidOutput(content, diagramType) {
   if (['flowchart', 'architecture'].includes(diagramType)) {
     content = content.replace(/(^|\n)end(\s*[-=]>|[([{])/g, '$1finish$2');
     content = content.replace(/([([{])end([)\]}])/g, '$1finish$2');
+  }
+
+  // Sequence diagram activation auto-healing
+  if (diagramType === 'sequence') {
+    const lines = content.split('\n');
+    const balance = {};
+    let hasActivationError = false;
+    for (const line of lines) {
+      const stripped = line.trim();
+      if (stripped.includes(':') && (stripped.includes('->') || stripped.includes('-->'))) {
+        const prefix = stripped.split(':')[0];
+        const parts = prefix.split(/-+>>?[+-]?/);
+        if (parts.length >= 2) {
+          const dst = parts[parts.length - 1].trim();
+          if (prefix.includes('->>+') || prefix.includes('->+') || stripped.startsWith('activate ')) {
+            balance[dst] = (balance[dst] || 0) + 1;
+          }
+          if (prefix.includes('-->>-') || prefix.includes('-->-') || stripped.startsWith('deactivate ')) {
+            balance[dst] = (balance[dst] || 0) - 1;
+          }
+          if ((balance[dst] || 0) < 0) {
+            hasActivationError = true;
+            break;
+          }
+        }
+      }
+    }
+    for (const val of Object.values(balance)) {
+      if (val !== 0) {
+        hasActivationError = true;
+        break;
+      }
+    }
+
+    if (hasActivationError) {
+      content = lines
+        .filter(line => !line.trim().startsWith('activate ') && !line.trim().startsWith('deactivate '))
+        .map(line => {
+          return line.replace(/(-+>>?)\+/g, '$1').replace(/(-+>>?)-/g, '$1');
+        })
+        .join('\n');
+    }
   }
 
   return content;
