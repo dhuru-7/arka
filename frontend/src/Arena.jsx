@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { History, Trash2, Plus, User, Download, Palette, MousePointer2, Move, Undo, Redo, ZoomIn, ZoomOut, Maximize, X, Check, ChevronDown, Image, FileCode, FileText, FileImage, Code2, Plus as PlusIcon, Minus, Cpu, Square, Circle, Hexagon, Database, MessageSquare, Box, ArrowRight, Brush } from './googleIcons';
+import { History, Trash2, Plus, User, Download, Palette, MousePointer2, Move, Undo, Redo, ZoomIn, ZoomOut, Maximize, X, Check, ChevronDown, Image, FileCode, FileText, FileImage, Code2, Plus as PlusIcon, Minus, Cpu, Square, Circle, Hexagon, Database, MessageSquare, Box, ArrowRight, Brush, SwitchLeft, SwitchRight } from './googleIcons';
 import { motion, AnimatePresence } from 'framer-motion';
 import ProfileDropdown from './ProfileDropdown';
 import { auth, db } from './firebase';
@@ -454,6 +454,7 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
   const chatEndRef = useRef(null);
   const chatInputRef = useRef(null);
   const isProceedingPlanRef = useRef(false);
+  const [flowchartRenderer, setFlowchartRenderer] = useState('dagre');
 
   const getShortAgentName = () => {
     const label = getProviderLabel();
@@ -957,7 +958,7 @@ User's latest message: ${userText}`;
           startOnLoad: false,
           securityLevel: 'loose',
           ...tmpl.config,
-          flowchart: { htmlLabels: false, defaultRenderer: 'elk', curve: 'step', padding: 15, nodeSpacing: 60, rankSpacing: 80, useMaxWidth: true },
+          flowchart: { htmlLabels: false, defaultRenderer: flowchartRenderer, curve: flowchartRenderer === 'dagre' ? 'linear' : 'step', padding: 15, nodeSpacing: 60, rankSpacing: 80, useMaxWidth: true },
           pie: { useMaxWidth: false, textPosition: 0.75 },
           sequence: { useMaxWidth: false, showSequenceNumbers: false, actorMargin: 80, mirrorActors: false, messageAlign: 'center', messageFontSize: 13, noteFontSize: 12, wrap: true },
           er: { useMaxWidth: false, layoutDirection: 'TB', entityPadding: 15, fontSize: 13 },
@@ -998,7 +999,7 @@ User's latest message: ${userText}`;
 
     const t = setTimeout(render, 50);
     return () => clearTimeout(t);
-  }, [mermaidCode, activeTemplate, isLoading, renderKey]);
+  }, [mermaidCode, activeTemplate, isLoading, renderKey, flowchartRenderer]);
 
   // Re-attach listeners when tool changes
   useEffect(() => {
@@ -2067,6 +2068,27 @@ User's latest message: ${userText}`;
 
         {!isLoading && (
           <div className="arena-nav-right">
+
+            {/* Layout Switch Button (only for flowchart diagrams) */}
+            {diagramType === 'flowchart' && (
+              <button
+                className="layout-toggle-btn"
+                title={flowchartRenderer === 'dagre' ? "Switch to ELK Layout" : "Switch to Dagre Layout"}
+                disabled={isRefining}
+                onClick={() => {
+                  if (isRefining) return;
+                  setFlowchartRenderer(prev => prev === 'dagre' ? 'elk' : 'dagre');
+                }}
+              >
+                {flowchartRenderer === 'dagre' ? (
+                  // Switch Right (Dagre Active): solid left, hollow right
+                  <SwitchRight size={24} />
+                ) : (
+                  // Switch Left (ELK Active): hollow left, solid right
+                  <SwitchLeft size={24} />
+                )}
+              </button>
+            )}
 
             {/* Sidechat Toggle Button */}
             <button
