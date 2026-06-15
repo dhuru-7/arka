@@ -82,12 +82,14 @@ def heal_flowchart_layout(content):
 
     # 3. Generate invisible links, filtering out already existing ones
     existing_inv_links = {l.replace(" ", "") for l in lines if "~~~" in l}
-    loop_list = sorted(list(loop_entries))
-    inv_links = []
-    if loop_list:
-        first_entry = loop_list[0]
-        if f"{start_node}~~~{first_entry}" not in existing_inv_links:
-            inv_links = [f"    {start_node} ~~~ {first_entry}"]
+    successors = [dst for src, dst in edges if src == start_node]
+    anchor_node = successors[0] if successors else start_node
+
+    inv_links = [
+        f"    {anchor_node} ~~~ {entry}"
+        for entry in sorted(loop_entries)
+        if entry != start_node and entry != anchor_node and f"{anchor_node}~~~{entry}" not in existing_inv_links
+    ]
 
     if not inv_links:
         return content

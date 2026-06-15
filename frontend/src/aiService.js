@@ -650,15 +650,13 @@ function healFlowchartLayout(content) {
   if (loopEntries.size === 0) return content;
 
   const existingInvLinks = lines.filter(l => l.includes('~~~')).map(l => l.replace(/\s+/g, ''));
-  const loopList = Array.from(loopEntries).sort();
-  let invLinks = [];
-  if (loopList.length > 0) {
-    const firstEntry = loopList[0];
-    const linkStr = `    ${startNode} ~~~ ${firstEntry}`;
-    if (!existingInvLinks.includes(linkStr.replace(/\s+/g, ''))) {
-      invLinks = [linkStr];
-    }
-  }
+  const successors = edges.filter(e => e.src === startNode).map(e => e.dst);
+  const anchorNode = successors.length > 0 ? successors[0] : startNode;
+
+  const invLinks = Array.from(loopEntries)
+    .filter(entry => entry !== startNode && entry !== anchorNode)
+    .map(entry => `    ${anchorNode} ~~~ ${entry}`)
+    .filter(link => !existingInvLinks.includes(link.replace(/\s+/g, '')));
 
   if (invLinks.length === 0) return content;
 
