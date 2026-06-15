@@ -1580,20 +1580,21 @@ User's latest message: ${userText}`;
   };
 
   const detectNodeShape = (nodeId, label) => {
-    if (!mermaidCode) return 'rect';
-    const escapedId = nodeId.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-    
-    if (new RegExp(`\\b${escapedId}\\s*\\(\\[`).test(mermaidCode)) return 'stadium';
-    if (new RegExp(`\\b${escapedId}\\s*\\[\\[`).test(mermaidCode)) return 'subroutine';
-    if (new RegExp(`\\b${escapedId}\\s*\\(\\(`).test(mermaidCode)) return 'circle';
-    if (new RegExp(`\\b${escapedId}\\s*\\{\\{`).test(mermaidCode)) return 'hex';
-    if (new RegExp(`\\b${escapedId}\\s*\\[\\(`).test(mermaidCode)) return 'database';
-    if (new RegExp(`\\b${escapedId}\\s*\\[\\/[^\\]]*\\\\\\]`).test(mermaidCode)) return 'trapezoid';
-    if (new RegExp(`\\b${escapedId}\\s*\\[\\/[^\\]]*\\/\\]`).test(mermaidCode)) return 'parallelogram';
-    if (new RegExp(`\\b${escapedId}\\s*\\{`).test(mermaidCode)) return 'diamond';
-    if (new RegExp(`\\b${escapedId}\\s*\\(`).test(mermaidCode)) return 'round';
-    if (new RegExp(`\\b${escapedId}\\s*\\[`).test(mermaidCode)) return 'rect';
-    
+    const line = mermaidCode.split('\n').find(l => {
+      const trimmed = l.trim();
+      return trimmed.includes(nodeId);
+    }) || '';
+
+    if (line.includes(`([`) && line.includes(`])`)) return 'stadium';
+    if (line.includes(`[[`) && line.includes(`]]`)) return 'subroutine';
+    if (line.includes(`((`) && line.includes(`))`)) return 'circle';
+    if (line.includes(`{{`) && line.includes(`}}`)) return 'hex';
+    if (line.includes(`[(`) && line.includes(`)]`)) return 'database';
+    if (line.includes(`[/`) && line.includes(`\\]`)) return 'trapezoid';
+    if (line.includes(`[/`) && line.includes(`/]`)) return 'parallelogram';
+    if (line.includes(`{`) && line.includes(`}`)) return 'diamond';
+    if (line.includes(`(`) && line.includes(`)`)) return 'round';
+    if (line.includes(`[`) && line.includes(`]`)) return 'rect';
     return 'rect';
   };
 

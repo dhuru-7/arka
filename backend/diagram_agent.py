@@ -403,9 +403,7 @@ def build_generation_prompt(diagram_type, knowledge):
     rules = {
         "flowchart": (
             "Start with flowchart TD. Include Start and End. Keep primary happy path clear. "
-            "Use at most 1 decision per 5 nodes. Node text must be quoted. "
-            "If the flowchart has loops that can displace the start node down, you MUST group phases into 'subgraph' blocks, "
-            "and use an invisible link (e.g. 'startNode ~~~ loopNode') at the top of links to force the start node to render at the top."
+            "Use at most 1 decision per 5 nodes. Node text must be quoted."
         ),
         "architecture": (
             "Start with flowchart LR or flowchart TD. Use small subgraphs for layers. "

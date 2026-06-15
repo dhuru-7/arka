@@ -12,100 +12,6 @@ HEADER_BY_TYPE = {
 }
 
 
-def heal_flowchart_layout(content):
-    lines = content.splitlines()
-    
-    # 1. Parse edges and nodes
-    edges = []
-    nodes = set()
-    start_node = None
-    
-    for line in lines:
-        stripped = line.strip()
-        # Find start node definition
-        if not start_node:
-            m_start = re.search(r"\b(startNode|start)\b\s*(?:\[|\(|\(\(|\[\()", stripped, re.IGNORECASE)
-            if m_start:
-                start_node = m_start.group(1)
-            else:
-                m_label = re.search(r"(\w+)\s*(?:\[|\(|\(\(|\[\()\"?Start\"?[\)\]\}]", stripped, re.IGNORECASE)
-                if m_label:
-                    start_node = m_label.group(1)
-
-        # Parse edge: A --> B or A -->|label| B
-        edge_matches = re.findall(r"(\b\w+\b)\s*[-=.]+>\s*(?:\|[^|]*\|)?\s*(\b\w+\b)", stripped)
-        for src, dst in edge_matches:
-            edges.append((src, dst))
-            nodes.add(src)
-            nodes.add(dst)
-
-    if not start_node and nodes:
-        in_degrees = {node: 0 for node in nodes}
-        for src, dst in edges:
-            in_degrees[dst] += 1
-        zero_in = [n for n, deg in in_degrees.items() if deg == 0]
-        if zero_in:
-            start_node = zero_in[0]
-
-    if not start_node:
-        return content
-
-    # 2. Find back-edges using simple DFS for cycle detection
-    adj = {node: [] for node in nodes}
-    for src, dst in edges:
-        adj[src].append(dst)
-
-    visited = set()
-    rec_stack = set()
-    loop_entries = set()
-
-    def dfs(node):
-        visited.add(node)
-        rec_stack.add(node)
-        for neighbor in adj.get(node, []):
-            if neighbor not in visited:
-                dfs(neighbor)
-            elif neighbor in rec_stack:
-                loop_entries.add(neighbor)
-        rec_stack.remove(node)
-
-    if start_node in nodes:
-        dfs(start_node)
-    for node in nodes:
-        if node not in visited:
-            dfs(node)
-
-    loop_entries.discard(start_node)
-
-    if not loop_entries:
-        return content
-
-    # 3. Generate invisible links, filtering out already existing ones
-    existing_inv_links = {l.replace(" ", "") for l in lines if "~~~" in l}
-    successors = [dst for src, dst in edges if src == start_node]
-    anchor_node = successors[0] if successors else start_node
-
-    inv_links = [
-        f"    {anchor_node} ~~~ {entry}"
-        for entry in sorted(loop_entries)
-        if entry != start_node and entry != anchor_node and f"{anchor_node}~~~{entry}" not in existing_inv_links
-    ]
-
-    if not inv_links:
-        return content
-
-    # Insert invisible links right after diagram type header
-    new_lines = []
-    inserted = False
-    for line in lines:
-        new_lines.append(line)
-        if not inserted and re.match(r"^\s*(flowchart|graph)\s+(TD|LR|BT|RL)", line, re.IGNORECASE):
-            new_lines.extend(inv_links)
-            inserted = True
-            
-    return "\n".join(new_lines)
-
-
 def clean_mermaid_code(content, diagram_type):
     """Normalize common LLM output mistakes without changing intent."""
     if not content:
@@ -153,7 +59,6 @@ def clean_mermaid_code(content, diagram_type):
         content = re.sub(r"([-=]>(?:\s*\|[^|]*\|)?\s*)end(\s|[\(\[\{\n]|$)", r"\1finish\2", content)
         content = re.sub(r"(\w+)\s*\(\(\s*([\[\{\(])", r"\1\2", content)
         content = re.sub(r"([\]\}\)])\s*\)\)", r"\1", content)
-        content = heal_flowchart_layout(content)
 
     if diagram_type == "sequence":
         lines = content.splitlines()

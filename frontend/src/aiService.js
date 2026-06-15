@@ -556,7 +556,7 @@ export async function agentChat(systemPrompt, userMessage, signal, imageBase64) 
 function buildGeneratePrompt(diagramType) {
   const shared = `- Output ONLY valid Mermaid JS code.\n- Do NOT wrap in markdown code blocks (no \`\`\`mermaid).\n- Do NOT include any explanation before/after the code.\n- ALWAYS wrap node text in double quotes.\n`;
   const prompts = {
-    flowchart: `You are an expert process designer generating Mermaid JS diagrams.\n\nCRITICAL INSTRUCTIONS:\n${shared}- Start with 'flowchart TD'.\n- SIMPLICITY FIRST: Keep diagrams CLEAN. Focus on the happy path.\n- Use correct shapes: diamonds for decisions, stadiums for start/end.\n- Keep 4-10 nodes max.\n- Node IDs MUST be simple alphanumeric strings.\n- LAYOUT HYGIENE: If the diagram has loopbacks/retries that can displace the start node down, group phases into 'subgraph' blocks, and use an invisible link (e.g. 'start([Start]) ~~~ loopNode') at the top of links to force the start node to render at the top.`,
+    flowchart: `You are an expert process designer generating Mermaid JS diagrams.\n\nCRITICAL INSTRUCTIONS:\n${shared}- Start with 'flowchart TD'.\n- SIMPLICITY FIRST: Keep diagrams CLEAN. Focus on the happy path.\n- Use correct shapes: diamonds for decisions, stadiums for start/end.\n- Keep 4-10 nodes max.\n- Node IDs MUST be simple alphanumeric strings.`,
     architecture: `You are an expert systems architect generating Mermaid JS diagrams.\n\nCRITICAL INSTRUCTIONS:\n${shared}- Start with 'flowchart LR' or 'flowchart TD'.\n- Divide into clear subgraphs (Frontend, Backend, Data Layer).\n- Max 3-4 nodes per subgraph.\n- Use cylinders for databases, hexagons for caches, stadiums for gateways.\n- Label edges with protocols.\n- Keep 4-15 nodes max.`,
     sequence: `You are an expert generating Mermaid JS sequence diagrams.\n\nCRITICAL INSTRUCTIONS:\n${shared}- First line MUST be 'sequenceDiagram'.\n- Declare ALL participants at top.\n- Aliases MUST be simple alphanumeric.\n- Keep 3-6 participants max.\n- Message text must NOT contain colons or angle brackets.\n- Activations (+/-) must be balanced: if a participant is activated with '+' inside an alt, else, par, or loop block, it MUST be deactivated with '-' before that block ends. Never leave activations open at the end of a block/diagram.\n- Parallel block titles MUST use brackets: 'par [Title]' (not 'par Title').`,
     erDiagram: `You are an expert database architect generating Mermaid JS ER diagrams.\n\nCRITICAL INSTRUCTIONS:\n${shared}- First line MUST be 'erDiagram'.\n- Entity names MUST be single PascalCase words.\n- 3-6 attributes per entity.\n- Every relationship MUST have a quoted label.\n- Use proper cardinality notation.`,
@@ -568,109 +568,6 @@ function buildGeneratePrompt(diagramType) {
 }
 
 // ─── Mermaid output cleaner (mirrors backend logic) ───
-
-function healFlowchartLayout(content) {
-  const lines = content.split('\n');
-  let startNode = null;
-  const edges = [];
-  const nodes = new Set();
-
-  for (const line of lines) {
-    const stripped = line.trim();
-    if (!startNode) {
-      const startMatch = stripped.match(/\b(startNode|start)\b\s*(?:\[|\(|\(\(|\[\()/i);
-      if (startMatch) {
-        startNode = startMatch[1];
-      } else {
-        const labelMatch = stripped.match(/(\w+)\s*(?:\[|\(|\(\(|\[\()"?Start"?[\)\]\}]/i);
-        if (labelMatch) {
-          startNode = labelMatch[1];
-        }
-      }
-    }
-
-    const edgeRegex = /(\b\w+\b)\s*[-=.]+>\s*(?:\|[^|]*\|)?\s*(\b\w+\b)/g;
-    let match;
-    while ((match = edgeRegex.exec(stripped)) !== null) {
-      const src = match[1];
-      const dst = match[2];
-      edges.push({ src, dst });
-      nodes.add(src);
-      nodes.add(dst);
-    }
-  }
-
-  if (!startNode && nodes.size > 0) {
-    const inDegrees = {};
-    nodes.forEach(n => inDegrees[n] = 0);
-    edges.forEach(e => {
-      inDegrees[e.dst] = (inDegrees[e.dst] || 0) + 1;
-    });
-    const zeroIn = Array.from(nodes).filter(n => inDegrees[n] === 0);
-    if (zeroIn.length > 0) {
-      startNode = zeroIn[0];
-    }
-  }
-
-  if (!startNode) return content;
-
-  const adj = {};
-  nodes.forEach(n => adj[n] = []);
-  edges.forEach(e => adj[e.src].push(e.dst));
-
-  const visited = new Set();
-  const recStack = new Set();
-  const loopEntries = new Set();
-
-  function dfs(node) {
-    visited.add(node);
-    recStack.add(node);
-    const neighbors = adj[node] || [];
-    for (const neighbor of neighbors) {
-      if (!visited.has(neighbor)) {
-        dfs(neighbor);
-      } else if (recStack.has(neighbor)) {
-        loopEntries.add(neighbor);
-      }
-    }
-    recStack.delete(node);
-  }
-
-  if (nodes.has(startNode)) {
-    dfs(startNode);
-  }
-  nodes.forEach(n => {
-    if (!visited.has(n)) {
-      dfs(n);
-    }
-  });
-
-  loopEntries.delete(startNode);
-
-  if (loopEntries.size === 0) return content;
-
-  const existingInvLinks = lines.filter(l => l.includes('~~~')).map(l => l.replace(/\s+/g, ''));
-  const successors = edges.filter(e => e.src === startNode).map(e => e.dst);
-  const anchorNode = successors.length > 0 ? successors[0] : startNode;
-
-  const invLinks = Array.from(loopEntries)
-    .filter(entry => entry !== startNode && entry !== anchorNode)
-    .map(entry => `    ${anchorNode} ~~~ ${entry}`)
-    .filter(link => !existingInvLinks.includes(link.replace(/\s+/g, '')));
-
-  if (invLinks.length === 0) return content;
-
-  const newLines = [];
-  let inserted = false;
-  for (const line of lines) {
-    newLines.push(line);
-    if (!inserted && /^\s*(flowchart|graph)\s+(TD|LR|BT|RL)/i.test(line)) {
-      newLines.push(...invLinks);
-      inserted = true;
-    }
-  }
-  return newLines.join('\n');
-}
 
 function cleanMermaidOutput(content, diagramType) {
   // Remove markdown code blocks
@@ -692,7 +589,6 @@ function cleanMermaidOutput(content, diagramType) {
   if (['flowchart', 'architecture'].includes(diagramType)) {
     content = content.replace(/(^|\n)end(\s*[-=]>|[([{])/g, '$1finish$2');
     content = content.replace(/([([{])end([)\]}])/g, '$1finish$2');
-    content = healFlowchartLayout(content);
   }
 
   // Sequence diagram activation auto-healing

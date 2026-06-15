@@ -210,23 +210,8 @@
     transform: scale(1.01);
   }
 }
-/* Fix double outline for path-based nodes (like pill/stadium) */
-.mermaid-render-target .node path[stroke="none"],
-.mermaid-render-target .node path[stroke-width="0"] {
-  stroke: none !important;
-  stroke-width: 0 !important;
-}
-.mermaid-render-target .node path[fill="none"] {
-  fill: none !important;
-}
-/* Fix double outlines on text label wrappers */
-.mermaid-render-target .node .label rect,
-.mermaid-render-target .node .label path,
-.mermaid-render-target .node .label polygon {
-  stroke: none !important;
-  stroke-width: 0 !important;
-  fill: none !important;
-}
+
+@keyframes marching-ants { to { stroke-dashoffset: -16; } }
 
 /* Brush Selection Highlighting */
 .node-brush-selected rect, 
