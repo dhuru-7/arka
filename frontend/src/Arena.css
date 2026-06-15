@@ -1078,3 +1078,30 @@
   cursor: not-allowed;
   pointer-events: none;
 }
+
+/* Layout switch notification toast */
+.layout-notification-toast-wrapper {
+  position: absolute;
+  bottom: 5rem;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 6500; /* Over loader and sidebars */
+}
+
+.layout-notification-toast {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  color: #000000;
+  padding: 0.6rem 1.2rem;
+  border-radius: 99rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  pointer-events: auto;
+}

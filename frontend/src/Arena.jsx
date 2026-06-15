@@ -455,6 +455,16 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
   const chatInputRef = useRef(null);
   const isProceedingPlanRef = useRef(false);
   const [flowchartRenderer, setFlowchartRenderer] = useState('dagre');
+  const [layoutNotification, setLayoutNotification] = useState(null);
+
+  useEffect(() => {
+    if (layoutNotification) {
+      const timer = setTimeout(() => {
+        setLayoutNotification(null);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [layoutNotification]);
 
   const getShortAgentName = () => {
     const label = getProviderLabel();
@@ -958,7 +968,7 @@ User's latest message: ${userText}`;
           startOnLoad: false,
           securityLevel: 'loose',
           ...tmpl.config,
-          flowchart: { htmlLabels: false, defaultRenderer: flowchartRenderer, curve: flowchartRenderer === 'dagre' ? 'linear' : 'step', padding: 15, nodeSpacing: 60, rankSpacing: 80, useMaxWidth: true },
+          flowchart: { htmlLabels: false, defaultRenderer: diagramType === 'flowchart' ? flowchartRenderer : 'elk', curve: (diagramType === 'flowchart' && flowchartRenderer === 'dagre') ? 'linear' : 'step', padding: 15, nodeSpacing: 60, rankSpacing: 80, useMaxWidth: true },
           pie: { useMaxWidth: false, textPosition: 0.75 },
           sequence: { useMaxWidth: false, showSequenceNumbers: false, actorMargin: 80, mirrorActors: false, messageAlign: 'center', messageFontSize: 13, noteFontSize: 12, wrap: true },
           er: { useMaxWidth: false, layoutDirection: 'TB', entityPadding: 15, fontSize: 13 },
@@ -1105,6 +1115,28 @@ User's latest message: ${userText}`;
   };
 
   const parseEdgeNodes = (edgeElement) => {
+    // Try to get source/target from class list (LS-xxx, LE-xxx) first, as it is 100% reliable
+    let sourceId = '';
+    let targetId = '';
+    
+    if (edgeElement) {
+      const classList = Array.from(edgeElement.classList);
+      const parentGroup = edgeElement.closest('.edgePath, .edgePaths > g');
+      const allClassList = parentGroup ? classList.concat(Array.from(parentGroup.classList)) : classList;
+      
+      for (const cls of allClassList) {
+        if (cls.startsWith('LS-')) {
+          sourceId = cls.substring(3);
+        } else if (cls.startsWith('LE-')) {
+          targetId = cls.substring(3);
+        }
+      }
+    }
+    
+    if (sourceId && targetId) {
+      return { sourceId, targetId };
+    }
+
     const dataId = edgeElement.getAttribute('data-id') || edgeElement.id || '';
     if (!dataId) return null;
 
@@ -1134,6 +1166,28 @@ User's latest message: ${userText}`;
     return null;
   };
 
+  const getDOMEdgeIndex = (edgeElement) => {
+    if (!canvasRef.current || !edgeElement) return -1;
+    
+    // Find the actual path element
+    const targetPath = edgeElement.tagName.toLowerCase() === 'path' 
+      ? edgeElement 
+      : edgeElement.querySelector('path');
+      
+    if (!targetPath) return -1;
+    
+    // Find all paths representing flowchart edges
+    const allPaths = Array.from(canvasRef.current.querySelectorAll('.edgePaths path, path.flowchart-link, .edgePath path'));
+    const uniquePaths = Array.from(new Set(allPaths)).filter(p => {
+      const id = p.id || '';
+      if (id.includes('arrowhead') || p.closest('#edge-drag-handles')) return false;
+      if (!p.getAttribute('d')) return false;
+      return true;
+    });
+    
+    return uniquePaths.indexOf(targetPath);
+  };
+
   const getEdgeIndexInCode = (lines, targetLineIndex) => {
     let edgeCount = 0;
     for (let i = 0; i < lines.length; i++) {
@@ -1141,7 +1195,7 @@ User's latest message: ${userText}`;
         return edgeCount;
       }
       const line = lines[i];
-      if (line.includes('-->') || line.includes('-.->') || line.includes('==>') || line.includes('---') || line.includes('-.-') || line.includes('===')) {
+      if (line.includes('-->') || line.includes('-.->') || line.includes('==>') || line.includes('---') || line.includes('-.-') || line.includes('===') || line.includes('~~~')) {
         edgeCount++;
       }
     }
@@ -1517,6 +1571,7 @@ User's latest message: ${userText}`;
     let label = '';
     let style = 'solid';
     let color = '';
+    const edgeIndex = getDOMEdgeIndex(edge);
 
     if (nodeInfo) {
       const { sourceId, targetId } = nodeInfo;
@@ -1555,10 +1610,16 @@ User's latest message: ${userText}`;
       }
       
       // Find current color from linkStyle
-      if (targetLineIndex !== -1) {
-        const edgeIndex = getEdgeIndexInCode(lines, targetLineIndex);
-        if (edgeIndex !== -1) {
-          const styleRegex = new RegExp(`linkStyle\\s+${edgeIndex}\\s+[^;\\n]*stroke:([^,\\s;]+)`);
+      if (edgeIndex !== -1) {
+        const styleRegex = new RegExp(`linkStyle\\s+${edgeIndex}\\s+[^;\\n]*stroke:([^,\\s;]+)`);
+        const styleMatch = mermaidCode.match(styleRegex);
+        if (styleMatch) {
+          color = styleMatch[1];
+        }
+      } else if (targetLineIndex !== -1) {
+        const fallbackIndex = getEdgeIndexInCode(lines, targetLineIndex);
+        if (fallbackIndex !== -1) {
+          const styleRegex = new RegExp(`linkStyle\\s+${fallbackIndex}\\s+[^;\\n]*stroke:([^,\\s;]+)`);
           const styleMatch = mermaidCode.match(styleRegex);
           if (styleMatch) {
             color = styleMatch[1];
@@ -1567,7 +1628,7 @@ User's latest message: ${userText}`;
       }
     }
 
-    setSelectedEdge({ id: dataId, element: edge });
+    setSelectedEdge({ id: dataId, element: edge, index: edgeIndex });
     setEditText(label);
     setEdgeColor(color);
     setEdgeStyle(style);
@@ -1752,21 +1813,23 @@ User's latest message: ${userText}`;
     
     let lines = mermaidCode.split('\n');
     let targetLineIndex = -1;
+    let srcIndex = -1;
+    let dstIndex = -1;
     
+    const escapedSource = sourceId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const escapedTarget = targetId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const edgeRegex = new RegExp(
+      `((?:^|[^a-zA-Z0-9_-]))(${escapedSource})((?:[^a-zA-Z0-9_-].*?)?(?:-->|-\\.-\\->|==>|---|-.->|==\\>|\\-\\-\\-)(?:.*?[^\\n]*?)?)(${escapedTarget})((?:$|[^a-zA-Z0-9_-]))`
+    );
+
     // 1. Find the line in the code
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      if (line.includes(sourceId) && line.includes(targetId)) {
-        const srcIndex = line.indexOf(sourceId);
-        const dstIndex = line.indexOf(targetId);
-        if (srcIndex < dstIndex) {
-          const between = line.substring(srcIndex + sourceId.length, dstIndex);
-          const arrowMatch = between.match(/(-->|-\.-\->|==>|---|-.->|==>|\-\-\-)/);
-          if (arrowMatch) {
-            targetLineIndex = i;
-            break;
-          }
-        }
+      const match = lines[i].match(edgeRegex);
+      if (match) {
+        targetLineIndex = i;
+        srcIndex = match.index + match[1].length;
+        dstIndex = match.index + match[1].length + match[2].length + match[3].length;
+        break;
       }
     }
     
@@ -1785,8 +1848,6 @@ User's latest message: ${userText}`;
     
     // Determine the new line content
     const line = lines[targetLineIndex];
-    const srcIndex = line.indexOf(sourceId);
-    const dstIndex = line.indexOf(targetId);
     
     const prefix = line.substring(0, srcIndex + sourceId.length);
     const suffix = line.substring(dstIndex);
@@ -1801,7 +1862,10 @@ User's latest message: ${userText}`;
     lines[targetLineIndex] = prefix + middle + suffix;
     
     // 2. Handle Edge Color using linkStyle
-    const edgeIndex = getEdgeIndexInCode(lines, targetLineIndex);
+    let edgeIndex = selectedEdge.index;
+    if (edgeIndex === undefined || edgeIndex === -1) {
+      edgeIndex = getEdgeIndexInCode(lines, targetLineIndex);
+    }
     let newCode = lines.join('\n');
     
     if (edgeIndex !== -1) {
@@ -1835,24 +1899,25 @@ User's latest message: ${userText}`;
     let lines = mermaidCode.split('\n');
     let targetLineIndex = -1;
     
+    const escapedSource = sourceId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const escapedTarget = targetId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const edgeRegex = new RegExp(
+      `((?:^|[^a-zA-Z0-9_-]))(${escapedSource})((?:[^a-zA-Z0-9_-].*?)?(?:-->|-\\.-\\->|==>|---|-.->|==\\>|\\-\\-\\-)(?:.*?[^\\n]*?)?)(${escapedTarget})((?:$|[^a-zA-Z0-9_-]))`
+    );
+
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      if (line.includes(sourceId) && line.includes(targetId)) {
-        const srcIndex = line.indexOf(sourceId);
-        const dstIndex = line.indexOf(targetId);
-        if (srcIndex < dstIndex) {
-          const between = line.substring(srcIndex + sourceId.length, dstIndex);
-          const arrowMatch = between.match(/(-->|-\.-\->|==>|---|-.->|==>|\-\-\-)/);
-          if (arrowMatch) {
-            targetLineIndex = i;
-            break;
-          }
-        }
+      const match = lines[i].match(edgeRegex);
+      if (match) {
+        targetLineIndex = i;
+        break;
       }
     }
     
     if (targetLineIndex !== -1) {
-      const edgeIndex = getEdgeIndexInCode(lines, targetLineIndex);
+      let edgeIndex = selectedEdge.index;
+      if (edgeIndex === undefined || edgeIndex === -1) {
+        edgeIndex = getEdgeIndexInCode(lines, targetLineIndex);
+      }
       lines.splice(targetLineIndex, 1);
       
       let newCode = lines.join('\n');
@@ -2048,119 +2113,117 @@ User's latest message: ${userText}`;
       {/* ─── Navbar ─── */}
       <div className="arena-navbar">
         <div className="arena-nav-left">
-          {!isLoading && (
-            <>
-              <div
-                className="nav-expandable-group"
-                onMouseEnter={() => setIsNavHovered(true)}
-                onMouseLeave={() => setIsNavHovered(false)}
-              >
-                <button className="nav-btn-main" onClick={onBack} title="New Diagram">
-                  <Plus size={20} />
-                </button>
-                <button className={`nav-btn-secondary ${isNavHovered ? 'visible' : ''}`} onClick={onShowHistory} title="History">
-                  HISTORY
-                </button>
-              </div>
-            </>
-          )}
+          <div
+            className="nav-expandable-group"
+            onMouseEnter={() => setIsNavHovered(true)}
+            onMouseLeave={() => setIsNavHovered(false)}
+          >
+            <button className="nav-btn-main" onClick={onBack} title="New Diagram" disabled={isLoading || isRefining}>
+              <Plus size={20} />
+            </button>
+            <button className={`nav-btn-secondary ${isNavHovered ? 'visible' : ''}`} onClick={onShowHistory} title="History" disabled={isLoading || isRefining}>
+              HISTORY
+            </button>
+          </div>
         </div>
 
-        {!isLoading && (
-          <div className="arena-nav-right">
+        <div className="arena-nav-right">
 
-            {/* Layout Switch Button (only for flowchart diagrams) */}
-            {diagramType === 'flowchart' && (
-              <button
-                className="layout-toggle-btn"
-                title={flowchartRenderer === 'dagre' ? "Switch to ELK Layout" : "Switch to Dagre Layout"}
-                disabled={isRefining}
-                onClick={() => {
-                  if (isRefining) return;
-                  setFlowchartRenderer(prev => prev === 'dagre' ? 'elk' : 'dagre');
-                }}
-              >
-                {flowchartRenderer === 'dagre' ? (
-                  // Switch Right (Dagre Active): solid left, hollow right
-                  <SwitchRight size={24} />
-                ) : (
-                  // Switch Left (ELK Active): hollow left, solid right
-                  <SwitchLeft size={24} />
-                )}
-              </button>
-            )}
-
-            {/* Sidechat Toggle Button */}
+          {/* Layout Switch Button (only for flowchart diagrams) */}
+          {diagramType === 'flowchart' && (
             <button
-              className={`chat-toggle-btn ${isChatOpen ? 'active' : ''}`}
-              title="Agent Chat"
-              disabled={isRefining}
+              className="layout-toggle-btn"
+              title={flowchartRenderer === 'dagre' ? "Switch to ELK Layout" : "Switch to Dagre Layout"}
+              disabled={isRefining || isLoading}
               onClick={() => {
-                if (isRefining) return;
-                const nextChatOpen = !isChatOpen;
-                setIsChatOpen(nextChatOpen);
-                if (!nextChatOpen) {
-                  // Mark all messages as typed when closing chat to prevent any animation when reopening
-                  setChatMessages(prev => prev.map(m => ({ ...m, typed: true })));
-                }
-                setIsExportOpen(false);
-                setPngBgChoice(null);
-                clearSelection(true);
+                if (isRefining || isLoading) return;
+                setFlowchartRenderer(prev => {
+                  const next = prev === 'dagre' ? 'elk' : 'dagre';
+                  setLayoutNotification(`Switched to ${next === 'dagre' ? 'Dagre' : 'ELK'} layout`);
+                  return next;
+                });
               }}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px">
-                <path d="M272-160q-30 0-51-21t-21-51q0-21 12-39.5t32-26.5l156-62v-90q-54 63-125.5 96.5T120-320v-80q68 0 123.5-28T344-508l54-64q12-14 28-21t34-7h40q18 0 34 7t28 21l54 64q45 52 100.5 80T840-400v80q-83 0-154.5-33.5T560-450v90l156 62q20 8 32 26.5t12 39.5q0 30-21 51t-51 21H400v-20q0-26 17-43t43-17h120q9 0 14.5-5.5T600-260q0-9-5.5-14.5T580-280H460q-42 0-71 29t-29 71v20h-88Zm151.5-503.5Q400-687 400-720t23.5-56.5Q447-800 480-800t56.5 23.5Q560-753 560-720t-23.5 56.5Q513-640 480-640t-56.5-23.5Z"/>
-              </svg>
+              {flowchartRenderer === 'dagre' ? (
+                // Switch Right (Dagre Active): solid left, hollow right
+                <SwitchRight size={24} />
+              ) : (
+                // Switch Left (ELK Active): hollow left, solid right
+                <SwitchLeft size={24} />
+              )}
             </button>
+          )}
 
-            {/* Export */}
-            <div className="export-dropdown-container">
-              <button className="export-btn" onClick={() => { setIsExportOpen(!isExportOpen); setPngBgChoice(null); }}>
-                <span>Export</span><Download size={18} />
-              </button>
-              <AnimatePresence>
-                {isExportOpen && (
-                  <motion.div className="export-menu" initial={{ opacity: 0, y: -8, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8, scale: 0.95 }} transition={{ duration: 0.12 }}>
-                    <div className="export-item-group">
-                      <div className="export-item" onClick={() => setPngBgChoice(pngBgChoice === 'png' ? null : 'png')}>
-                        <FileImage size={18} /><span>PNG Image</span><ChevronDown size={16} className={`export-chevron ${pngBgChoice === 'png' ? 'rotated' : ''}`} />
-                      </div>
-                      <AnimatePresence>
-                        {pngBgChoice === 'png' && (
-                          <motion.div className="export-sub-options" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.15 }}>
-                            <div className="export-sub-item" onClick={() => handleExport('png', 'transparent')}><div className="bg-preview transparent-bg" />Transparent</div>
-                            <div className="export-sub-item" onClick={() => handleExport('png', '#ffffff')}><div className="bg-preview white-bg" />White</div>
-                            <div className="export-sub-item" onClick={() => handleExport('png', '#202124')}><div className="bg-preview dark-bg" />Dark</div>
-                            <div className="export-sub-item" onClick={() => handleExport('png', '#000000')}><div className="bg-preview black-bg" />Black</div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                    <div className="export-item-group">
-                      <div className="export-item" onClick={() => setPngBgChoice(pngBgChoice === 'jpg' ? null : 'jpg')}>
-                        <Image size={18} /><span>JPG Image</span><ChevronDown size={16} className={`export-chevron ${pngBgChoice === 'jpg' ? 'rotated' : ''}`} />
-                      </div>
-                      <AnimatePresence>
-                        {pngBgChoice === 'jpg' && (
-                          <motion.div className="export-sub-options" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.15 }}>
-                            <div className="export-sub-item" onClick={() => handleExport('jpg', '#ffffff')}><div className="bg-preview white-bg" />White</div>
-                            <div className="export-sub-item" onClick={() => handleExport('jpg', '#202124')}><div className="bg-preview dark-bg" />Dark</div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                    <div className="export-item" onClick={() => handleExport('svg')}><FileCode size={18} /><span>SVG Vector</span></div>
-                    <div className="export-divider" />
-                    <div className="export-item" onClick={() => handleExport('code')}><FileCode size={18} /><span>Mermaid Code</span></div>
-                    <div className="export-item" onClick={() => handleExport('json')}><FileText size={18} /><span>JSON Config</span></div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+          {/* Sidechat Toggle Button */}
+          <button
+            className={`chat-toggle-btn ${isChatOpen ? 'active' : ''}`}
+            title="Agent Chat"
+            disabled={isRefining || isLoading}
+            onClick={() => {
+              if (isRefining || isLoading) return;
+              const nextChatOpen = !isChatOpen;
+              setIsChatOpen(nextChatOpen);
+              if (!nextChatOpen) {
+                // Mark all messages as typed when closing chat to prevent any animation when reopening
+                setChatMessages(prev => prev.map(m => ({ ...m, typed: true })));
+              }
+              setIsExportOpen(false);
+              setPngBgChoice(null);
+              clearSelection(true);
+            }}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px">
+              <path d="M272-160q-30 0-51-21t-21-51q0-21 12-39.5t32-26.5l156-62v-90q-54 63-125.5 96.5T120-320v-80q68 0 123.5-28T344-508l54-64q12-14 28-21t34-7h40q18 0 34 7t28 21l54 64q45 52 100.5 80T840-400v80q-83 0-154.5-33.5T560-450v90l156 62q20 8 32 26.5t12 39.5q0 30-21 51t-51 21H400v-20q0-26 17-43t43-17h120q9 0 14.5-5.5T600-260q0-9-5.5-14.5T580-280H460q-42 0-71 29t-29 71v20h-88Zm151.5-503.5Q400-687 400-720t23.5-56.5Q447-800 480-800t56.5 23.5Q560-753 560-720t-23.5 56.5Q513-640 480-640t-56.5-23.5Z"/>
+            </svg>
+          </button>
 
-            <ProfileDropdown />
+          {/* Export */}
+          <div className="export-dropdown-container">
+            <button className="export-btn" disabled={isRefining || isLoading} onClick={() => { setIsExportOpen(!isExportOpen); setPngBgChoice(null); }}>
+              <span>Export</span><Download size={18} />
+            </button>
+            <AnimatePresence>
+              {isExportOpen && (
+                <motion.div className="export-menu" initial={{ opacity: 0, y: -8, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8, scale: 0.95 }} transition={{ duration: 0.12 }}>
+                  <div className="export-item-group">
+                    <div className="export-item" onClick={() => setPngBgChoice(pngBgChoice === 'png' ? null : 'png')}>
+                      <FileImage size={18} /><span>PNG Image</span><ChevronDown size={16} className={`export-chevron ${pngBgChoice === 'png' ? 'rotated' : ''}`} />
+                    </div>
+                    <AnimatePresence>
+                      {pngBgChoice === 'png' && (
+                        <motion.div className="export-sub-options" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.15 }}>
+                          <div className="export-sub-item" onClick={() => handleExport('png', 'transparent')}><div className="bg-preview transparent-bg" />Transparent</div>
+                          <div className="export-sub-item" onClick={() => handleExport('png', '#ffffff')}><div className="bg-preview white-bg" />White</div>
+                          <div className="export-sub-item" onClick={() => handleExport('png', '#202124')}><div className="bg-preview dark-bg" />Dark</div>
+                          <div className="export-sub-item" onClick={() => handleExport('png', '#000000')}><div className="bg-preview black-bg" />Black</div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                  <div className="export-item-group">
+                    <div className="export-item" onClick={() => setPngBgChoice(pngBgChoice === 'jpg' ? null : 'jpg')}>
+                      <Image size={18} /><span>JPG Image</span><ChevronDown size={16} className={`export-chevron ${pngBgChoice === 'jpg' ? 'rotated' : ''}`} />
+                    </div>
+                    <AnimatePresence>
+                      {pngBgChoice === 'jpg' && (
+                        <motion.div className="export-sub-options" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.15 }}>
+                          <div className="export-sub-item" onClick={() => handleExport('jpg', '#ffffff')}><div className="bg-preview white-bg" />White</div>
+                          <div className="export-sub-item" onClick={() => handleExport('jpg', '#202124')}><div className="bg-preview dark-bg" />Dark</div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                  <div className="export-item" onClick={() => handleExport('svg')}><FileCode size={18} /><span>SVG Vector</span></div>
+                  <div className="export-divider" />
+                  <div className="export-item" onClick={() => handleExport('code')}><FileCode size={18} /><span>Mermaid Code</span></div>
+                  <div className="export-item" onClick={() => handleExport('json')}><FileText size={18} /><span>JSON Config</span></div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
-        )}
+
+          <ProfileDropdown />
+        </div>
       </div>
 
       {/* ─── Canvas ─── */}
@@ -2517,42 +2580,38 @@ User's latest message: ${userText}`;
       </AnimatePresence>
 
       {/* ─── Tool Trays (Split) ─── */}
-      <AnimatePresence>
-        {!isLoading && (
-          <>
-            <motion.div className="tool-tray-left"
-              initial={{ opacity: 0, x: -40 }} animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.1, type: 'spring', stiffness: 350, damping: 28 }}>
-              <button className={`tool-btn ${activeTool === 'select' ? 'active' : ''}`} onClick={() => setActiveTool('select')} title="Select"><MousePointer2 size={18} /></button>
-              <button className={`tool-btn ${activeTool === 'pan' ? 'active' : ''}`} onClick={() => setActiveTool('pan')} title="Pan"><Move size={18} /></button>
-              <button className={`tool-btn ${activeTool === 'brush' ? 'active' : ''}`} onClick={() => setActiveTool('brush')} title="Brush Refinement (Circle area)"><Brush size={18} /></button>
-              <div className="tool-divider" />
-              <button className={`tool-btn-theme ${showTemplates ? 'active' : ''}`} onClick={() => setShowTemplates(!showTemplates)} title="Themes">
-                <span>{TEMPLATES[activeTemplate]?.name || 'Theme'}</span>
-              </button>
-              <button className={`tool-btn ${showCodeEditor ? 'active' : ''}`} onClick={openCodeEditor} title="Edit Code"><Code2 size={18} /></button>
-              <div className="tool-divider" />
-              <button className={`tool-btn ${historyIndex <= 0 ? 'disabled' : ''}`} onClick={handleUndo} disabled={historyIndex <= 0} title="Undo"><Undo size={18} /></button>
-              <button className={`tool-btn ${historyIndex >= history.length - 1 ? 'disabled' : ''}`} onClick={handleRedo} disabled={historyIndex >= history.length - 1} title="Redo"><Redo size={18} /></button>
-            </motion.div>
+      <div className="tool-trays-container">
+        <motion.div className="tool-tray-left"
+          initial={{ opacity: 0, x: -40 }} animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.1, type: 'spring', stiffness: 350, damping: 28 }}>
+          <button className={`tool-btn ${activeTool === 'select' ? 'active' : ''}`} onClick={() => setActiveTool('select')} title="Select" disabled={isLoading || isRefining}><MousePointer2 size={18} /></button>
+          <button className={`tool-btn ${activeTool === 'pan' ? 'active' : ''}`} onClick={() => setActiveTool('pan')} title="Pan" disabled={isLoading || isRefining}><Move size={18} /></button>
+          <button className={`tool-btn ${activeTool === 'brush' ? 'active' : ''}`} onClick={() => setActiveTool('brush')} title="Brush Refinement (Circle area)" disabled={isLoading || isRefining}><Brush size={18} /></button>
+          <div className="tool-divider" />
+          <button className={`tool-btn-theme ${showTemplates ? 'active' : ''}`} onClick={() => setShowTemplates(!showTemplates)} title="Themes" disabled={isLoading || isRefining}>
+            <span>{TEMPLATES[activeTemplate]?.name || 'Theme'}</span>
+          </button>
+          <button className={`tool-btn ${showCodeEditor ? 'active' : ''}`} onClick={openCodeEditor} title="Edit Code" disabled={isLoading || isRefining}><Code2 size={18} /></button>
+          <div className="tool-divider" />
+          <button className={`tool-btn ${historyIndex <= 0 ? 'disabled' : ''}`} onClick={handleUndo} disabled={historyIndex <= 0 || isLoading || isRefining} title="Undo"><Undo size={18} /></button>
+          <button className={`tool-btn ${historyIndex >= history.length - 1 ? 'disabled' : ''}`} onClick={handleRedo} disabled={historyIndex >= history.length - 1 || isLoading || isRefining} title="Redo"><Redo size={18} /></button>
+        </motion.div>
 
-            <motion.div className="tool-tray-right"
-              initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.1, type: 'spring', stiffness: 350, damping: 28 }}>
-              <div className="zoom-tray-controls">
-                <button className="zoom-action-btn" onClick={handleZoomOut} title="Zoom Out"><Minus size={17} /></button>
-                <span className="zoom-percentage-readout">{Math.round(zoom * 100)}%</span>
-                <button className="zoom-action-btn" onClick={handleZoomIn} title="Zoom In"><PlusIcon size={17} /></button>
-              </div>
-              <button className="tool-btn" onClick={handleFitView} title="Fit View"><Maximize size={18} /></button>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+        <motion.div className="tool-tray-right"
+          initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.1, type: 'spring', stiffness: 350, damping: 28 }}>
+          <div className="zoom-tray-controls">
+            <button className="zoom-action-btn" onClick={handleZoomOut} title="Zoom Out" disabled={isLoading || isRefining}><Minus size={17} /></button>
+            <span className="zoom-percentage-readout">{Math.round(zoom * 100)}%</span>
+            <button className="zoom-action-btn" onClick={handleZoomIn} title="Zoom In" disabled={isLoading || isRefining}><PlusIcon size={17} /></button>
+          </div>
+          <button className="tool-btn" onClick={handleFitView} title="Fit View" disabled={isLoading || isRefining}><Maximize size={18} /></button>
+        </motion.div>
+      </div>
 
       {/* ─── Sidebar Panel (Themes & Blueprints) ─── */}
       <AnimatePresence>
-        {showTemplates && !isLoading && (
+        {showTemplates && (
           <motion.div className="template-panel"
             initial={{ x: -320 }} animate={{ x: 0 }} exit={{ x: -320 }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}>
@@ -2673,6 +2732,24 @@ User's latest message: ${userText}`;
               </button>
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Layout switch notification toast */}
+      <AnimatePresence>
+        {layoutNotification && (
+          <div className="layout-notification-toast-wrapper">
+            <motion.div
+              initial={{ opacity: 0, y: 20, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -20, scale: 0.9 }}
+              transition={{ duration: 0.2 }}
+              className="layout-notification-toast"
+            >
+              <Check size={16} style={{ color: '#10b981' }} />
+              <span>{layoutNotification}</span>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 
