@@ -459,6 +459,7 @@ def generate_diagram():
             "- Use at most ONE decision diamond per 5 nodes.\n"
             "- Keep between 4-10 nodes max for clarity, unless the prompt is highly detailed.\n"
             "- Node IDs MUST be simple contiguous alphanumeric strings (e.g. startNode, checkPass). NEVER use spaces in Node IDs.\n"
+            "- LAYOUT STRUCTURE: If the diagram has loop-backs or multiple sub-flows that can cause the logical start node to be pushed down, you MUST group related phases into 'subgraph' blocks, and use an invisible link (e.g. 'startNode ~~~ loopNode') at the top of links to force the start node to render at the absolute top.\n"
         )
     
     payload = {
