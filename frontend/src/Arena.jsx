@@ -1074,8 +1074,61 @@ User's latest message: ${userText}`;
       } catch (err) { }
     });
 
-    // Edges
-    canvasRef.current.querySelectorAll('.edgePath, .edgePaths path, path.flowchart-link').forEach(edge => {
+    // Edges (Clean up old hit overlays and build fresh transparent hit overlays for all paths to make them easily clickable)
+    canvasRef.current.querySelectorAll('.edge-hit-overlay').forEach(el => el.remove());
+
+    const edgePaths = canvasRef.current.querySelectorAll('.edgePaths path, path.flowchart-link, .edgePath path');
+    edgePaths.forEach(path => {
+      // Don't add hit overlay to other hit overlays, markers, or selection overlays
+      if (path.classList.contains('edge-hit-overlay') || path.closest('marker') || path.id === 'node-selection-overlay') return;
+
+      const parent = path.parentNode;
+      if (!parent) return;
+
+      // Create a thick transparent hit overlay path
+      const hitOverlay = path.cloneNode(true);
+      hitOverlay.setAttribute('class', 'edge-hit-overlay');
+      hitOverlay.style.stroke = 'transparent';
+      hitOverlay.style.strokeWidth = '14px'; // Wide 14px hit target
+      hitOverlay.style.fill = 'none';
+      hitOverlay.style.pointerEvents = 'stroke';
+      hitOverlay.style.cursor = 'pointer';
+      
+      // Reset visual style rules
+      hitOverlay.style.strokeDasharray = 'none';
+      hitOverlay.style.animation = 'none';
+      hitOverlay.style.filter = 'none';
+
+      // Bind events to hitOverlay
+      hitOverlay.onclick = (e) => {
+        if (activeTool !== 'select') return;
+        e.stopPropagation();
+        handleEdgeClick(path, e);
+      };
+
+      hitOverlay.onmouseenter = () => {
+        if (activeTool === 'select') {
+          path.style.filter = 'drop-shadow(0 0 6px rgba(6, 182, 212, 0.6))';
+          path.style.strokeWidth = path.classList.contains('edge-thickness-thick') ? '5px' : '3px';
+        }
+      };
+
+      hitOverlay.onmouseleave = () => {
+        const parentGroup = path.closest('.edgePath, .edgePaths > g');
+        const isSelected = path.classList.contains('edge-selected') || 
+                           (parentGroup && parentGroup.classList.contains('edge-selected'));
+        if (!isSelected) {
+          path.style.filter = '';
+          path.style.strokeWidth = '';
+        }
+      };
+
+      parent.appendChild(hitOverlay);
+    });
+
+    // Handle clicks on edge paths themselves as fallback
+    edgePaths.forEach(edge => {
+      if (edge.classList.contains('edge-hit-overlay') || edge.closest('marker')) return;
       edge.style.cursor = 'pointer';
       edge.onclick = (e) => {
         if (activeTool !== 'select') return;
@@ -1702,6 +1755,12 @@ User's latest message: ${userText}`;
       });
       canvasRef.current.querySelectorAll('.label-selected').forEach(el => {
         el.classList.remove('label-selected');
+      });
+      canvasRef.current.querySelectorAll('.edgePaths path, path.flowchart-link, .edgePath path').forEach(path => {
+        if (!path.classList.contains('edge-hit-overlay')) {
+          path.style.filter = '';
+          path.style.strokeWidth = '';
+        }
       });
       canvasRef.current.querySelector('#edge-drag-handles')?.remove();
       canvasRef.current.querySelector('#node-selection-overlay')?.remove();
