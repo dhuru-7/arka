@@ -1666,21 +1666,29 @@ User's latest message: ${userText}`;
   };
 
   const detectNodeShape = (nodeId, label) => {
-    const line = mermaidCode.split('\n').find(l => {
-      const trimmed = l.trim();
-      return trimmed.includes(nodeId);
-    }) || '';
-
-    if (line.includes(`([`) && line.includes(`])`)) return 'stadium';
-    if (line.includes(`[[`) && line.includes(`]]`)) return 'subroutine';
-    if (line.includes(`((`) && line.includes(`))`)) return 'circle';
-    if (line.includes(`{{`) && line.includes(`}}`)) return 'hex';
-    if (line.includes(`[(`) && line.includes(`)]`)) return 'database';
-    if (line.includes(`[/`) && line.includes(`\\]`)) return 'trapezoid';
-    if (line.includes(`[/`) && line.includes(`/]`)) return 'parallelogram';
-    if (line.includes(`{`) && line.includes(`}`)) return 'diamond';
-    if (line.includes(`(`) && line.includes(`)`)) return 'round';
-    if (line.includes(`[`) && line.includes(`]`)) return 'rect';
+    const escapedId = nodeId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // Find the definition of the node by looking for nodeId followed by opening bracket
+    const regex = new RegExp(`(?:^|\\s|-->|---|==>|\\|\\s*)${escapedId}\\s*([\\(\\[\\{]+)`);
+    const lines = mermaidCode.split('\n');
+    for (const line of lines) {
+      const match = line.match(regex);
+      if (match) {
+        const brackets = match[1];
+        if (brackets === '([') return 'stadium';
+        if (brackets === '[[') return 'subroutine';
+        if (brackets === '((') return 'circle';
+        if (brackets === '{{') return 'hex';
+        if (brackets === '[(') return 'database';
+        if (brackets === '[/') {
+          if (line.includes('\\]')) return 'trapezoid';
+          if (line.includes('/]')) return 'parallelogram';
+          return 'trapezoid';
+        }
+        if (brackets === '{') return 'diamond';
+        if (brackets === '(') return 'round';
+        if (brackets === '[') return 'rect';
+      }
+    }
     return 'rect';
   };
 
