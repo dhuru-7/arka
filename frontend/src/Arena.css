@@ -96,11 +96,6 @@
 .mermaid-render-target .node-selected > circle,
 .mermaid-render-target .node-selected > ellipse,
 .mermaid-render-target .node-selected > path,
-.mermaid-render-target .node-selected .label-container,
-.mermaid-render-target .node-selected .label-container rect,
-.mermaid-render-target .node-selected .label-container polygon,
-.mermaid-render-target .node-selected .label-container circle,
-.mermaid-render-target .node-selected .label-container ellipse,
 .mermaid-render-target .node-selected .label-container path:first-child { stroke: #000 !important; stroke-width: 3px !important; stroke-dasharray: 8 8 !important; animation: marching-ants 0.8s linear infinite !important; filter: drop-shadow(0 0 5px rgba(0, 0, 0, 0.2)); }
 /* Only suppress Mermaid's internal paths when JS overlay is active (stadium shapes) */
 .mermaid-render-target .node-selected.node-overlay-active .label-container path {

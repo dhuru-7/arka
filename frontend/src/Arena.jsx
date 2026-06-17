@@ -1516,6 +1516,28 @@ User's latest message: ${userText}`;
     }
   };
 
+  const getExistingNodeStyles = (nodeId) => {
+    const escapedId = nodeId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const styleRegex = new RegExp(`(?:^|\\n)\\s*style\\s+${escapedId}\\s+([^\\n]+)`);
+    const match = mermaidCode.match(styleRegex);
+    if (!match) return { fill: '', stroke: '' };
+
+    const styleStr = match[1].trim();
+    const pairs = styleStr.split(',');
+    let fill = '';
+    let stroke = '';
+    for (const pair of pairs) {
+      const parts = pair.split(':');
+      if (parts.length >= 2) {
+        const key = parts[0].trim();
+        const val = parts.slice(1).join(':').replace(/;$/, '').trim();
+        if (key === 'fill') fill = val;
+        if (key === 'stroke') stroke = val;
+      }
+    }
+    return { fill, stroke };
+  };
+
   const handleNodeClick = (node, e) => {
     clearSelection();
 
@@ -1535,10 +1557,12 @@ User's latest message: ${userText}`;
       setTimeout(() => mountSelectionOverlay(node), 10);
     }
 
+    const { fill: existingFill, stroke: existingStroke } = getExistingNodeStyles(nodeId);
+
     setSelectedNode({ id: nodeId, rawId: rawId, label, element: node });
     setEditText(label);
-    setEditColor('');
-    setEditStrokeColor('');
+    setEditColor(existingFill);
+    setEditStrokeColor(existingStroke);
     setEditShape(currentShape);
     setEditPopover({
       type: 'node',
@@ -1771,27 +1795,55 @@ User's latest message: ${userText}`;
 
     let newCode = lines.join('\n');
 
-    // Handle colors - only if user explicitly selected something
-    if (editColor || editStrokeColor) {
-      // Remove existing style line for this node
-      const stylePattern = new RegExp(`\\n\\s*style ${nodeId} .*`, 'g');
-      newCode = newCode.replace(stylePattern, '');
+    // Handle colors
+    // First, always remove existing style line for this node to avoid duplicate/stale lines
+    const stylePattern = new RegExp(`\\n\\s*style\\s+${escapedId}\\s+.*`, 'g');
+    newCode = newCode.replace(stylePattern, '');
+    const stylePatternStart = new RegExp(`^style\\s+${escapedId}\\s+.*\\n?`, 'g');
+    newCode = newCode.replace(stylePatternStart, '');
 
-      const parts = [];
-      if (editColor) {
-        parts.push(`fill:${editColor}`);
-        // Auto-contrast text color based on fill brightness
-        const hex = editColor.replace('#', '');
-        const r = parseInt(hex.substr(0, 2), 16);
-        const g = parseInt(hex.substr(2, 2), 16);
-        const b = parseInt(hex.substr(4, 2), 16);
-        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-        parts.push(`color:${brightness > 128 ? '#000' : '#fff'}`);
+    const parts = [];
+    if (editColor && editColor !== 'none') {
+      parts.push(`fill:${editColor}`);
+      
+      // Safe brightness check supporting 3-digit hex, 6-digit hex, and names
+      let hex = editColor.replace('#', '').trim();
+      if (hex.length === 3) {
+        hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
       }
-      if (editStrokeColor) {
-        parts.push(`stroke:${editStrokeColor}`);
-        parts.push('stroke-width:2px');
+      
+      const colorNames = {
+        'red': 'ff0000', 'green': '00ff00', 'blue': '0000ff', 'yellow': 'ffff00',
+        'white': 'ffffff', 'black': '000000', 'gray': '808080', 'grey': '808080',
+        'silver': 'c0c0c0', 'gold': 'ffd700', 'orange': 'ffa500', 'pink': 'ffc0cb',
+        'purple': '800080', 'violet': 'ee82ee', 'indigo': '4b0082', 'cyan': '00ffff',
+        'magenta': 'ff00ff', 'brown': 'a52a2a', 'teal': '008080'
+      };
+      if (colorNames[hex.toLowerCase()]) {
+        hex = colorNames[hex.toLowerCase()];
       }
+
+      let r = 255, g = 255, b = 255;
+      if (hex.length === 6) {
+        const parsedR = parseInt(hex.substr(0, 2), 16);
+        const parsedG = parseInt(hex.substr(2, 2), 16);
+        const parsedB = parseInt(hex.substr(4, 2), 16);
+        if (!isNaN(parsedR) && !isNaN(parsedG) && !isNaN(parsedB)) {
+          r = parsedR;
+          g = parsedG;
+          b = parsedB;
+        }
+      }
+      const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+      parts.push(`color:${brightness > 128 ? '#000' : '#fff'}`);
+    }
+
+    if (editStrokeColor && editStrokeColor !== 'none') {
+      parts.push(`stroke:${editStrokeColor}`);
+      parts.push('stroke-width:2px');
+    }
+
+    if (parts.length > 0) {
       newCode = newCode.trimEnd() + `\n    style ${nodeId} ${parts.join(',')}`;
     }
 
