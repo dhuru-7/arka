@@ -848,17 +848,31 @@ def generate_byok():
         "max_tokens": max_tokens
     }
 
+    print("--- DEBUG BYOK PROXY ---")
+    print(f"Provider: {provider}")
+    print(f"Model: {model}")
+    print(f"API Key Length: {len(user_api_key)}")
+    print(f"API Key Prefix: {user_api_key[:10]}...")
+    print(f"System Prompt Length: {len(system_prompt)}")
+    print(f"User Message Length: {len(user_message)}")
+    print(f"Payload: {json.dumps(payload, indent=2)}")
+    print("------------------------")
+
     try:
         if provider == 'groq':
             url = "https://api.groq.com/openai/v1/chat/completions"
+        elif provider in ['nvidia', 'invidia']:
+            url = "https://integrate.api.nvidia.com/v1/chat/completions"
+            payload["chat_template_kwargs"] = {"enable_thinking": False}
         else:
             url = "https://api.sarvam.ai/v1/chat/completions"
 
+        req_timeout = 180 if provider in ["nvidia", "invidia"] else 45
         response = requests.post(
             url,
             headers=headers,
             json=payload,
-            timeout=30
+            timeout=req_timeout
         )
         response.raise_for_status()
         result = response.json()

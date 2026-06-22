@@ -10,50 +10,25 @@
 
 
 
-// ─── Model Definitions ───
-
 export const CLOUD_PROVIDERS = {
   sarvam: {
     name: 'Sarvam AI',
     models: [
-      { id: 'sarvam-combo', label: 'Sarvam Combo', desc: '30B classifies, 105B generates. Best balance.', suggestModel: 'sarvam-30b', generateModel: 'sarvam-105b', badge: 'Recommended' },
       { id: 'sarvam-105b', label: 'Sarvam 105B', desc: 'Most powerful. Best for complex diagrams.', suggestModel: 'sarvam-105b', generateModel: 'sarvam-105b' },
-      { id: 'sarvam-30b', label: 'Sarvam 30B', desc: 'Faster responses, good for simple diagrams.', suggestModel: 'sarvam-30b', generateModel: 'sarvam-30b' },
+      { id: 'sarvam-30b', label: 'Sarvam 30B', desc: 'Faster responses, good for simple diagrams.', suggestModel: 'sarvam-30b', generateModel: 'sarvam-30b' }
     ]
   },
-  gemini: {
-    name: 'Google Gemini',
+  invidia: {
+    name: 'Invidia',
     models: [
-      { id: 'gemini-combo-1.5', label: 'Gemini 1.5 Combo', desc: 'Flash classifies, Pro generates. Best of both.', suggestModel: 'gemini-1.5-flash', generateModel: 'gemini-1.5-pro', badge: 'Recommended' },
-      { id: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro', desc: 'Most powerful Gemini. Complex tasks.', suggestModel: 'gemini-1.5-pro', generateModel: 'gemini-1.5-pro' },
-      { id: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash', desc: 'Fast and very capable.', suggestModel: 'gemini-1.5-flash', generateModel: 'gemini-1.5-flash' },
-      { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', desc: 'Latest generation flash model.', suggestModel: 'gemini-2.0-flash', generateModel: 'gemini-2.0-flash' },
-    ]
-  },
-  groq: {
-    name: 'Groq',
-    models: [
-      { id: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B', desc: 'Meta Llama 3.1 8B. Super fast.', suggestModel: 'llama-3.1-8b-instant', generateModel: 'llama-3.1-8b-instant', badge: 'Recommended' },
-      { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B', desc: 'Meta Llama 3.3 70B. High quality.', suggestModel: 'llama-3.3-70b-versatile', generateModel: 'llama-3.3-70b-versatile' },
-      { id: 'gemma-2-2b-it', label: 'Gemma 2 2B', desc: 'Google Gemma 2 2B (if available).', suggestModel: 'gemma-2-2b-it', generateModel: 'gemma-2-2b-it' },
-      { id: 'gemma4:2b', label: 'Gemma 4 2B', desc: 'Gemma 4 2B (Custom).', suggestModel: 'gemma4:2b', generateModel: 'gemma4:2b' }
+      { id: 'gemma-4-31b-it', label: 'Gemma 4 31B IT', desc: 'Invidia hosted Gemma 4 31B Instruct.', suggestModel: 'google/gemma-4-31b-it', generateModel: 'google/gemma-4-31b-it' }
     ]
   }
 };
 
 export const LOCAL_MODELS = [
-  { id: 'gemma4:e2b', label: 'Gemma 4 e2b', desc: "User's local Gemma model.", size: '7.2GB' },
-  { id: 'gemma2:2b', label: 'Gemma 2 2B', desc: "Google's lightweight 2B model.", size: '2B' },
-  { id: 'gemma:2b', label: 'Gemma 2B', desc: "Google's lightweight 2B model (v1).", size: '2B' },
-  { id: 'gemma3:27b', label: 'Gemma 3 27B', desc: "Google's best local model.", size: '27B' },
-  { id: 'gemma3:12b', label: 'Gemma 3 12B', desc: 'Good balance of speed and quality.', size: '12B' },
-  { id: 'gemma3:4b', label: 'Gemma 3 4B', desc: 'Lightweight, runs on most hardware.', size: '4B' },
-  { id: 'sarvam-m:24b', label: 'Sarvam M 24B', desc: "Sarvam's open-weight local model.", size: '24B' },
-  { id: 'llama3.1:8b', label: 'Llama 3.1 8B', desc: "Meta's popular open model.", size: '8B' },
-  { id: 'mistral:7b', label: 'Mistral 7B', desc: 'Fast and efficient.', size: '7B' },
-  { id: 'deepseek-coder-v2:16b', label: 'DeepSeek Coder V2 16B', desc: 'Great for structured output.', size: '16B' },
-  { id: 'phi3:14b', label: 'Phi-3 14B', desc: "Microsoft's compact model.", size: '14B' },
-  { id: 'qwen2.5:14b', label: 'Qwen 2.5 14B', desc: "Alibaba's capable model.", size: '14B' },
+  { id: 'gemma4:12b', label: 'Gemma 4 12B', desc: "Google's Gemma 4 12B model.", size: '12B' },
+  { id: 'codegemma:7b', label: 'CodeGemma 7B', desc: "Google's CodeGemma 7B model.", size: '7B' }
 ];
 
 // ─── Settings helpers ───
@@ -162,6 +137,20 @@ async function callGroq(apiKey, model, systemPrompt, userMessage, temperature = 
   return data.content || '';
 }
 
+// ─── Invidia direct call (via backend proxy for CORS) ───
+
+async function callInvidia(apiKey, model, systemPrompt, userMessage, temperature = 0.2, maxTokens = 2500, signal) {
+  const res = await fetch('/api/generate-byok', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ apiKey, model, provider: 'invidia', systemPrompt, userMessage, temperature, maxTokens }),
+    signal
+  });
+  if (!res.ok) throw new Error(`Invidia proxy error: ${res.status}`);
+  const data = await res.json();
+  return data.content || '';
+}
+
 // ─── Ollama local call ───
 
 async function callOllama(url, model, systemPrompt, userMessage, signal, imageBase64) {
@@ -205,6 +194,9 @@ async function callModel(purpose, systemPrompt, userMessage, options = {}) {
   }
   if (resolved.provider === 'groq') {
     return callGroq(resolved.apiKey, resolved.model, systemPrompt, userMessage, temperature, maxTokens, signal);
+  }
+  if (resolved.provider === 'invidia' || resolved.provider === 'nvidia') {
+    return callInvidia(resolved.apiKey, resolved.model, systemPrompt, userMessage, temperature, maxTokens, signal);
   }
   if (resolved.provider === 'local') {
     return callOllama(resolved.url, resolved.model, systemPrompt, userMessage, signal);
@@ -472,7 +464,10 @@ export async function agentGenerateDiagram(prompt, diagramType, options = {}) {
 
 export function hasVisionCapability(provider, model) {
   if (provider === 'gemini') return true;
-  if (model && (model.toLowerCase().includes('gemma4') || model.toLowerCase().includes('vision'))) return true;
+  if (model) {
+    const lower = model.toLowerCase();
+    if (lower.includes('gemma4') || lower.includes('gemma-4') || lower.includes('vision')) return true;
+  }
   return false;
 }
 

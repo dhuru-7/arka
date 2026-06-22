@@ -22,12 +22,12 @@ const Help = () => {
           </h2>
 
           <div style={{ background: '#fff', borderRadius: '1rem', border: '1px solid #e5e7eb', padding: '1.5rem', marginBottom: '1.5rem' }}>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '1rem' }}>Google Gemini</h3>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '1rem' }}>Invidia (NVIDIA NIM)</h3>
             <ol style={{ paddingLeft: '1.2rem', margin: 0, color: '#4b5563', lineHeight: 1.7, fontSize: '0.95rem' }}>
-              <li style={{ marginBottom: '0.5rem' }}>Go to the <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb', textDecoration: 'underline' }}>Google AI Studio</a>.</li>
-              <li style={{ marginBottom: '0.5rem' }}>Sign in with your Google account.</li>
-              <li style={{ marginBottom: '0.5rem' }}>Click on <strong>"Create API key"</strong>.</li>
-              <li style={{ marginBottom: '0.5rem' }}>Copy the generated key (it usually starts with <code style={{ background: '#f3f4f6', padding: '2px 4px', borderRadius: '4px' }}>AIzaSy...</code>).</li>
+              <li style={{ marginBottom: '0.5rem' }}>Go to the <a href="https://build.nvidia.com" target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb', textDecoration: 'underline' }}>NVIDIA API Catalog</a>.</li>
+              <li style={{ marginBottom: '0.5rem' }}>Sign in or create an account.</li>
+              <li style={{ marginBottom: '0.5rem' }}>Select the model (e.g., Gemma 4 31B IT) and click on <strong>"Get API Key"</strong>.</li>
+              <li style={{ marginBottom: '0.5rem' }}>Copy the generated key (it usually starts with <code style={{ background: '#f3f4f6', padding: '2px 4px', borderRadius: '4px' }}>nvapi-...</code>).</li>
               <li>Paste the key into the <strong>Cloud API</strong> section in Arka's <span style={{ cursor: 'pointer', color: '#2563eb', textDecoration: 'underline' }} onClick={() => navigate('/settings')}>Settings page</span>.</li>
             </ol>
           </div>
@@ -72,10 +72,10 @@ const Help = () => {
 
             <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.75rem' }}>3. Download a Model</h3>
             <p style={{ color: '#4b5563', fontSize: '0.95rem', marginBottom: '0.5rem' }}>
-              Open a new terminal window and pull the model you want to use. We highly recommend Gemma 3.
+              Open a new terminal window and pull the model you want to use. We highly recommend Gemma 4.
             </p>
             <div style={{ background: '#1e293b', color: '#f8fafc', padding: '1rem', borderRadius: '0.5rem', fontFamily: 'var(--font-mono)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
-              <code>ollama pull gemma3:12b</code>
+              <code>ollama pull gemma4:12b</code>
             </div>
 
             <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.75rem' }}>4. Connect in Arka</h3>

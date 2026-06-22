@@ -380,10 +380,14 @@ class DiagramAgent:
 
         if self.provider == "groq":
             url = "https://api.groq.com/openai/v1/chat/completions"
+        elif self.provider in ["nvidia", "invidia"]:
+            url = "https://integrate.api.nvidia.com/v1/chat/completions"
+            payload["chat_template_kwargs"] = {"enable_thinking": False}
         else:
             url = "https://api.sarvam.ai/v1/chat/completions"
 
-        response = requests.post(url, headers=headers, json=payload, timeout=35)
+        req_timeout = 180 if self.provider in ["nvidia", "invidia"] else 45
+        response = requests.post(url, headers=headers, json=payload, timeout=req_timeout)
         response.raise_for_status()
         data = response.json()
         message = data["choices"][0]["message"]

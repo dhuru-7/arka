@@ -21,14 +21,13 @@ const Docs = () => {
           
           <div style={{ background: '#fff', borderRadius: '1rem', border: '1px solid #e5e7eb', padding: '1.5rem' }}>
             <p style={{ color: '#4b5563', lineHeight: 1.7, fontSize: '0.95rem', marginBottom: '1rem' }}>
-              Arka operates on a strict <strong>Bring Your Own Key (BYOK)</strong> architecture to guarantee user privacy and cost transparency. When you provide your Google Gemini or Sarvam API key, the platform uses it to directly facilitate the diagram generation process.
+              Arka operates on a strict <strong>Bring Your Own Key (BYOK)</strong> architecture to guarantee user privacy and cost transparency. When you provide your NVIDIA or Sarvam API key, the platform uses it to directly facilitate the diagram generation process.
             </p>
             <div style={{ color: '#4b5563', lineHeight: 1.7, fontSize: '0.95rem', marginBottom: '1rem' }}>
               <strong>How it works:</strong>
               <ul style={{ paddingLeft: '1.5rem', marginTop: '0.5rem' }}>
                 <li style={{ marginBottom: '0.4rem' }}>Your API keys are stored <strong>only locally</strong> in your browser's <code style={{background:'#f3f4f6', padding:'2px 4px', borderRadius:'4px'}}>localStorage</code>.</li>
-                <li style={{ marginBottom: '0.4rem' }}>For Google Gemini, requests are made directly from your browser to Google's servers.</li>
-                <li style={{ marginBottom: '0.4rem' }}>For Sarvam AI, requests are passed securely via an ephemeral proxy endpoint to avoid CORS issues, but the key is <strong>never saved or logged</strong> on our servers.</li>
+                <li style={{ marginBottom: '0.4rem' }}>For both NVIDIA and Sarvam AI, requests are passed securely via an ephemeral proxy endpoint on the backend to avoid CORS issues, but the keys are <strong>never saved or logged</strong> on our servers.</li>
               </ul>
             </div>
             <p style={{ color: '#4b5563', lineHeight: 1.7, fontSize: '0.95rem', margin: 0 }}>
@@ -54,14 +53,14 @@ const Docs = () => {
               To optimize both speed and cost, our backend default uses a fast model for rapid classification, and passes the context to a much larger model for complex diagram generation. 
             </p>
 
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.75rem' }}>Cloud Combos (Pro vs. Flash)</h3>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.75rem' }}>Cloud Models (Sarvam & NVIDIA)</h3>
             <div style={{ color: '#4b5563', lineHeight: 1.7, fontSize: '0.95rem', marginBottom: '0.5rem' }}>
-              When you use your own Cloud API keys, we offer "Combo" options that replicate this dual-engine setup:
+              When using your own Cloud API keys, you can choose from these options:
               <ul style={{ paddingLeft: '1.5rem', marginTop: '0.5rem' }}>
-                <li style={{ marginBottom: '0.4rem' }}><strong>Flash Models (e.g., Gemini Flash):</strong> These are highly optimized, extremely fast, and low-cost. They are perfect for analyzing user intent rapidly.</li>
-                <li style={{ marginBottom: '0.4rem' }}><strong>Pro Models (e.g., Gemini Pro):</strong> These are reasoning powerhouses. They handle complex structural logic and deep context, making them ideal for writing intricate syntax.</li>
+                <li style={{ marginBottom: '0.4rem' }}><strong>Sarvam 105B:</strong> A heavy-weight model optimized for writing intricate diagram syntax and handling complex reasoning.</li>
+                <li style={{ marginBottom: '0.4rem' }}><strong>Sarvam 30B:</strong> A lighter model, great for quick classifications and simpler flows.</li>
+                <li style={{ marginBottom: '0.4rem' }}><strong>Gemma 4 31B IT (NVIDIA):</strong> A highly capable model hosted on NVIDIA NIM, providing excellent balanced performance.</li>
               </ul>
-              By using a Combo, Arka automatically assigns the fast task to Flash and the heavy task to Pro, giving you the best quality while conserving your API credits.
             </div>
           </div>
         </section>
@@ -74,7 +73,7 @@ const Docs = () => {
               Arka offers native support for local AI inference via Ollama. 
             </p>
             <p style={{ color: '#4b5563', lineHeight: 1.7, fontSize: '0.95rem', margin: 0 }}>
-              The landscape of open-weight models is advancing rapidly. Models like <strong>Gemma 3</strong> and <strong>Llama 3.1</strong> can now write high-quality diagram syntax previously possible only with heavy cloud models. By connecting Arka to a local Ollama instance, the app sends prompts directly to <code style={{background:'#f3f4f6', padding:'2px 4px', borderRadius:'4px'}}>localhost</code>. This provides a completely offline, zero-latency (network-wise), and zero-cost environment for power users.
+              The landscape of open-weight models is advancing rapidly. Models like <strong>Gemma 4</strong> and <strong>CodeGemma</strong> can now write high-quality diagram syntax previously possible only with heavy cloud models. By connecting Arka to a local Ollama instance, the app sends prompts directly to <code style={{background:'#f3f4f6', padding:'2px 4px', borderRadius:'4px'}}>localhost</code>. This provides a completely offline, zero-latency (network-wise), and zero-cost environment for power users.
             </p>
           </div>
         </section>

@@ -168,7 +168,11 @@ const Settings = () => {
                     type={showKey ? 'text' : 'password'}
                     value={apiKey}
                     onChange={e => setApiKey(e.target.value)}
-                    placeholder={cloudProvider === 'gemini' ? 'AIzaSy...' : 'sk_...'}
+                    placeholder={
+                      cloudProvider === 'gemini' ? 'AIzaSy...' :
+                      (cloudProvider === 'invidia' || cloudProvider === 'nvidia') ? 'nvapi-...' :
+                      'sk_...'
+                    }
                     style={inputStyle}
                   />
                   <button onClick={() => setShowKey(!showKey)} style={{
