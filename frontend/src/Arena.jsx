@@ -1075,38 +1075,30 @@ User's latest message: ${userText}`;
     });
 
     // Edges (Scenario B: Thick transparent overlay hitbox for easier clicking/selection)
-    canvasRef.current.querySelectorAll('.edgePath, .edgePaths path, path.flowchart-link').forEach(edge => {
-      if (edge.classList.contains('edge-hitbox-overlay')) return;
+    const edgePaths = Array.from(
+      canvasRef.current.querySelectorAll('.edgePath path, .edgePaths path, path.flowchart-link')
+    ).filter(path => {
+      if (path.classList.contains('edge-hitbox-overlay')) return false;
+      if (path.id && path.id.includes('arrowhead')) return false;
+      if (!path.getAttribute('d')) return false;
+      return true;
+    });
 
-      let pathEl = edge;
-      if (edge.tagName.toLowerCase() === 'g') {
-        pathEl = edge.querySelector('path');
-      }
-      if (!pathEl) return;
-
-      // Avoid duplicate overlays
-      if (pathEl.parentNode.querySelector('.edge-hitbox-overlay')) {
-        const existingOverlay = pathEl.parentNode.querySelector('.edge-hitbox-overlay');
-        existingOverlay.onclick = (e) => {
-          if (activeTool !== 'select') return;
-          e.stopPropagation();
-          handleEdgeClick(pathEl, e);
-        };
-        return;
+    edgePaths.forEach(pathEl => {
+      let overlay = pathEl.nextElementSibling;
+      if (!overlay || !overlay.classList.contains('edge-hitbox-overlay')) {
+        overlay = pathEl.cloneNode(true);
+        overlay.classList.add('edge-hitbox-overlay');
+        overlay.removeAttribute('id');
+        pathEl.parentNode.insertBefore(overlay, pathEl.nextSibling);
       }
 
-      // Create transparent clone node
-      const overlay = pathEl.cloneNode(true);
-      overlay.classList.add('edge-hitbox-overlay');
-      overlay.removeAttribute('id');
-      
       overlay.setAttribute('style', ''); // clear inline styles
-      overlay.style.stroke = 'transparent';
-      overlay.style.strokeWidth = '8px'; // Expand hitbox to 8px
-      overlay.style.strokeOpacity = '0';
+      overlay.style.stroke = '#ff0000'; // solid stroke color for reliable pointer-events
+      overlay.style.strokeWidth = '11px'; // 11px wide hitbox (5.5px on each side)
       overlay.style.fill = 'none';
+      overlay.style.opacity = '0'; // hide visually but keep it fully interactive
       overlay.style.cursor = 'pointer';
-      overlay.style.pointerEvents = 'stroke';
 
       overlay.onclick = (e) => {
         if (activeTool !== 'select') return;
@@ -1115,7 +1107,6 @@ User's latest message: ${userText}`;
       };
 
       pathEl.style.cursor = 'pointer';
-      pathEl.parentNode.insertBefore(overlay, pathEl.nextSibling);
     });
 
     // Edge Labels
@@ -1214,7 +1205,7 @@ User's latest message: ${userText}`;
     const allPaths = Array.from(canvasRef.current.querySelectorAll('.edgePaths path, path.flowchart-link, .edgePath path'));
     const uniquePaths = Array.from(new Set(allPaths)).filter(p => {
       const id = p.id || '';
-      if (id.includes('arrowhead') || p.closest('#edge-drag-handles')) return false;
+      if (id.includes('arrowhead') || p.closest('#edge-drag-handles') || p.classList.contains('edge-hitbox-overlay')) return false;
       if (!p.getAttribute('d')) return false;
       return true;
     });

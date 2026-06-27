@@ -104,10 +104,18 @@
 }
 /* Selected edge paths and their arrowheads (green highlight) */
 .mermaid-render-target path.edge-selected,
-.mermaid-render-target .edge-selected path {
+.mermaid-render-target .edge-selected path:not(.edge-hitbox-overlay) {
   stroke: #10b981 !important;
   stroke-width: 4px !important;
   filter: drop-shadow(0 0 12px rgba(16, 185, 129, 0.85)) !important;
+}
+/* Ensure the transparent hitbox overlay is never visible and always interactive */
+.mermaid-render-target .edge-hitbox-overlay {
+  stroke: transparent !important;
+  stroke-width: 11px !important;
+  opacity: 0 !important;
+  fill: none !important;
+  pointer-events: stroke !important;
 }
 .mermaid-render-target .edge-selected .arrowheadPath,
 .mermaid-render-target path.edge-selected ~ .arrowheadPath {
