@@ -1074,14 +1074,48 @@ User's latest message: ${userText}`;
       } catch (err) { }
     });
 
-    // Edges
+    // Edges (Scenario B: Thick transparent overlay hitbox for easier clicking/selection)
     canvasRef.current.querySelectorAll('.edgePath, .edgePaths path, path.flowchart-link').forEach(edge => {
-      edge.style.cursor = 'pointer';
-      edge.onclick = (e) => {
+      if (edge.classList.contains('edge-hitbox-overlay')) return;
+
+      let pathEl = edge;
+      if (edge.tagName.toLowerCase() === 'g') {
+        pathEl = edge.querySelector('path');
+      }
+      if (!pathEl) return;
+
+      // Avoid duplicate overlays
+      if (pathEl.parentNode.querySelector('.edge-hitbox-overlay')) {
+        const existingOverlay = pathEl.parentNode.querySelector('.edge-hitbox-overlay');
+        existingOverlay.onclick = (e) => {
+          if (activeTool !== 'select') return;
+          e.stopPropagation();
+          handleEdgeClick(pathEl, e);
+        };
+        return;
+      }
+
+      // Create transparent clone node
+      const overlay = pathEl.cloneNode(true);
+      overlay.classList.add('edge-hitbox-overlay');
+      overlay.removeAttribute('id');
+      
+      overlay.setAttribute('style', ''); // clear inline styles
+      overlay.style.stroke = 'transparent';
+      overlay.style.strokeWidth = '8px'; // Expand hitbox to 8px
+      overlay.style.strokeOpacity = '0';
+      overlay.style.fill = 'none';
+      overlay.style.cursor = 'pointer';
+      overlay.style.pointerEvents = 'stroke';
+
+      overlay.onclick = (e) => {
         if (activeTool !== 'select') return;
         e.stopPropagation();
-        handleEdgeClick(edge, e);
+        handleEdgeClick(pathEl, e);
       };
+
+      pathEl.style.cursor = 'pointer';
+      pathEl.parentNode.insertBefore(overlay, pathEl.nextSibling);
     });
 
     // Edge Labels
