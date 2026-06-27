@@ -701,13 +701,30 @@ User's latest message: ${userText}`;
       return JSON.parse(localStorage.getItem('arka_custom_colors') || '[]');
     } catch { return []; }
   });
-  const addCustomColor = (color) => {
+  const pickerActiveRef = useRef(false);
+
+  // Called on every color picker drag — replaces last swatch in-place during a session
+  const handlePickerChange = (color, setter) => {
+    setter(color);
     if (!color || NODE_COLORS.includes(color)) return;
     setCustomColors(prev => {
-      const deduped = [color, ...prev.filter(c => c !== color)].slice(0, 10);
-      localStorage.setItem('arka_custom_colors', JSON.stringify(deduped));
-      return deduped;
+      let updated;
+      if (pickerActiveRef.current && prev.length > 0 && !NODE_COLORS.includes(prev[0])) {
+        // Picker is being dragged — replace the most recent custom color in-place
+        updated = [color, ...prev.slice(1).filter(c => c !== color)].slice(0, 10);
+      } else {
+        // First pick of a new session — add as a new swatch
+        updated = [color, ...prev.filter(c => c !== color)].slice(0, 10);
+        pickerActiveRef.current = true;
+      }
+      localStorage.setItem('arka_custom_colors', JSON.stringify(updated));
+      return updated;
     });
+  };
+
+  // Called when color picker closes — end the session
+  const handlePickerClose = () => {
+    pickerActiveRef.current = false;
   };
 
   // Code editor
@@ -2608,7 +2625,8 @@ User's latest message: ${userText}`;
                     <label className="color-plus-swatch">
                       <PlusIcon size={12} />
                       <input type="color" className="custom-color-input" value={customColors[0] || '#000000'}
-                        onChange={e => { setEditColor(e.target.value); addCustomColor(e.target.value); }} />
+                        onChange={e => handlePickerChange(e.target.value, setEditColor)}
+                        onBlur={handlePickerClose} />
                     </label>
                   </div>
                 </div>
@@ -2626,7 +2644,8 @@ User's latest message: ${userText}`;
                     <label className="color-plus-swatch">
                       <PlusIcon size={12} />
                       <input type="color" className="custom-color-input" value={customColors[0] || '#000000'}
-                        onChange={e => { setEditStrokeColor(e.target.value); addCustomColor(e.target.value); }} />
+                        onChange={e => handlePickerChange(e.target.value, setEditStrokeColor)}
+                        onBlur={handlePickerClose} />
                     </label>
                   </div>
                 </div>
@@ -2726,7 +2745,8 @@ User's latest message: ${userText}`;
                 <label className="color-plus-swatch">
                   <PlusIcon size={12} />
                   <input type="color" className="custom-color-input" value={customColors[0] || '#000000'}
-                    onChange={e => { setEdgeColor(e.target.value); addCustomColor(e.target.value); }} />
+                    onChange={e => handlePickerChange(e.target.value, setEdgeColor)}
+                    onBlur={handlePickerClose} />
                 </label>
               </div>
             </div>
