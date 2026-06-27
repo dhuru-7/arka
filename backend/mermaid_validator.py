@@ -59,6 +59,7 @@ def clean_mermaid_code(content, diagram_type):
         content = re.sub(r"([-=]>(?:\s*\|[^|]*\|)?\s*)end(\s|[\(\[\{\n]|$)", r"\1finish\2", content)
         content = re.sub(r"(\w+)\s*\(\(\s*([\[\{\(])", r"\1\2", content)
         content = re.sub(r"([\]\}\)])\s*\)\)", r"\1", content)
+        content = re.sub(r"(?<!:)::([a-zA-Z_]\w*)", r":::\1", content)
 
     if diagram_type == "sequence":
         lines = content.splitlines()

@@ -407,11 +407,15 @@ def build_generation_prompt(diagram_type, knowledge):
     rules = {
         "flowchart": (
             "Start with flowchart TD. Include Start and End. Keep primary happy path clear. "
-            "Use at most 1 decision per 5 nodes. Node text must be quoted."
+            "Use at most 1 decision per 5 nodes. Node text must be quoted. "
+            "IMPORTANT: You MUST apply semantic coloring to every node using the class definitions (greenNode, blueNode, yellowNode, redNode, goldNode) "
+            "defined in the knowledge rules. Define the classDefs at the bottom of the diagram and apply them using the nodeId:::className syntax."
         ),
         "architecture": (
-            "Start with flowchart LR or flowchart TD. Use small subgraphs for layers. "
-            "Use databases as [(\"Database\")], caches as {{\"Cache\"}}, gateways as ([\"Gateway\"])."
+            "Start with flowchart LR or flowchart TD. Organize nodes into logical layers using subgraphs (e.g. clientLayer, backendLayer, aiLayer, dataLayer, monitorLayer, extLayer) "
+            "matching the semantic groups and colors defined in the knowledge rules. "
+            "IMPORTANT: Apply semantic coloring to subgraphs using `style subgraphId fill:#HEX,stroke:#HEX,stroke-width:2px,color:#HEX` statements, "
+            "and to nodes using classDefs and the `nodeId:::className` syntax, strictly matching the colors and definitions in the knowledge rules."
         ),
         "sequence": (
             "Start with sequenceDiagram. Declare all actors/participants at the top. "
@@ -437,8 +441,10 @@ def build_refine_prompt(diagram_type, knowledge):
         "Return ONLY the complete updated Mermaid code. Preserve existing nodes, links, styles, and diagram type "
         "unless the user explicitly asks to change them. Make the smallest correct edit. "
         "Do not add new cross-links, loops, duplicated edges, or unrelated nodes while improving style/readability. "
-        "For colors in flowcharts, prefer Mermaid style lines such as `style nodeId fill:#fde68a,stroke:#f59e0b,color:#111827`. "
-        "If the request asks to make failure paths clearer, improve edge labels or style existing error nodes first.\n\n"
+        "For colors in flowcharts, prefer applying semantic colors using classDef definitions (greenNode, blueNode, yellowNode, redNode, goldNode) "
+        "and applying them as nodeId:::className. For architecture diagrams, group nodes into subgraphs representing layers and style the subgraphs using "
+        "style statements and the nodes using the classDefs (clientNode, backendNode, aiNode, infraNode, dataNode, msgNode, monitorNode, extNode) "
+        "as defined in the knowledge rules.\n\n"
         f"DIAGRAM TYPE: {diagram_type}\n"
         f"KNOWLEDGE BANK RULES:\n{knowledge}\n"
     )

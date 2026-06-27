@@ -17,6 +17,7 @@ from diagram_agent import DiagramAgent
 from mermaid_validator import validate_mermaid_code
 
 
+# Reload env vars to ensure updates take effect
 load_dotenv()
 
 app = Flask(__name__)

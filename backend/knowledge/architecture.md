@@ -22,71 +22,110 @@
 - `-->|protocol|` Label with protocol (REST, GraphQL, WebSocket)
 - `<-->` Bidirectional communication
 
-## Subgraph Usage (Critical)
-Always use an ID for a subgraph and put the human-readable title in brackets to avoid syntax errors with spaces.
-```
-subgraph frontendLayer [Frontend Layer]
-    web[Web App]
-    mobile[Mobile App]
-end
+## Semantic Node & Subgraph Coloring
+Color should represent semantics, not aesthetics. Use a consistent, low-saturation pastel palette across all generated architecture diagrams.
 
-subgraph backendLayer [Backend Layer]
-    api[API Gateway]
-    auth[Auth Service]
-end
+### Semantic Color Coding
+- **Client / UI** (Soft Blue):
+  - Subgraph Style: `style clientLayer fill:#eff6ff,stroke:#2563eb,stroke-width:2px,color:#1e3a8a;`
+  - Node Class Def: `classDef clientNode fill:#dbeafe,stroke:#1d4ed8,color:#000000;`
+- **Backend Services / APIs** (Cyan):
+  - Subgraph Style: `style backendLayer fill:#ecfeff,stroke:#0891b2,stroke-width:2px,color:#164e63;`
+  - Node Class Def: `classDef backendNode fill:#cffafe,stroke:#0e7490,color:#000000;`
+- **AI / ML / LLM / RAG** (Purple):
+  - Subgraph Style: `style aiLayer fill:#faf5ff,stroke:#9333ea,stroke-width:2px,color:#581c87;`
+  - Node Class Def: `classDef aiNode fill:#f3e8ff,stroke:#7e22ce,color:#000000;`
+- **Infrastructure / Compute** (Orange):
+  - Subgraph Style: `style infraLayer fill:#fff7ed,stroke:#ea580c,stroke-width:2px,color:#7c2d12;`
+  - Node Class Def: `classDef infraNode fill:#ffedd5,stroke:#c2410c,color:#000000;`
+- **Databases / Storage / Cache** (Green):
+  - Subgraph Style: `style dataLayer fill:#f0fdf4,stroke:#16a34a,stroke-width:2px,color:#14532d;`
+  - Node Class Def: `classDef dataNode fill:#dcfce7,stroke:#15803d,color:#000000;`
+- **Messaging / Queues / Events** (Yellow):
+  - Subgraph Style: `style msgLayer fill:#fefce8,stroke:#ca8a04,stroke-width:2px,color:#713f12;`
+  - Node Class Def: `classDef msgNode fill:#fef9c3,stroke:#a16207,color:#000000;`
+- **Monitoring / Logging / Alerts** (Red):
+  - Subgraph Style: `style monitorLayer fill:#fef2f2,stroke:#dc2626,stroke-width:2px,color:#7f1d1d;`
+  - Node Class Def: `classDef monitorNode fill:#fee2e2,stroke:#b91c1c,color:#000000;`
+- **External / Third-party** (Gray):
+  - Subgraph Style: `style extLayer fill:#fafafa,stroke:#52525b,stroke-width:2px,color:#18181b;`
+  - Node Class Def: `classDef extNode fill:#f4f4f5,stroke:#4b5563,color:#000000;`
 
-subgraph dataLayer [Data Layer]
-    db[(PostgreSQL)]
-    cache{{Redis}}
-end
-```
+### Grouping and Layout Rules
+1. **Group Components into Layers (Subgraphs)**: Subsystems must never be floating nodes. Always organize them into logical layers using subgraphs (e.g., clientLayer, backendLayer, aiLayer, dataLayer, monitorLayer, extLayer).
+2. **Container Opacity & Background**: Subgraph backgrounds must be extremely light/low-saturation (5-10% opacity, using the fill colors defined above) and lighter than the nodes inside them to maintain visual hierarchy.
+3. **Container Border & Title Color**: The subgraph container border and title text color must match its semantic color (configured via the `style` statement at the bottom of the diagram).
+4. **Group Similar Components**: Within a layer, cluster related services together. Exclude external systems (e.g., OpenAI, Stripe, GitHub Actions) from backend containers; place them in their own `extLayer` or `infraLayer`.
+5. **AI Cluster**: Keep LLMs, vector databases, RAG engines, embeddings, and retrievers grouped in an AI Layer styled with Purple.
+6. **Visual Hierarchy & Flow**: Structure diagrams logically (usually left-to-right flow: Client -> Backend -> AI/Data, or top-down: Client -> Gateway -> Backend -> Queue/Database). Supporting systems (Monitoring, CI/CD) should sit on the sides/bottom.
+7. **Minimal Connections**: Connect containers cleanly. Avoid crossing lines or making redundant connections between individual nodes across layers. Keep connectors and arrowheads neutral (black/dark gray) and unlabeled unless indicating a specific protocol.
 
 ## Best Practices
-1. **BLOCK-BASED DESIGN**: Always organize into logical layers (Client, Gateway, Services, Data) using subgraphs. Do not just throw all nodes onto the canvas; put them in their designated blocks.
-2. **CLEAN CONNECTIONS**: Keep the diagram clean and simplified. Connect blocks logically (e.g., flow from Frontend -> Gateway -> Backend -> Data). Avoid crossing lines aggressively.
-3. **SUBGRAPH STRICT SYNTAX**: NEVER use spaces directly after the `subgraph` keyword without an ID. ALWAYS use the format `subgraph id [Visible Name with Spaces]`. 
-4. **AVOID "HUB AND SPOKE" NOODLES**: Do not draw connections from every single node in different subgraphs to a single central node (like an S3 bucket or Message Broker). This creates messy, overlapping "noodle" arrows. Instead, logically group shared resources closer to their dependents, or route connections between subgraphs rather than between every individual node.
-5. **DRASTICALLY MINIMIZE EDGE LABELS**: Avoid applying repetitive labels (like "events" or "publish") to every single edge. If many services perform the same action, leaving the edges unlabeled is much cleaner. Only label crucial or protocol-specific connections (e.g., `-->|"REST API"|`).
-6. **MINIMIZE CROSS-SUBGRAPH LINKS**: Limit drawing connections between very distant nodes lying in different subgraphs. Layouts should be modeled so data flows sequentially between adjacent subgraphs.
-7. Separate synchronous (solid arrows) from asynchronous (dotted arrows) flows.
-8. Include databases, caches, and message queues as distinct node types.
-9. Use descriptive subgraph titles (e.g., "Authentication Block" not just "Auth").
-10. Show external dependencies clearly (third-party APIs, CDNs) in their own "External" subgraph.
-11. Maximum 25-30 nodes for clarity. Consolidate repetitive nodes into a group block if it gets too large. Group tightly-coupled services together within the same subgraph.
-12. **CRITICAL SYNTAX**: ALWAYS double-quote the text inside shapes to avoid parser crashes from commas/colons/apostrophes. Example: `A["User's Data, List"]`.
-13. **NO MULTIPLE ARROWS**: Never draw multiple arrows extending in the exact same direction between two identical nodes.
-14. **RESERVED KEYWORDS**: NEVER use the word `end` as a node ID (e.g., `end[Finish]`). This is a reserved Mermaid keyword for subgraphs and will crash the renderer. Use `finish`, `done`, or `endNode` instead.
-15. **SIMPLICITY FIRST**: For all architecture requests, even complex ones, divide it into main blocks and connect the blocks in a simplified way. Don't overcomplicate the structure.
-16. **NO NAKED ANGLE BRACKETS**: NEVER use the symbols `<` or `>` inside a label. They crash the renderer. Use the written words `less than` or `greater than` instead. (e.g., `["Latency: less than 100ms"]`)
-17. **NO SUBGRAPH CONNECTIONS**: Never draw an arrow connecting directly to a `subgraph ID`. This causes massive layout stability issues in large diagrams. Always connect to the 'entry' or 'gateway' node within that subgraph.
-18. **FORCE QUOTED LABELS**: ALWAYS wrap everything inside `[" "]`. This prevents commas, hyphens, and technology dots (like .5 in X.509) from breaking the syntax.
-19. **UNIQUE NODE IDs**: Ensure all node IDs are unique across all subgraphs. Never repeat IDs.
-20. **LAYERED BLOCK DESIGN**: For deep tech stacks (like IoT), use 4-5 clearly layered subgraphs (e.g., 'Edge', 'Ingestion', 'Processing', 'App') and ensure data flows linearly from layer to layer.
+1. **SUBGRAPH STRICT SYNTAX**: Always use format `subgraph id [Visible Name with Spaces]`. Never use spaces directly after the `subgraph` keyword without an ID.
+2. **CRITICAL SYNTAX**: ALWAYS double-quote the text inside shapes to avoid parser crashes from commas/colons/apostrophes. Example: `A["User's Data, List"]`.
+3. **NO MULTIPLE ARROWS**: Never draw multiple arrows extending in the exact same direction between two identical nodes.
+4. **RESERVED KEYWORDS**: NEVER use the word `end` as a node ID. Use `finish`, `done`, or `endNode` instead.
+5. **NO SUBGRAPH CONNECTIONS**: Never draw an arrow connecting directly to a `subgraph ID`. Connect to the 'entry' or 'gateway' node within that subgraph.
+6. **UNIQUE NODE IDs**: Ensure all node IDs are unique across all subgraphs. Never repeat IDs.
 
 ## Example
 ```mermaid
 flowchart LR
-    user(((User))) --> lb([Load Balancer])
-    
-    subgraph Backend Services
-        lb --> api[API Gateway]
-        api --> auth[Auth Service]
-        api --> orders[Order Service]
-        api --> notify[Notification Service]
+    %% Subgraph containers
+    subgraph clientLayer [Client Layer]
+        userNode(((User))):::clientNode
+        webNode["Web Dashboard"]:::clientNode
     end
-    
-    subgraph Data Layer
-        auth --> authdb[(Auth DB)]
-        orders --> orderdb[(Orders DB)]
-        orders -.-> cache{{Redis Cache}}
-        notify -.-> queue(Message Queue)
+
+    subgraph backendLayer [Backend Services]
+        gatewayNode([API Gateway]):::backendNode
+        authNode["Auth Service"]:::backendNode
+        docNode["Document Processor"]:::backendNode
     end
-    
-    queue -.-> email[/Email Provider/]
+
+    subgraph aiLayer [AI & ML Pipeline]
+        ragNode["RAG Engine"]:::aiNode
+        llmNode["LLM Service"]:::aiNode
+    end
+
+    subgraph dataLayer [Data Layer]
+        dbNode[("PostgreSQL")]:::dataNode
+        cacheNode{{"Redis Cache"}}:::dataNode
+        vectorNode[("Vector DB")]:::dataNode
+    end
+
+    subgraph extLayer [External Services]
+        stripeNode[/Stripe API/]:::extNode
+    end
+
+    %% Node connections
+    userNode --> webNode
+    webNode --> gatewayNode
+    gatewayNode --> authNode
+    gatewayNode --> docNode
+    authNode --> dbNode
+    docNode --> ragNode
+    docNode -.-> cacheNode
+    ragNode --> vectorNode
+    ragNode --> llmNode
+    docNode --> stripeNode
+
+    %% Subgraph Container Styles
+    style clientLayer fill:#eff6ff,stroke:#2563eb,stroke-width:2px,color:#1e3a8a;
+    style backendLayer fill:#ecfeff,stroke:#0891b2,stroke-width:2px,color:#164e63;
+    style aiLayer fill:#faf5ff,stroke:#9333ea,stroke-width:2px,color:#581c87;
+    style dataLayer fill:#f0fdf4,stroke:#16a34a,stroke-width:2px,color:#14532d;
+    style extLayer fill:#fafafa,stroke:#52525b,stroke-width:2px,color:#18181b;
+
+    %% Node Class Definitions
+    classDef clientNode fill:#dbeafe,stroke:#1d4ed8,color:#000000;
+    classDef backendNode fill:#cffafe,stroke:#0e7490,color:#000000;
+    classDef aiNode fill:#f3e8ff,stroke:#7e22ce,color:#000000;
+    classDef dataNode fill:#dcfce7,stroke:#15803d,color:#000000;
+    classDef extNode fill:#f4f4f5,stroke:#4b5563,color:#000000;
 ```
 
 ## Common Patterns
-- **3-Tier**: Client → Server → Database
-- **Microservices**: Gateway → Service Mesh → Individual Services → Databases
-- **Event-Driven**: Producer → Event Bus → Consumers
-- **Serverless**: API Gateway → Lambda Functions → DynamoDB
+- **3-Tier**: Client Layer → Backend Services → Data Layer
+- **Microservices**: clientLayer → gatewayNode → backendLayer (services) → dataLayer
+- **Event-Driven**: Producers → Event Broker (messaging) → Consumers (backend/data)

@@ -21,7 +21,9 @@ export const CLOUD_PROVIDERS = {
   invidia: {
     name: 'Invidia',
     models: [
-      { id: 'gemma-4-31b-it', label: 'Gemma 4 31B IT', desc: 'Invidia hosted Gemma 4 31B Instruct.', suggestModel: 'google/gemma-4-31b-it', generateModel: 'google/gemma-4-31b-it' }
+      { id: 'gemma-3n-e4b-it', label: 'Gemma 3 Instruct (e4b)', desc: 'Fast and smart Gemma 3 model. Works perfectly.', suggestModel: 'google/gemma-3n-e4b-it', generateModel: 'google/gemma-3n-e4b-it' },
+      { id: 'gemma-2-2b-it', label: 'Gemma 2 2B IT', desc: 'Lightweight Gemma 2 model. Very fast.', suggestModel: 'google/gemma-2-2b-it', generateModel: 'google/gemma-2-2b-it' },
+      { id: 'gemma-4-31b-it', label: 'Gemma 4 31B IT', desc: 'Invidia hosted Gemma 4 31B Instruct. (Currently experiencing timeouts on NVIDIA servers)', suggestModel: 'google/gemma-4-31b-it', generateModel: 'google/gemma-4-31b-it' }
     ]
   }
 };
@@ -343,7 +345,36 @@ export async function generateDiagram(prompt, diagramType, signal) {
  * Returns { mermaid_code: string } or null if free tier.
  */
 export async function refineDiagram(prompt, mermaidCode, diagramType, signal) {
-  const systemPrompt = `You are an expert diagram editor. Modify the existing Mermaid JS code based on the user's instruction.\n\nCRITICAL:\n- Output ONLY the complete updated Mermaid JS code.\n- Do NOT wrap in markdown code blocks.\n- PRESERVE existing structure unless explicitly asked to change it.\n- ALWAYS wrap node text in double quotes.`;
+  let systemPrompt = `You are an expert diagram editor. Modify the existing Mermaid JS code based on the user's instruction.\n\nCRITICAL:\n- Output ONLY the complete updated Mermaid JS code.\n- Do NOT wrap in markdown code blocks.\n- PRESERVE existing structure unless explicitly asked to change it.\n- ALWAYS wrap node text in double quotes.`;
+  if (diagramType === 'flowchart') {
+    systemPrompt += `\n- When editing or adding colors, you MUST apply semantic colors using classDef definitions:
+  * greenNode (Start, End, Success, Completion): fill:#e2f0d9, stroke:#385723, color:#000000
+  * blueNode (Process / Action): fill:#ddebf7, stroke:#1f4e78, color:#000000
+  * yellowNode (Decision): fill:#fff2cc, stroke:#7f6000, color:#000000
+  * redNode (Errors, Failures, Rollbacks, Cancellations, Escalations): fill:#fce4d6, stroke:#c65911, color:#000000
+  * goldNode (Logging, Learning, Analytics, Auditing): fill:#fff2cc, stroke:#d68a00, color:#000000
+Apply them to nodes as 'nodeId:::className' and declare the classDefs at the bottom of the diagram.`;
+  } else if (diagramType === 'architecture') {
+    systemPrompt += `\n- When editing or adding colors/subgraphs, group nodes into logical layers using subgraphs and style the subgraphs using style statements at the bottom:
+  * clientLayer: fill:#eff6ff, stroke:#2563eb, color:#1e3a8a
+  * backendLayer: fill:#ecfeff, stroke:#0891b2, color:#164e63
+  * aiLayer: fill:#faf5ff, stroke:#9333ea, color:#581c87
+  * infraLayer: fill:#fff7ed, stroke:#ea580c, color:#7c2d12
+  * dataLayer: fill:#f0fdf4, stroke:#16a34a, color:#14532d
+  * msgLayer: fill:#fefce8, stroke:#ca8a04, color:#713f12
+  * monitorLayer: fill:#fef2f2, stroke:#dc2626, color:#7f1d1d
+  * extLayer: fill:#fafafa, stroke:#52525b, color:#18181b
+Style individual nodes using classDefs:
+  * clientNode: fill:#dbeafe, stroke:#1d4ed8, color:#000000
+  * backendNode: fill:#cffafe, stroke:#0e7490, color:#000000
+  * aiNode: fill:#f3e8ff, stroke:#7e22ce, color:#000000
+  * infraNode: fill:#ffedd5, stroke:#c2410c, color:#000000
+  * dataNode: fill:#dcfce7, stroke:#15803d, color:#000000
+  * msgNode: fill:#fef9c3, stroke:#a16207, color:#000000
+  * monitorNode: fill:#fee2e2, stroke:#b91c1c, color:#000000
+  * extNode: fill:#f4f4f5, stroke:#4b5563, color:#000000
+Apply node classes as 'nodeId:::className' and declare classDefs at the bottom.`;
+  }
   const userMsg = `CURRENT MERMAID CODE:\n${mermaidCode}\n\nREFINEMENT INSTRUCTION: ${prompt}\n\nOutput ONLY the updated Mermaid JS code:`;
   const result = await callModel('generate', systemPrompt, userMsg, { temperature: 0.2, maxTokens: 2500, signal });
   if (result === null) return null;
@@ -551,8 +582,8 @@ export async function agentChat(systemPrompt, userMessage, signal, imageBase64) 
 function buildGeneratePrompt(diagramType) {
   const shared = `- Output ONLY valid Mermaid JS code.\n- Do NOT wrap in markdown code blocks (no \`\`\`mermaid).\n- Do NOT include any explanation before/after the code.\n- ALWAYS wrap node text in double quotes.\n`;
   const prompts = {
-    flowchart: `You are an expert process designer generating Mermaid JS diagrams.\n\nCRITICAL INSTRUCTIONS:\n${shared}- Start with 'flowchart TD'.\n- SIMPLICITY FIRST: Keep diagrams CLEAN. Focus on the happy path.\n- Use correct shapes: diamonds for decisions, stadiums for start/end.\n- Keep 4-10 nodes max.\n- Node IDs MUST be simple alphanumeric strings.`,
-    architecture: `You are an expert systems architect generating Mermaid JS diagrams.\n\nCRITICAL INSTRUCTIONS:\n${shared}- Start with 'flowchart LR' or 'flowchart TD'.\n- Divide into clear subgraphs (Frontend, Backend, Data Layer).\n- Max 3-4 nodes per subgraph.\n- Use cylinders for databases, hexagons for caches, stadiums for gateways.\n- Label edges with protocols.\n- Keep 4-15 nodes max.`,
+    flowchart: `You are an expert process designer generating Mermaid JS diagrams.\n\nCRITICAL INSTRUCTIONS:\n${shared}- Start with 'flowchart TD'.\n- SIMPLICITY FIRST: Keep diagrams CLEAN. Focus on the happy path.\n- Use correct shapes: diamonds for decisions, stadiums for start/end.\n- Keep 4-10 nodes max.\n- Node IDs MUST be simple alphanumeric strings.\n- IMPORTANT: You MUST apply semantic coloring to every node in the flowchart using the following class definitions and apply them using 'nodeId:::className' syntax:\n  * greenNode (Start, End, Success, Completion): fill:#e2f0d9, stroke:#385723, color:#000000\n  * blueNode (Process / Action): fill:#ddebf7, stroke:#1f4e78, color:#000000\n  * yellowNode (Decision): fill:#fff2cc, stroke:#7f6000, color:#000000\n  * redNode (Errors, Failures, Rollbacks, Cancellations, Escalations): fill:#fce4d6, stroke:#c65911, color:#000000\n  * goldNode (Logging, Learning, Analytics, Auditing): fill:#fff2cc, stroke:#d68a00, color:#000000\n- Define these classDefs at the bottom of the diagram, for example:\n  classDef greenNode fill:#e2f0d9,stroke:#385723,color:#000000;\n  classDef blueNode fill:#ddebf7,stroke:#1f4e78,color:#000000;\n  classDef yellowNode fill:#fff2cc,stroke:#7f6000,color:#000000;\n  classDef redNode fill:#fce4d6,stroke:#c65911,color:#000000;\n  classDef goldNode fill:#fff2cc,stroke:#d68a00,color:#000000;`,
+    architecture: `You are an expert systems architect generating Mermaid JS diagrams.\n\nCRITICAL INSTRUCTIONS:\n${shared}- Start with 'flowchart LR' or 'flowchart TD'.\n- Organize nodes into logical layers using subgraphs (e.g., clientLayer, backendLayer, aiLayer, dataLayer, monitorLayer, extLayer).\n- Apply semantic coloring to subgraphs using 'style subgraphId fill:#HEX,stroke:#HEX,stroke-width:2px,color:#HEX' statements at the bottom.\n- Apply semantic coloring to nodes using classDefs and the 'nodeId:::className' syntax:\n  * clientNode (Client / UI): fill:#dbeafe, stroke:#1d4ed8, color:#000000 (subgraph clientLayer: fill:#eff6ff, stroke:#2563eb, color:#1e3a8a)\n  * backendNode (Backend Services / APIs): fill:#cffafe, stroke:#0e7490, color:#000000 (subgraph backendLayer: fill:#ecfeff, stroke:#0891b2, color:#164e63)\n  * aiNode (AI / ML / LLM / RAG): fill:#f3e8ff, stroke:#7e22ce, color:#000000 (subgraph aiLayer: fill:#faf5ff, stroke:#9333ea, color:#581c87)\n  * infraNode (Infrastructure / Compute): fill:#ffedd5, stroke:#c2410c, color:#000000 (subgraph infraLayer: fill:#fff7ed, stroke:#ea580c, color:#7c2d12)\n  * dataNode (Databases / Storage / Cache): fill:#dcfce7, stroke:#15803d, color:#000000 (subgraph dataLayer: fill:#f0fdf4, stroke:#16a34a, color:#14532d)\n  * msgNode (Messaging / Queues / Events): fill:#fef9c3, stroke:#a16207, color:#000000 (subgraph msgLayer: fill:#fefce8, stroke:#ca8a04, color:#713f12)\n  * monitorNode (Monitoring / Logging / Alerts): fill:#fee2e2, stroke:#b91c1c, color:#000000 (subgraph monitorLayer: fill:#fef2f2, stroke:#dc2626, color:#7f1d1d)\n  * extNode (External / Third-party): fill:#f4f4f5, stroke:#4b5563, color:#000000 (subgraph extLayer: fill:#fafafa, stroke:#52525b, color:#18181b)\n- Define these classDefs at the bottom of the diagram.`,
     sequence: `You are an expert generating Mermaid JS sequence diagrams.\n\nCRITICAL INSTRUCTIONS:\n${shared}- First line MUST be 'sequenceDiagram'.\n- Declare ALL participants at top.\n- Aliases MUST be simple alphanumeric.\n- Keep 3-6 participants max.\n- Message text must NOT contain colons or angle brackets.\n- Activations (+/-) must be balanced: if a participant is activated with '+' inside an alt, else, par, or loop block, it MUST be deactivated with '-' before that block ends. Never leave activations open at the end of a block/diagram.\n- Parallel block titles MUST use brackets: 'par [Title]' (not 'par Title').`,
     erDiagram: `You are an expert database architect generating Mermaid JS ER diagrams.\n\nCRITICAL INSTRUCTIONS:\n${shared}- First line MUST be 'erDiagram'.\n- Entity names MUST be single PascalCase words.\n- 3-6 attributes per entity.\n- Every relationship MUST have a quoted label.\n- Use proper cardinality notation.`,
     gantt: `You are an expert generating Mermaid JS Gantt charts.\n\nCRITICAL INSTRUCTIONS:\n${shared}- First line MUST be 'gantt'.\n- Include 'dateFormat YYYY-MM-DD'.\n- Group tasks into 3-5 sections.\n- Every task MUST have a unique alphanumeric ID.\n- Keep 10-25 tasks for readability.`,
@@ -584,6 +615,7 @@ function cleanMermaidOutput(content, diagramType) {
   if (['flowchart', 'architecture'].includes(diagramType)) {
     content = content.replace(/(^|\n)end(\s*[-=]>|[([{])/g, '$1finish$2');
     content = content.replace(/([([{])end([)\]}])/g, '$1finish$2');
+    content = content.replace(/(?<!:)::([a-zA-Z_]\w*)/g, ':::$1');
   }
 
   // Sequence diagram activation auto-healing
