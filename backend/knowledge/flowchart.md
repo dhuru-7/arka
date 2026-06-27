@@ -3,8 +3,11 @@
 ## Syntax
 - Always start with `flowchart TD` (top-down) or `flowchart LR` (left-right).
 - Use `TD` for vertical flows, `LR` for horizontal flows.
+- **STRICT CODE-ONLY RULE**: The response must contain ONLY the raw Mermaid diagram syntax. Do NOT wrap the diagram in markdown code block fences (e.g., do not use ` ```mermaid ` or ` ``` `). Do NOT include any introductory text, concluding remarks, explanations, conversational comments, or warnings.
 
 ## Node Shape Standards
+- **STRICT NODE ID RULE**: Every shape in the diagram must have an explicit, alphanumeric node ID preceding its shape definition (e.g., use `startNode([Start])` or `decisionNode{Decision}`). Do NOT output bare shapes (like `([Start])` or `{Decision}`) without a preceding node ID.
+- Node IDs must be simple contiguous alphanumeric strings (e.g. `startNode`, `checkPass`). NEVER use spaces, hyphens, or special characters in Node IDs.
 - **Rectangle** `[text]` → Process / Action step
 - **Rounded Rectangle** `(text)` → Start / End / Terminal
 - **Diamond** `{text}` → Decision / Conditional

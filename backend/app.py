@@ -46,7 +46,7 @@ def agent_from_request(data):
     
     if not provider or provider == 'free':
         provider = 'sarvam'
-        model = 'sarvam-105b'
+        model = 'sarvam-30b'
         api_key = SARVAM_API_KEY
         if not api_key:
             raise RuntimeError("Sarvam API key (free tier) is not configured on the server. Please configure your own API key in Settings.")
@@ -234,7 +234,7 @@ def agent_chat():
     provider = data.get('provider')
     if not provider or provider == 'free':
         data['provider'] = 'sarvam'
-        data['model'] = 'sarvam-105b'
+        data['model'] = 'sarvam-30b'
         data['apiKey'] = SARVAM_API_KEY
 
     system_prompt = data.get('system_prompt', '')
@@ -463,7 +463,7 @@ def generate_diagram():
         )
     
     payload = {
-        "model": "sarvam-105b",
+        "model": "sarvam-30b",
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": f"Create a {diagram_type} diagram for: {user_prompt}"}
@@ -824,7 +824,7 @@ def generate_byok():
     request body and forwarded to the provider (Sarvam or Groq) — never stored on the server."""
     data = request.json
     user_api_key = data.get('apiKey', '')
-    model = data.get('model', 'sarvam-105b')
+    model = data.get('model', 'sarvam-30b')
     provider = data.get('provider', 'sarvam')
     system_prompt = data.get('systemPrompt', '')
     user_message = data.get('userMessage', '')
