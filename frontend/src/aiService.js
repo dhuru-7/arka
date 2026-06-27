@@ -62,7 +62,7 @@ export function saveSettings(settings) {
 function resolveModels(purpose) {
   const s = getSettings();
   if (s.providerType === 'free' || !s.providerType) {
-    return { provider: 'free', model: 'sarvam-105b', apiKey: '' };
+    return { provider: 'free', model: 'sarvam-30b', apiKey: '' };
   }
   if (s.providerType === 'local') {
     if (!s.localModel) throw new Error('Select and save a local AI model in Settings.');
