@@ -1099,14 +1099,6 @@ User's latest message: ${userText}`;
       }
       if (!pathEl) return;
 
-      // Bind onclick on the original path element as well (direct clicks)
-      pathEl.style.cursor = 'pointer';
-      pathEl.onclick = (e) => {
-        if (activeTool !== 'select') return;
-        e.stopPropagation();
-        handleEdgeClick(pathEl, e);
-      };
-
       // Avoid duplicate overlays — check only the immediate next sibling
       // (parentNode.querySelector would match the first overlay for ALL sibling paths)
       const nextSib = pathEl.nextElementSibling;
@@ -1116,6 +1108,8 @@ User's latest message: ${userText}`;
           e.stopPropagation();
           handleEdgeClick(pathEl, e);
         };
+        nextSib.onmouseenter = () => pathEl.classList.add('edge-hover');
+        nextSib.onmouseleave = () => pathEl.classList.remove('edge-hover');
         return;
       }
 
