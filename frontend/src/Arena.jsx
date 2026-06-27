@@ -695,6 +695,21 @@ User's latest message: ${userText}`;
   const [edgeStyle, setEdgeStyle] = useState('solid');
   const [edgeColor, setEdgeColor] = useState('');
 
+  // Custom colors from color picker (persisted in localStorage)
+  const [customColors, setCustomColors] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('arka_custom_colors') || '[]');
+    } catch { return []; }
+  });
+  const addCustomColor = (color) => {
+    if (!color || NODE_COLORS.includes(color)) return;
+    setCustomColors(prev => {
+      const deduped = [color, ...prev.filter(c => c !== color)].slice(0, 10);
+      localStorage.setItem('arka_custom_colors', JSON.stringify(deduped));
+      return deduped;
+    });
+  };
+
   // Code editor
   const [showCodeEditor, setShowCodeEditor] = useState(false);
   const [codeEditorValue, setCodeEditorValue] = useState('');
@@ -1129,6 +1144,10 @@ User's latest message: ${userText}`;
         e.stopPropagation();
         handleEdgeClick(pathEl, e);
       };
+
+      // Forward hover from invisible overlay to visible path for highlight effect
+      overlay.onmouseenter = () => pathEl.classList.add('edge-hover');
+      overlay.onmouseleave = () => pathEl.classList.remove('edge-hover');
 
       pathEl.parentNode.insertBefore(overlay, pathEl.nextSibling);
     });
@@ -1568,12 +1587,57 @@ User's latest message: ${userText}`;
 
   const getExistingNodeStyles = (nodeId) => {
     const escapedId = nodeId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    
+    // 1. Try inline `style nodeId fill:...,stroke:...`
     const styleRegex = new RegExp(`(?:^|\\n)\\s*style\\s+${escapedId}\\s+([^\\n]+)`);
     const match = mermaidCode.match(styleRegex);
-    if (!match) return { fill: '', stroke: '' };
+    if (match) {
+      const { fill, stroke } = parseStyleStr(match[1].trim());
+      if (fill || stroke) return { fill, stroke };
+    }
 
-    const styleStr = match[1].trim();
-    const pairs = styleStr.split(',');
+    // 2. Try classDef: find which class the node uses (:::className), then parse classDef
+    const classUsageRegex = new RegExp(`${escapedId}[^\\n]*:::(\\w+)`);
+    const classUsage = mermaidCode.match(classUsageRegex);
+    if (classUsage) {
+      const className = classUsage[1];
+      const classDefRegex = new RegExp(`classDef\\s+${className}\\s+([^\\n]+)`);
+      const classDefMatch = mermaidCode.match(classDefRegex);
+      if (classDefMatch) {
+        const { fill, stroke } = parseStyleStr(classDefMatch[1].trim());
+        if (fill || stroke) return { fill, stroke };
+      }
+    }
+
+    // 3. Fallback: read computed styles from the DOM element
+    if (canvasRef.current) {
+      const domNode = canvasRef.current.querySelector(`[id*="flowchart-${nodeId}-"]`) ||
+                      canvasRef.current.querySelector(`#${CSS.escape(nodeId)}`);
+      if (domNode) {
+        const shape = domNode.querySelector('rect, polygon, circle, ellipse, path');
+        if (shape) {
+          const computed = window.getComputedStyle(shape);
+          const domFill = computed.fill;
+          const domStroke = computed.stroke;
+          // Convert rgb(...) to hex for the color picker
+          const rgbToHex = (rgb) => {
+            const m = rgb.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+            if (!m) return '';
+            return '#' + [m[1], m[2], m[3]].map(x => parseInt(x).toString(16).padStart(2, '0')).join('');
+          };
+          const fill = domFill && domFill !== 'none' && domFill !== 'rgb(0, 0, 0)' ? rgbToHex(domFill) || domFill : '';
+          const stroke = domStroke && domStroke !== 'none' ? rgbToHex(domStroke) || domStroke : '';
+          if (fill || stroke) return { fill, stroke };
+        }
+      }
+    }
+
+    return { fill: '', stroke: '' };
+  };
+
+  // Helper to parse "fill:#abc,stroke:#def,color:#000" style strings
+  const parseStyleStr = (styleStr) => {
+    const pairs = styleStr.replace(/;/g, ',').split(',');
     let fill = '';
     let stroke = '';
     for (const pair of pairs) {
@@ -1582,7 +1646,7 @@ User's latest message: ${userText}`;
         const key = parts[0].trim();
         const val = parts.slice(1).join(':').replace(/;$/, '').trim();
         if (key === 'fill') fill = val;
-        if (key === 'stroke') stroke = val;
+        if (key === 'stroke' && key !== 'stroke-width') stroke = val;
       }
     }
     return { fill, stroke };
@@ -1698,6 +1762,35 @@ User's latest message: ${userText}`;
           if (styleMatch) {
             color = styleMatch[1];
           }
+        }
+      }
+    }
+
+    // DOM fallback: detect edge style from CSS classes
+    if (style === 'solid') {
+      const parentGroup = edge.closest('.edgePath, .edgePaths > g') || edge;
+      const classes = (parentGroup.className?.baseVal || '') + ' ' + (edge.className?.baseVal || '');
+      if (classes.includes('edge-pattern-dotted') || classes.includes('edge-pattern-dashed')) {
+        style = 'dotted';
+      } else if (classes.includes('edge-thickness-thick')) {
+        style = 'thick';
+      }
+    }
+
+    // DOM fallback: detect edge color from computed stroke
+    if (!color) {
+      const computed = window.getComputedStyle(edge);
+      const domStroke = computed.stroke;
+      if (domStroke && domStroke !== 'none') {
+        const rgbToHex = (rgb) => {
+          const m = rgb.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+          if (!m) return '';
+          return '#' + [m[1], m[2], m[3]].map(x => parseInt(x).toString(16).padStart(2, '0')).join('');
+        };
+        const hex = rgbToHex(domStroke) || domStroke;
+        // Only use if it's not the default gray/black
+        if (hex && hex !== '#808080' && hex !== '#333333' && hex !== '#000000') {
+          color = hex;
         }
       }
     }
@@ -1831,20 +1924,52 @@ User's latest message: ${userText}`;
 
     if (targetIndex >= 0) {
       const line = lines[targetIndex];
-      // More robust replacement: target exactly the node ID and its trailing bracket sequence
-      // This avoids partial mid-word matches and ensures we replace the ENTIRE bracketed label
-      const regex = new RegExp(`(^|\\s|-->|---|==>|\\|\\s*)${escapedId}(\\s*[\\(\\[\\{]+.*?[\\)\\]\\}]+)`, 'g');
-
-      lines[targetIndex] = line.replace(regex, (match, prefix, brackets) => {
-        return `${prefix}${nodeId}${newWrap}`;
-      });
-
-      // Secondary check: if the line was just the ID with no brackets, replace that too
-      if (lines[targetIndex] === line) {
-        const flatRegex = new RegExp(`(^|\\s|-->|---|==>)(${escapedId})(\\s*|$)`, 'g');
-        lines[targetIndex] = line.replace(flatRegex, (match, prefix, id, suffix) => {
-          return `${prefix}${nodeId}${newWrap}${suffix}`;
-        });
+      
+      // Find the EXACT position of nodeId followed by bracket(s) in the line
+      // Use word-boundary-aware search to avoid partial matches
+      const idSearchRegex = new RegExp(`(?:^|\\s|-->|---|==>)\\s*(${escapedId})\\s*([\\(\\[\\{])`, 'g');
+      let idMatch;
+      let replaced = false;
+      
+      while ((idMatch = idSearchRegex.exec(line)) !== null) {
+        const idStart = idMatch.index + idMatch[0].indexOf(idMatch[1]);
+        const bracketStart = idMatch.index + idMatch[0].lastIndexOf(idMatch[2]);
+        
+        // Find the matching closing bracket(s) using a simple bracket counter
+        const openChar = line[bracketStart];
+        const bracketPairs = { '(': ')', '[': ']', '{': '}' };
+        let depth = 0;
+        let bracketEnd = bracketStart;
+        
+        for (let j = bracketStart; j < line.length; j++) {
+          const ch = line[j];
+          if (ch === '(' || ch === '[' || ch === '{') depth++;
+          if (ch === ')' || ch === ']' || ch === '}') depth--;
+          if (depth === 0) {
+            bracketEnd = j;
+            break;
+          }
+        }
+        
+        if (bracketEnd > bracketStart) {
+          // Replace just the nodeId + brackets portion, preserving everything before and after
+          const before = line.substring(0, idStart);
+          const after = line.substring(bracketEnd + 1);
+          lines[targetIndex] = before + nodeId + newWrap + after;
+          replaced = true;
+          break; // Only replace the first occurrence
+        }
+      }
+      
+      // Fallback: if the line was just the bare ID with no brackets
+      if (!replaced && lines[targetIndex] === line) {
+        const bareIdRegex = new RegExp(`(^|\\s|-->|---|==>)(${escapedId})(\\s*$|\\s+-->|\\s+---|\\s+==>)`, '');
+        const bareMatch = line.match(bareIdRegex);
+        if (bareMatch) {
+          const before = line.substring(0, bareMatch.index) + bareMatch[1];
+          const after = bareMatch[3] + line.substring(bareMatch.index + bareMatch[0].length);
+          lines[targetIndex] = before + nodeId + newWrap + after;
+        }
       }
     } else {
       // Node was used but never explicitly defined with a shape, so we append the definition
@@ -1854,11 +1979,17 @@ User's latest message: ${userText}`;
     let newCode = lines.join('\n');
 
     // Handle colors
-    // First, always remove existing style line for this node to avoid duplicate/stale lines
-    const stylePattern = new RegExp(`\\n\\s*style\\s+${escapedId}\\s+.*`, 'g');
-    newCode = newCode.replace(stylePattern, '');
-    const stylePatternStart = new RegExp(`^style\\s+${escapedId}\\s+.*\\n?`, 'g');
-    newCode = newCode.replace(stylePatternStart, '');
+    // First, always remove ALL existing style lines for this node to avoid duplicate/stale lines
+    // Use a greedy approach: remove any line that is purely a style declaration for this node
+    const styleLineRegex = new RegExp(`^\\s*style\\s+${escapedId}\\s+[^\\n]*$`, 'gm');
+    newCode = newCode.replace(styleLineRegex, '');
+
+    // Normalize: collapse multiple consecutive blank lines into a single blank line
+    newCode = newCode.replace(/\n{3,}/g, '\n\n');
+    // Remove trailing whitespace on each line
+    newCode = newCode.split('\n').map(l => l.trimEnd()).join('\n');
+    // Ensure no trailing blank lines at end
+    newCode = newCode.trimEnd();
 
     const parts = [];
     if (editColor && editColor !== 'none') {
@@ -1902,7 +2033,7 @@ User's latest message: ${userText}`;
     }
 
     if (parts.length > 0) {
-      newCode = newCode.trimEnd() + `\n    style ${nodeId} ${parts.join(',')}`;
+      newCode = newCode + `\n    style ${nodeId} ${parts.join(',')}`;
     }
 
     if (newCode !== mermaidCode) pushHistory(newCode);
@@ -2476,9 +2607,14 @@ User's latest message: ${userText}`;
                       <button key={c} className={`color-swatch ${editColor === c ? 'active' : ''}`}
                         style={{ background: c }} onClick={() => setEditColor(editColor === c ? '' : c)} />
                     ))}
+                    {customColors.filter(c => !NODE_COLORS.includes(c)).map(c => (
+                      <button key={c} className={`color-swatch ${editColor === c ? 'active' : ''}`}
+                        style={{ background: c }} onClick={() => setEditColor(editColor === c ? '' : c)} />
+                    ))}
                     <label className="color-plus-swatch">
                       <PlusIcon size={12} />
-                      <input type="color" className="custom-color-input" onChange={e => setEditColor(e.target.value)} />
+                      <input type="color" className="custom-color-input" value={customColors[0] || '#000000'}
+                        onChange={e => { setEditColor(e.target.value); addCustomColor(e.target.value); }} />
                     </label>
                   </div>
                 </div>
@@ -2489,9 +2625,14 @@ User's latest message: ${userText}`;
                       <button key={c} className={`color-swatch ${editStrokeColor === c ? 'active' : ''}`}
                         style={{ background: c }} onClick={() => setEditStrokeColor(editStrokeColor === c ? '' : c)} />
                     ))}
+                    {customColors.filter(c => !NODE_COLORS.includes(c)).map(c => (
+                      <button key={c} className={`color-swatch ${editStrokeColor === c ? 'active' : ''}`}
+                        style={{ background: c }} onClick={() => setEditStrokeColor(editStrokeColor === c ? '' : c)} />
+                    ))}
                     <label className="color-plus-swatch">
                       <PlusIcon size={12} />
-                      <input type="color" className="custom-color-input" onChange={e => setEditStrokeColor(e.target.value)} />
+                      <input type="color" className="custom-color-input" value={customColors[0] || '#000000'}
+                        onChange={e => { setEditStrokeColor(e.target.value); addCustomColor(e.target.value); }} />
                     </label>
                   </div>
                 </div>
@@ -2584,9 +2725,14 @@ User's latest message: ${userText}`;
                   <button key={c} className={`color-swatch ${edgeColor === c ? 'active' : ''}`}
                     style={{ background: c }} onClick={() => setEdgeColor(edgeColor === c ? '' : c)} />
                 ))}
+                {customColors.filter(c => !NODE_COLORS.includes(c)).map(c => (
+                  <button key={c} className={`color-swatch ${edgeColor === c ? 'active' : ''}`}
+                    style={{ background: c }} onClick={() => setEdgeColor(edgeColor === c ? '' : c)} />
+                ))}
                 <label className="color-plus-swatch">
                   <PlusIcon size={12} />
-                  <input type="color" className="custom-color-input" onChange={e => setEdgeColor(e.target.value)} />
+                  <input type="color" className="custom-color-input" value={customColors[0] || '#000000'}
+                    onChange={e => { setEdgeColor(e.target.value); addCustomColor(e.target.value); }} />
                 </label>
               </div>
             </div>

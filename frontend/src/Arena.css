@@ -104,18 +104,10 @@
 }
 /* Selected edge paths and their arrowheads (green highlight) */
 .mermaid-render-target path.edge-selected,
-.mermaid-render-target .edge-selected path:not(.edge-hitbox-overlay) {
+.mermaid-render-target .edge-selected path {
   stroke: #10b981 !important;
   stroke-width: 4px !important;
   filter: drop-shadow(0 0 12px rgba(16, 185, 129, 0.85)) !important;
-}
-/* Ensure the transparent hitbox overlay is never visible and always interactive */
-.mermaid-render-target .edge-hitbox-overlay {
-  stroke: transparent !important;
-  stroke-width: 11px !important;
-  opacity: 0 !important;
-  fill: none !important;
-  pointer-events: stroke !important;
 }
 .mermaid-render-target .edge-selected .arrowheadPath,
 .mermaid-render-target path.edge-selected ~ .arrowheadPath {
@@ -138,18 +130,33 @@
   stroke-width: 3.5px !important;
 }
 
-/* Interactive Hover: grow a little bold and add a cyan glow to indicate clickability */
+/* Interactive Hover: bold stroke + vibrant glow to clearly indicate clickability */
+.mermaid-render-target .edgePaths path,
+.mermaid-render-target path.flowchart-link {
+  transition: stroke-width 0.15s ease, filter 0.15s ease;
+}
 .mermaid-render-target .edgePaths path:hover,
-.mermaid-render-target path.flowchart-link:hover {
-  stroke-width: 3px !important;
+.mermaid-render-target path.flowchart-link:hover,
+.mermaid-render-target .edge-hitbox-overlay:hover ~ path.flowchart-link,
+.mermaid-render-target .edge-hitbox-overlay:hover + path.flowchart-link {
+  stroke-width: 4px !important;
   cursor: pointer;
-  filter: drop-shadow(0 0 6px rgba(6, 182, 212, 0.6)) !important;
+  filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.75)) drop-shadow(0 0 3px rgba(6, 182, 212, 0.4)) !important;
+}
+/* Reverse sibling order: overlay is inserted AFTER the path, so we also style path when prev-sibling overlay is hovered */
+.mermaid-render-target path.flowchart-link:has(+ .edge-hitbox-overlay:hover) {
+  stroke-width: 4px !important;
+  filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.75)) drop-shadow(0 0 3px rgba(6, 182, 212, 0.4)) !important;
 }
 .mermaid-render-target .edgePaths path.edge-thickness-thick:hover,
 .mermaid-render-target path.flowchart-link.edge-thickness-thick:hover {
-  stroke-width: 5px !important;
+  stroke-width: 6px !important;
 }
-
+/* JS-forwarded hover class (from invisible overlay hitbox → visible path) */
+.mermaid-render-target path.edge-hover {
+  stroke-width: 4px !important;
+  filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.75)) drop-shadow(0 0 3px rgba(6, 182, 212, 0.4)) !important;
+}
 
 .render-error-badge { position: absolute; bottom: 5rem; left: 50%; transform: translateX(-50%); background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; padding: 0.5rem 1rem; border-radius: 99rem; font-size: 0.76rem; font-weight: 600; z-index: 15; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
 .arena-loader-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; z-index: 5; background: #f5f5f5; }
