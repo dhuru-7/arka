@@ -346,6 +346,10 @@ export async function generateDiagram(prompt, diagramType, signal) {
  */
 export async function refineDiagram(prompt, mermaidCode, diagramType, signal) {
   let systemPrompt = `You are an expert diagram editor. Modify the existing Mermaid JS code based on the user's instruction.\n\nCRITICAL:\n- Output ONLY the complete updated Mermaid JS code.\n- Do NOT wrap in markdown code blocks.\n- PRESERVE existing structure unless explicitly asked to change it.\n- ALWAYS wrap node text in double quotes.`;
+  systemPrompt += `\n- Do NOT include explanations, plans, notes, apologies, or reasoning.
+- If the instruction asks for a change, the returned Mermaid code must implement a visible change.
+- Do not refuse normal Mermaid edits. If a request is partly unsupported, make the closest supported code change.
+- Keep the original diagram type and return one complete Mermaid document.`;
   if (diagramType === 'flowchart') {
     systemPrompt += `\n- When editing or adding colors, you MUST apply semantic colors using classDef definitions:
   * greenNode (Start, End, Success, Completion): fill:#e2f0d9, stroke:#385723, color:#000000
@@ -376,7 +380,7 @@ Style individual nodes using classDefs:
 Apply node classes as 'nodeId:::className' and declare classDefs at the bottom.`;
   }
   const userMsg = `CURRENT MERMAID CODE:\n${mermaidCode}\n\nREFINEMENT INSTRUCTION: ${prompt}\n\nOutput ONLY the updated Mermaid JS code:`;
-  const result = await callModel('generate', systemPrompt, userMsg, { temperature: 0.2, maxTokens: 2500, signal });
+  const result = await callModel('generate', systemPrompt, userMsg, { temperature: 0.15, maxTokens: 3600, signal });
   if (result === null) return null;
   const cleaned = cleanMermaidOutput(result, diagramType);
   return { mermaid_code: cleaned, diagram_type: diagramType };
@@ -552,7 +556,7 @@ export async function agentChat(systemPrompt, userMessage, signal, imageBase64) 
       systemPrompt,
       userMessage,
       0.3,
-      1500,
+      650,
       signal,
       modelHasVision ? imageBase64 : null
     );
@@ -595,7 +599,7 @@ function buildGeneratePrompt(diagramType) {
 
 // ─── Mermaid output cleaner (mirrors backend logic) ───
 
-function cleanMermaidOutput(content, diagramType) {
+export function cleanMermaidOutput(content, diagramType) {
   // Remove markdown code blocks
   content = content.replace(/^```(?:mermaid)?\s*\n?/gm, '');
   content = content.replace(/\n?```\s*$/gm, '');
@@ -613,9 +617,11 @@ function cleanMermaidOutput(content, diagramType) {
 
   // Replace reserved 'end' keyword in flowcharts
   if (['flowchart', 'architecture'].includes(diagramType)) {
+    content = restoreFlowchartLineBreaks(content);
     content = content.replace(/(^|\n)end(\s*[-=]>|[([{])/g, '$1finish$2');
     content = content.replace(/([([{])end([)\]}])/g, '$1finish$2');
     content = content.replace(/(?<!:)::([a-zA-Z_]\w*)/g, ':::$1');
+    content = trimInvalidLinkStyles(content);
   }
 
   // Sequence diagram activation auto-healing
@@ -680,6 +686,41 @@ function cleanMermaidOutput(content, diagramType) {
   }
 
   return content;
+}
+
+function restoreFlowchartLineBreaks(content) {
+  let text = content;
+  if (!text.trim().includes('\n')) {
+    text = text.replace(/\s+/g, ' ').trim();
+  }
+  text = text.replace(/^(flowchart\s+(?:TD|LR|BT|RL)|graph\s+(?:TD|LR|BT|RL))\s+/, '$1\n    ');
+  text = text.replace(
+    /\s+(?=(?:[A-Za-z][A-Za-z0-9_]*\s*(?:[-.=]+[ox>]|<[-.=]+|---)|classDef\s+|linkStyle\s+|style\s+|class\s+|subgraph\s+|end\b))/g,
+    '\n    '
+  );
+  return text.split('\n').map(line => line.trimEnd()).join('\n');
+}
+
+function trimInvalidLinkStyles(content) {
+  const lines = content.split('\n');
+  const edgeCount = lines.reduce((count, line) => {
+    const stripped = line.trim();
+    if (stripped.startsWith('linkStyle ')) return count;
+    return /[-.=]+[ox>]|<[-.=]+|---/.test(stripped) ? count + 1 : count;
+  }, 0);
+
+  const seen = new Set();
+  return lines
+    .map(line => {
+      const match = line.trim().match(/^linkStyle\s+(\d+)\s+(.+?);?\s*$/);
+      if (!match) return line;
+      const idx = Number(match[1]);
+      if (idx >= edgeCount || seen.has(idx)) return null;
+      seen.add(idx);
+      return `    linkStyle ${idx} ${match[2].replace(/;$/, '')};`;
+    })
+    .filter(line => line !== null)
+    .join('\n');
 }
 
 export { callModel, resolveModels };

@@ -1102,3 +1102,182 @@
   gap: 0.5rem;
   pointer-events: auto;
 }
+
+/* ─── AGENT SCRATCHPAD ─── */
+.agent-scratchpad {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  margin: 1rem 0;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 100%;
+}
+
+.agent-scratchpad.working {
+  border-color: #3b82f6;
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.1);
+}
+
+.agent-scratchpad.success {
+  border-color: #10b981;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.1);
+}
+
+.agent-scratchpad.error {
+  border-color: #ef4444;
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.1);
+}
+
+.scratchpad-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  color: inherit;
+  font-family: var(--font-body);
+}
+
+.scratchpad-toggle:hover {
+  background-color: #f9fafb;
+}
+
+.scratchpad-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #374151;
+  padding: 6px;
+  background: #f3f4f6;
+  border-radius: 8px;
+}
+
+.scratchpad-heading {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.scratchpad-heading strong {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.scratchpad-heading small {
+  font-size: 0.65rem;
+  color: #6b7280;
+  margin-top: 1px;
+}
+
+.scratchpad-spinner {
+  animation: spin 1s linear infinite;
+  color: #6b7280;
+}
+
+.agent-scratchpad.working .scratchpad-spinner {
+  color: #3b82f6;
+}
+
+.scratchpad-chevron {
+  color: #9ca3af;
+  transition: transform 0.2s ease;
+}
+
+.scratchpad-chevron.open {
+  transform: rotate(180deg);
+  color: #111827;
+}
+
+.scratchpad-body {
+  border-top: 1px solid #f1f5f9;
+  background: #fcfcfd;
+  padding: 1rem;
+}
+
+.scratchpad-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.scratchpad-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+}
+
+.scratchpad-step-icon {
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 0.7rem;
+  flex-shrink: 0;
+}
+
+.scratchpad-step.done .scratchpad-step-icon {
+  background: #e2f0d9;
+  color: #385723;
+}
+
+.scratchpad-step.error .scratchpad-step-icon {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.scratchpad-step.active .scratchpad-step-icon {
+  color: #3b82f6;
+  background: #dbeafe;
+}
+
+.scratchpad-step-copy {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.scratchpad-step-copy strong {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.scratchpad-step-copy small {
+  font-size: 0.68rem;
+  color: #6b7280;
+  margin-top: 1px;
+}
+
+.scratchpad-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+  padding: 0.6rem 0.75rem;
+  background: #fffbeb;
+  border: 1px solid #fef3c7;
+  border-radius: 8px;
+  color: #b45309;
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+
+.scratchpad-notice-icon {
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.scratchpad-notice-text strong {
+  font-weight: 700;
+}

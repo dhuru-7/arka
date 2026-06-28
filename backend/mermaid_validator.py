@@ -54,12 +54,14 @@ def clean_mermaid_code(content, diagram_type):
     content = "\n".join(cleaned_lines).strip()
 
     if diagram_type in ("flowchart", "architecture"):
+        content = _restore_flowchart_line_breaks(content)
         content = re.sub(r"(^|\n)end(\s*[-=]>|[\(\[\{])", r"\1finish\2", content)
         content = re.sub(r"([\(\[\{])end([\)\]\}])", r"\1finish\2", content)
         content = re.sub(r"([-=]>(?:\s*\|[^|]*\|)?\s*)end(\s|[\(\[\{\n]|$)", r"\1finish\2", content)
         content = re.sub(r"(\w+)\s*\(\(\s*([\[\{\(])", r"\1\2", content)
         content = re.sub(r"([\]\}\)])\s*\)\)", r"\1", content)
         content = re.sub(r"(?<!:)::([a-zA-Z_]\w*)", r":::\1", content)
+        content = _trim_invalid_link_styles(content)
 
     if diagram_type == "sequence":
         lines = content.splitlines()
@@ -145,6 +147,43 @@ def clean_mermaid_code(content, diagram_type):
         content = "\n".join(lines)
 
     return content.strip()
+
+
+def _restore_flowchart_line_breaks(content):
+    """Recover readable Mermaid when a model collapses a flowchart into one line."""
+    text = re.sub(r"\s+", " ", content).strip() if "\n" not in content.strip() else content
+    text = re.sub(r"^(flowchart\s+(?:TD|LR|BT|RL)|graph\s+(?:TD|LR|BT|RL))\s+", r"\1\n    ", text)
+    text = re.sub(
+        r"\s+(?=(?:[A-Za-z][A-Za-z0-9_]*\s*(?:[-.=]+[ox>]|<[-.=]+|---)|classDef\s+|linkStyle\s+|style\s+|class\s+|subgraph\s+|end\b))",
+        "\n    ",
+        text,
+    )
+    return "\n".join(line.rstrip() for line in text.splitlines())
+
+
+def _trim_invalid_link_styles(content):
+    lines = content.splitlines()
+    edge_count = 0
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("linkStyle "):
+            continue
+        if re.search(r"[-.=]+[ox>]|<[-.=]+|---", stripped):
+            edge_count += 1
+
+    seen = set()
+    cleaned = []
+    for line in lines:
+        match = re.match(r"\s*linkStyle\s+(\d+)\s+(.+?);?\s*$", line.strip())
+        if match:
+            idx = int(match.group(1))
+            if idx >= edge_count or idx in seen:
+                continue
+            seen.add(idx)
+            cleaned.append(f"    linkStyle {idx} {match.group(2).rstrip(';')};")
+        else:
+            cleaned.append(line)
+    return "\n".join(cleaned)
 
 
 def validate_mermaid_code(content, diagram_type):

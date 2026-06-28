@@ -57,6 +57,8 @@ import {
   MdZoomOut,
   MdCloud,
   MdInfoOutline,
+  MdEditNote,
+  MdErrorOutline,
   MdSwitchLeft,
   MdSwitchRight,
 } from 'react-icons/md';
@@ -132,5 +134,7 @@ export const Loader2 = googleIcon(MdAutorenew);
 export const Brush = googleIcon(MdGesture);
 export const Cloud = googleIcon(MdCloud);
 export const Info = googleIcon(MdInfoOutline);
+export const ScratchPad = googleIcon(MdEditNote);
+export const ErrorOutline = googleIcon(MdErrorOutline);
 export const SwitchLeft = googleIcon(MdSwitchLeft);
 export const SwitchRight = googleIcon(MdSwitchRight);

@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { History, Trash2, Plus, User, Download, Palette, MousePointer2, Move, Undo, Redo, ZoomIn, ZoomOut, Maximize, X, Check, ChevronDown, Image, FileCode, FileText, FileImage, Code2, Plus as PlusIcon, Minus, Cpu, Square, Circle, Hexagon, Database, MessageSquare, Box, ArrowRight, Brush, SwitchLeft, SwitchRight } from './googleIcons';
+import { History, Trash2, Plus, User, Download, Palette, MousePointer2, Move, Undo, Redo, ZoomIn, ZoomOut, Maximize, X, Check, ChevronDown, Image, FileCode, FileText, FileImage, Code2, Plus as PlusIcon, Minus, Cpu, Square, Circle, Hexagon, Database, MessageSquare, Box, ArrowRight, Brush, SwitchLeft, SwitchRight, ScratchPad, ErrorOutline, Loader2 } from './googleIcons';
 import { motion, AnimatePresence } from 'framer-motion';
 import ProfileDropdown from './ProfileDropdown';
 import { auth, db } from './firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { agentGenerateDiagram, agentRefineDiagram, getProviderLabel, agentChat } from './aiService';
+import { agentGenerateDiagram, agentRefineDiagram, getProviderLabel, agentChat, cleanMermaidOutput } from './aiService';
 import './Arena.css';
 
 let mermaidPromise = null;
@@ -13,11 +13,14 @@ const loadMermaid = () => {
   if (window.mermaid) return Promise.resolve(window.mermaid);
   if (mermaidPromise) return mermaidPromise;
   mermaidPromise = Promise.all([
-    import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs'),
-    import('https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@latest/dist/mermaid-layout-elk.esm.min.mjs')
+    import('mermaid'),
+    import('@mermaid-js/layout-elk')
   ]).then(([mermaidModule, elkModule]) => {
     const mermaid = mermaidModule.default;
-    mermaid.registerLayoutLoaders(elkModule.default);
+    const elkLoader = elkModule.default || elkModule;
+    if (mermaid.registerLayoutLoaders && elkLoader) {
+      mermaid.registerLayoutLoaders(elkLoader);
+    }
     window.mermaid = mermaid;
     return mermaid;
   });
@@ -326,7 +329,83 @@ const TypewriterText = ({ text, onComplete }) => {
   return <>{renderMarkdown(displayedText)}</>;
 };
 
-const AgentChatMessage = ({ msg, canClickPlan, handleProceedWithPlan, idx, onTypingComplete }) => {
+const ScratchpadCard = ({ scratchpad, onToggle }) => {
+  const StatusIcon = scratchpad.status === 'success'
+    ? Check
+    : scratchpad.status === 'error'
+      ? ErrorOutline
+      : Loader2;
+
+  return (
+    <motion.div
+      layout
+      className={`agent-scratchpad ${scratchpad.status}`}
+      initial={{ opacity: 0, y: 8, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ type: 'spring', stiffness: 420, damping: 30 }}
+    >
+      <button
+        type="button"
+        className="scratchpad-toggle"
+        onClick={onToggle}
+        aria-expanded={scratchpad.expanded}
+        title={scratchpad.expanded ? 'Collapse scratch pad' : 'Open scratch pad'}
+      >
+        <span className="scratchpad-icon"><ScratchPad size={19} /></span>
+        <span className="scratchpad-heading">
+          <strong>Agent scratch pad</strong>
+          <small>{scratchpad.status === 'success' ? 'Render verified' : scratchpad.status === 'error' ? 'Needs attention' : 'Working on diagram'}</small>
+        </span>
+        <StatusIcon size={18} className={scratchpad.status === 'working' ? 'scratchpad-spinner' : ''} />
+        <ChevronDown size={18} className={`scratchpad-chevron ${scratchpad.expanded ? 'open' : ''}`} />
+      </button>
+
+      <AnimatePresence initial={false}>
+        {scratchpad.expanded && (
+          <motion.div
+            className="scratchpad-body"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 380, damping: 34 }}
+          >
+            <div className="scratchpad-steps">
+              {scratchpad.entries.map(entry => (
+                <div className={`scratchpad-step ${entry.status}`} key={entry.id}>
+                  <span className="scratchpad-step-icon">
+                    {entry.status === 'done' ? <Check size={14} /> : entry.status === 'error' ? <ErrorOutline size={14} /> : entry.status === 'active' ? <Loader2 size={14} className="scratchpad-spinner" /> : <span />}
+                  </span>
+                  <span className="scratchpad-step-copy">
+                    <strong>{entry.title}</strong>
+                    {entry.detail && <small>{entry.detail}</small>}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="scratchpad-notice">
+              <span className="scratchpad-notice-icon">⚠️</span>
+              <span className="scratchpad-notice-text">
+                <strong>Under development:</strong> The agent can make mistakes and is inconsistent.
+              </span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+};
+
+const AgentChatMessage = ({ msg, canClickPlan, handleProceedWithPlan, handleScratchpadToggle, idx, onTypingComplete }) => {
+  if (msg.type === 'scratchpad') {
+    return (
+      <ScratchpadCard
+        scratchpad={msg.scratchpad}
+        onToggle={() => handleScratchpadToggle(msg.scratchpad.id)}
+      />
+    );
+  }
+
   const isTyping = msg.typed === false;
   const [typingComplete, setTypingComplete] = useState(msg.typed !== false);
   const [isClicked, setIsClicked] = useState(msg.clicked);
@@ -454,6 +533,8 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
   const chatEndRef = useRef(null);
   const chatInputRef = useRef(null);
   const isProceedingPlanRef = useRef(false);
+  const activeScratchpadRef = useRef(null);
+  const pendingScratchRenderRef = useRef(null);
   const [flowchartRenderer, setFlowchartRenderer] = useState('dagre');
   const [layoutNotification, setLayoutNotification] = useState(null);
 
@@ -495,6 +576,124 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
     textarea.style.height = `${Math.min(textarea.scrollHeight, 80)}px`;
   };
 
+  const normalizeMermaidForCompare = (code) => (
+    String(code || '')
+      .replace(/\r\n/g, '\n')
+      .split('\n')
+      .map(line => line.trim())
+      .filter(Boolean)
+      .join('\n')
+  );
+
+  const getDiagramInsight = (code) => {
+    const lines = String(code || '').split('\n').map(line => line.trim()).filter(Boolean);
+    const links = lines.filter(line => !line.startsWith('linkStyle ') && /[-.=]+[ox>]|<[-.=]+|---/.test(line)).length;
+    const nodeIds = new Set([...String(code || '').matchAll(/(?:^|[\s>|])([A-Za-z][A-Za-z0-9_]*)\s*[\[({]/gm)].map(match => match[1]));
+    return `${diagramType} with ${nodeIds.size} nodes, ${links} links, and ${lines.length} statements.`;
+  };
+
+  const updateScratchpad = (scratchpadId, update) => {
+    setChatMessages(prev => prev.map(message => {
+      if (message.type !== 'scratchpad' || message.scratchpad.id !== scratchpadId) return message;
+      return { ...message, scratchpad: update(message.scratchpad) };
+    }));
+  };
+
+  const updateScratchpadPhase = (scratchpadId, phase, status, title, detail = '') => {
+    updateScratchpad(scratchpadId, scratchpad => {
+      const existing = scratchpad.entries.find(entry => entry.id === phase);
+      const nextEntry = {
+        id: phase,
+        status,
+        title: title || existing?.title || phase,
+        detail: detail || existing?.detail || '',
+      };
+      const entries = existing
+        ? scratchpad.entries.map(entry => entry.id === phase ? { ...entry, ...nextEntry } : entry)
+        : [...scratchpad.entries, nextEntry];
+      return { ...scratchpad, entries };
+    });
+  };
+
+  const handleScratchpadProgress = (scratchpadId, event) => {
+    if (event && typeof event === 'object') {
+      updateScratchpadPhase(scratchpadId, event.phase, event.status, event.title, event.detail);
+      setDynamicLoadingText(event.title || 'Updating diagram...');
+      return;
+    }
+
+    const text = String(event || 'Updating diagram...');
+    setDynamicLoadingText(text);
+    const lower = text.toLowerCase();
+    if (lower.includes('repair') || lower.includes('fix')) {
+      updateScratchpadPhase(scratchpadId, 'diagnose', 'active', 'Investigating candidate', text);
+    } else if (lower.includes('validat') || lower.includes('verif')) {
+      updateScratchpadPhase(scratchpadId, 'verify', 'active', 'Verifying requested change', text);
+    } else if (lower.includes('read')) {
+      updateScratchpadPhase(scratchpadId, 'inspect', 'done', 'Read current diagram', text);
+    } else {
+      updateScratchpadPhase(scratchpadId, 'rewrite', 'active', 'Rewriting Mermaid code', text);
+    }
+  };
+
+  const handleScratchpadToggle = (scratchpadId) => {
+    updateScratchpad(scratchpadId, scratchpad => ({ ...scratchpad, expanded: !scratchpad.expanded }));
+  };
+
+  const cleanAgentChatReply = (text) => {
+    let cleaned = String(text || '')
+      .replace(/<think>[\s\S]*?<\/think>/gi, '')
+      .replace(/<thought>[\s\S]*?<\/thought>/gi, '')
+      .replace(/```(?:mermaid)?[\s\S]*?```/gi, '')
+      .replace(/\[\/?\s*PROPOSAL\s*\]/gi, '')
+      .trim();
+
+    if (/(?:^|\n)\s*(?:the user (?:wants|asked|is asking)|i (?:need|should|must|can see|will now)|we need to|looking at (?:the )?(?:current )?(?:code|diagram))/i.test(cleaned)) {
+      return 'Plan ready. Review it below.';
+    }
+
+    const mermaidHeader = cleaned.search(/(^|\n)\s*(flowchart\s+|graph\s+|sequenceDiagram|erDiagram|gantt|pie(?:\s+showData)?|xychart-beta)\b/i);
+    if (mermaidHeader >= 0) {
+      cleaned = cleaned.slice(0, mermaidHeader).trim();
+    }
+
+    const lines = cleaned.split('\n').map(line => line.trim()).filter(Boolean);
+    if (lines.length > 5) cleaned = lines.slice(0, 5).join('\n');
+    if (cleaned.length > 700) cleaned = `${cleaned.slice(0, 700).trim()}...`;
+    return cleaned || 'I can do that. Please review the plan below.';
+  };
+
+  const isPlanApproval = (text) => {
+    const normalized = String(text || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    return /^(?:yes|yeah|yep|ok|okay|sure|approved?|confirm|continue|go ahead|proceed|do it|apply it|make the changes|start)(?: please| now)?$/.test(normalized)
+      || /^(?:yes|yeah|yep|ok|okay|sure) (?:go ahead|proceed|do it|apply it|continue)$/.test(normalized);
+  };
+
+  const isDiagramEditRequest = (text) => (
+    /\b(?:add|apply|change|color|colour|connect|create|delete|edit|fix|increase|make|move|remove|rename|repair|replace|resize|style|thicken|update)\b/i.test(String(text || ''))
+  );
+
+  const extractProposal = (rawText) => {
+    const text = String(rawText || '');
+    const start = text.match(/\[\s*PROPOSAL\s*\]/i);
+    if (!start || start.index === undefined) return { replyText: text, proposalText: null };
+
+    const before = text.slice(0, start.index).trim();
+    let proposal = text.slice(start.index + start[0].length).trim();
+    const close = proposal.search(/\[\s*\/\s*PROPOSAL\s*\]/i);
+    if (close >= 0) {
+      proposal = proposal.slice(0, close).trim();
+    } else {
+      // Some models close the block with a lone bracket, as in "...standard flow.]".
+      proposal = proposal.replace(/\]\s*$/, '').trim();
+    }
+    return { replyText: before, proposalText: proposal || null };
+  };
+
   const handleSendChatMessage = async () => {
     if (!chatInput.trim() || isChatLoading) return;
     const userText = chatInput.trim();
@@ -506,6 +705,14 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
     // Add user message to chat
     const updatedMessages = [...chatMessages, { sender: 'user', text: userText }];
     setChatMessages(updatedMessages);
+
+    const pendingProposalIdx = chatMessages.findLastIndex(
+      message => message.sender === 'agent' && message.proposal && !message.clicked
+    );
+    if (pendingProposalIdx >= 0 && isPlanApproval(userText)) {
+      handleProceedWithPlan(pendingProposalIdx, chatMessages[pendingProposalIdx].proposal);
+      return;
+    }
 
     setIsChatLoading(true);
 
@@ -537,19 +744,26 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
       errorInstruction = `\n\n[CRITICAL] RENDER ERROR DETECTED: The current Mermaid JS code failed to render in the user's browser with the following error: "${renderError}". Please address and resolve this syntax error immediately in your suggestions/proposals.`;
     }
 
-    const systemPrompt = `You are Arka's diagram planning assistant.
-You are helping the user design and refine a ${diagramType} diagram.
+    const systemPrompt = `You are Arka's diagram editing planner.
+You help edit a ${diagramType} Mermaid diagram.
 Current Mermaid JS code:
 ${displayMermaidCode}
 ${contextInstructions}${errorInstruction}
 
-Your task is to discuss, brainstorm, and plan changes with the user.
-Follow these formatting and response rules strictly:
-- **EXTREME CONCISENESS**: Do not use filler words, introductory fluff, or long conversational explanations. Be brief and direct.
-- **FORMATTING**: Use **bold headings** and bullet points when suggesting options or outlining steps. Keep your paragraphs to 1-2 short sentences.
-- **DIRECT ANSWERS**: If the user asks a question, answer it directly in the first sentence (e.g. "Yes, we can add colors to this flowchart." or "No, sequence diagrams do not support custom colors for individual nodes in standard Mermaid.").
-- **PROPOSALS**: Only append a proposal block wrapped in [PROPOSAL] and [/PROPOSAL] at the very end of your response if a diagram modification is actually required. Do not output proposal cards for general questions, greetings, or error complaints.
-- **NO MERMAID CODE**: Never print raw Mermaid JS blocks in the chat response.
+Workflow:
+1. Read the current Mermaid code silently.
+2. Infer the user's requested edit.
+3. Reply with a short plan for the visible diagram change.
+4. Put the implementation instruction inside one [PROPOSAL]...[/PROPOSAL] block when code should change.
+
+Strict response rules:
+- Never reveal thinking, analysis, hidden steps, or long reasoning.
+- Never output Mermaid code in chat.
+- Keep visible chat text under 80 words.
+- Use at most 3 bullets.
+- The [PROPOSAL] block must be one concise imperative instruction, not Mermaid code.
+- If the user is revising a previous plan, output the updated plan and updated [PROPOSAL].
+- If no diagram change is needed, answer directly and do not include [PROPOSAL].
 
 DIAGRAM STYLING RULES:
 - **Flowchart / Architecture**: Supports individual node coloring, custom shapes, borders, and line styling.
@@ -558,20 +772,22 @@ DIAGRAM STYLING RULES:
 - **Pie / Gantt / XY Chart**: Configured at theme/template level; individual components cannot be colored/styled.
 
 DIRECT CODE ACCESS RULES:
-- You have direct, real-time access to the current diagram code (displayed above under "Current Mermaid JS code").
-- If the user says "I see nothing on the screen", "the diagram is blank", "I'm seeing a render error", or similar, DO NOT ask them to share or paste their code. You already have it in your prompt context!
-- Look at the "Current Mermaid JS code":
+- You have direct, real-time access to the current diagram code.
+- If the user reports a blank canvas or render error, use the current code and render error above.
+- Look at the current code:
   1. If the current code is empty or has only a starting line, explain that no diagram has been generated yet, and offer to create one.
-  2. If the current code is fully valid and correct, explain that the Mermaid code itself appears completely correct and valid, and suggest browser-side troubleshooting steps like refreshing the page, resizing the window, or trying a different browser.
+  2. If the current code is valid and the user only asks a question, answer briefly.
   3. If the current code has syntax errors or is broken, analyze the code, identify the issue, and output a [PROPOSAL] block to fix it.
 
 Example:
 User: "Add a database node"
-Response: "I will add a new Database component to store records.
+Response: "Plan:
+- Add a Database node.
+- Connect the API Service to it.
 [PROPOSAL] Add a database node and connect it from the API Service [/PROPOSAL]"`;
 
     const userMessageWithHistory = `Here is our conversation history:
-${updatedMessages.slice(0, -1).map(m => `${m.sender === 'user' ? 'User' : 'Agent'}: ${m.text}`).join('\n')}
+${updatedMessages.slice(-7, -1).map(m => `${m.sender === 'user' ? 'User' : 'Agent'}: ${m.text || ''}${m.proposal ? ` Plan: ${m.proposal}` : ''}`).join('\n')}
 User's latest message: ${userText}`;
 
     const abortController = new AbortController();
@@ -580,21 +796,25 @@ User's latest message: ${userText}`;
     try {
       const result = await agentChat(systemPrompt, userMessageWithHistory, abortController.signal, highlightImage);
       
-      let replyText = result;
-      let proposalText = null;
-
-      // Clean thinking blocks from reasoning models
-      replyText = replyText.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-
-      // Extract proposal block if present
-      const proposalMatch = replyText.match(/\[PROPOSAL\]([\s\S]*?)\[\/PROPOSAL\]/);
-      if (proposalMatch) {
-        proposalText = proposalMatch[1].trim();
-        replyText = replyText.replace(/\[PROPOSAL\][\s\S]*?\[\/PROPOSAL\]/, '').trim();
+      const rawReplyText = String(result || '');
+      let { replyText, proposalText } = extractProposal(rawReplyText);
+      if (!proposalText && /```(?:mermaid)?|(^|\n)\s*(flowchart\s+|graph\s+|sequenceDiagram|erDiagram|gantt|pie(?:\s+showData)?|xychart-beta)\b/i.test(rawReplyText)) {
+        proposalText = `Apply the requested diagram change: ${userText}`;
+      }
+      if (!proposalText && (isDiagramEditRequest(userText) || /^\s*plan\s*:/im.test(rawReplyText))) {
+        proposalText = `Apply the requested diagram change: ${userText}`;
+      }
+      replyText = cleanAgentChatReply(replyText);
+      if (proposalText) {
+        proposalText = proposalText
+          .replace(/```(?:mermaid)?[\s\S]*?```/gi, '')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .slice(0, 500);
       }
 
       setChatMessages(prev => {
-        const next = [...prev, { sender: 'agent', text: replyText, proposal: proposalText, clicked: false, typed: false }];
+        const next = [...prev, { sender: 'agent', text: replyText, proposal: proposalText, userRequest: userText, clicked: false, typed: false }];
         return next;
       });
 
@@ -629,8 +849,31 @@ User's latest message: ${userText}`;
     if (msgIdx !== chatMessages.length - 1 || chatMessages[msgIdx].clicked || isRefining || isLoading || isProceedingPlanRef.current) return;
     isProceedingPlanRef.current = true;
 
-    // Mark as clicked
-    setChatMessages(prev => prev.map((m, i) => i === msgIdx ? { ...m, clicked: true } : m));
+    const approvedMessage = chatMessages[msgIdx];
+    const scratchpadId = `scratch-${Date.now()}`;
+    activeScratchpadRef.current = scratchpadId;
+    const scratchpadMessage = {
+      sender: 'agent',
+      type: 'scratchpad',
+      scratchpad: {
+        id: scratchpadId,
+        status: 'working',
+        expanded: true,
+        entries: [
+          { id: 'inspect', status: 'done', title: 'Read current diagram', detail: getDiagramInsight(mermaidCode) },
+          { id: 'task', status: 'done', title: 'Captured requested change', detail: approvedMessage?.userRequest || proposalText },
+          { id: 'plan', status: 'done', title: 'Prepared implementation plan', detail: proposalText },
+          { id: 'rewrite', status: 'active', title: 'Rewriting Mermaid code', detail: 'Creating a complete candidate without changing unrelated structure.' },
+          { id: 'verify', status: 'pending', title: 'Verify requested change', detail: 'Compare the candidate with the task and check for repetition.' },
+          { id: 'render', status: 'pending', title: 'Verify browser render', detail: 'Waiting for a verified candidate.' },
+        ],
+      },
+    };
+
+    setChatMessages(prev => [
+      ...prev.map((message, index) => index === msgIdx ? { ...message, clicked: true } : message),
+      scratchpadMessage,
+    ]);
 
     // Show full-screen loader ONLY during diagram update
     setIsRefining(true);
@@ -640,26 +883,38 @@ User's latest message: ${userText}`;
     abortControllerRef.current = abortController;
 
     try {
-      const byokResult = await agentRefineDiagram(proposalText, mermaidCode, diagramType, {
+      const implementationInstruction = [
+        `USER REQUEST: ${approvedMessage?.userRequest || 'Apply the approved plan.'}`,
+        `APPROVED PLAN: ${proposalText}`,
+        'Modify the Mermaid code to implement the approved plan. Return only complete Mermaid code. The result must be visibly different from the current code unless the plan is impossible.'
+      ].join('\n');
+
+      const byokResult = await agentRefineDiagram(implementationInstruction, mermaidCode, diagramType, {
         selectedContext,
         signal: abortController.signal,
         onProgress: (step) => {
-          setDynamicLoadingText(step);
+          handleScratchpadProgress(scratchpadId, step);
         }
       });
 
       if (byokResult && byokResult.mermaid_code) {
-        const resultCode = byokResult.mermaid_code;
+        const resultCode = cleanMermaidOutput(byokResult.mermaid_code, diagramType).trim();
+        if (normalizeMermaidForCompare(resultCode) === normalizeMermaidForCompare(mermaidCode)) {
+          throw new Error("The agent returned unchanged Mermaid code, so no update was applied.");
+        }
+
+        setRenderError(null);
+        updateScratchpadPhase(scratchpadId, 'rewrite', 'done', 'Mermaid rewrite complete', 'A complete candidate was produced without runaway repetition.');
+        updateScratchpadPhase(
+          scratchpadId,
+          'verify',
+          'done',
+          'Requested change verified',
+          byokResult.verification?.summary || 'The candidate differs from the original and passed structural checks.'
+        );
+        updateScratchpadPhase(scratchpadId, 'render', 'active', 'Verifying browser render', 'Parsing and rendering the candidate with Mermaid.');
+        pendingScratchRenderRef.current = { scratchpadId, code: resultCode };
         pushHistory(resultCode);
-
-        const remarks = byokResult.agent_steps && byokResult.agent_steps.length > 0
-          ? `I've successfully updated the diagram. Here is what I did:\n${byokResult.agent_steps.map(s => `- ${s}`).join('\n')}`
-          : "I've successfully updated the diagram!";
-
-        setChatMessages(prev => {
-          const next = [...prev, { sender: 'agent', text: remarks, typed: false }];
-          return next;
-        });
       } else {
         throw new Error("Invalid response from AI model");
       }
@@ -672,8 +927,11 @@ User's latest message: ${userText}`;
         return;
       }
       console.error("Chat Proposal Apply Error:", err);
+      updateScratchpad(scratchpadId, scratchpad => ({ ...scratchpad, status: 'error', expanded: true }));
+      updateScratchpadPhase(scratchpadId, 'verify', 'error', 'Verification failed', err.message || 'The candidate could not be verified.');
+      setChatMessages(prev => prev.map((m, i) => i === msgIdx ? { ...m, clicked: false } : m));
       setChatMessages(prev => {
-        const next = [...prev, { sender: 'agent', text: `Failed to update diagram: ${err.message || "Unknown error"}` }];
+        const next = [...prev, { sender: 'agent', text: `I could not apply that safely: ${err.message || "Unknown error"}` }];
         return next;
       });
     } finally {
@@ -888,6 +1146,7 @@ User's latest message: ${userText}`;
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
   const renderCounter = useRef(0);
+  const renderRepairAttemptsRef = useRef(new Map());
 
   /* ─── Push to history helper ─── */
   const pushHistory = (newCode) => {
@@ -916,8 +1175,9 @@ User's latest message: ${userText}`;
       const savedCode = localStorage.getItem('arka_last_mermaid_code');
 
       if (savedCode) {
-        setMermaidCode(savedCode);
-        setHistory([savedCode]);
+        const cleanedSavedCode = cleanMermaidOutput(savedCode, diagramType);
+        setMermaidCode(cleanedSavedCode);
+        setHistory([cleanedSavedCode]);
         setHistoryIndex(0);
         setAgentSteps(['Loaded saved diagram.']);
         setChatMessages([{ sender: 'agent', text: "Hello! I loaded your saved diagram. How can I help you refine or modify it?", typed: true }]);
@@ -938,7 +1198,7 @@ User's latest message: ${userText}`;
         if (cancelled) return;
 
         if (byokResult && byokResult.mermaid_code) {
-          const code = byokResult.mermaid_code;
+          const code = cleanMermaidOutput(byokResult.mermaid_code, diagramType);
           setMermaidCode(code);
           setHistory([code]);
           setHistoryIndex(0);
@@ -1010,6 +1270,7 @@ User's latest message: ${userText}`;
         if (canvasRef.current) canvasRef.current.innerHTML = '';
         renderCounter.current++;
         const id = `dm-${renderCounter.current}`;
+        await mermaidApi.parse(mermaidCode);
         const { svg } = await mermaidApi.render(id, mermaidCode);
 
         if (canvasRef.current) {
@@ -1030,10 +1291,94 @@ User's latest message: ${userText}`;
               canvasRef.current.querySelectorAll('.edgePath').forEach(n => n.style.pointerEvents = 'auto');
             }
           }, 10);
+
+          const pendingScratch = pendingScratchRenderRef.current;
+          if (pendingScratch && normalizeMermaidForCompare(pendingScratch.code) === normalizeMermaidForCompare(mermaidCode)) {
+            pendingScratchRenderRef.current = null;
+            activeScratchpadRef.current = null;
+            updateScratchpadPhase(pendingScratch.scratchpadId, 'render', 'done', 'Browser render verified', 'Mermaid parsed and rendered successfully.');
+            updateScratchpad(pendingScratch.scratchpadId, scratchpad => ({ ...scratchpad, status: 'success' }));
+            setTimeout(() => {
+              updateScratchpad(pendingScratch.scratchpadId, scratchpad => ({ ...scratchpad, expanded: false }));
+            }, 650);
+            setChatMessages(prev => [
+              ...prev,
+              { sender: 'agent', text: 'Done. The requested change was implemented and the diagram rendered successfully.', typed: false },
+            ]);
+          }
         }
       } catch (err) {
         console.error('Mermaid render error:', err);
-        setRenderError(err.message || 'Render failed');
+        const renderMessage = err?.str || err?.message || 'Render failed';
+        setRenderError(renderMessage);
+        const pendingScratch = pendingScratchRenderRef.current;
+        if (pendingScratch && normalizeMermaidForCompare(pendingScratch.code) === normalizeMermaidForCompare(mermaidCode)) {
+          updateScratchpadPhase(pendingScratch.scratchpadId, 'render', 'error', 'Browser render failed', renderMessage.slice(0, 400));
+          updateScratchpadPhase(pendingScratch.scratchpadId, 'diagnose', 'active', 'Investigating render failure', 'Checking syntax, hallucinated statements, duplicate lines, and invalid style indexes.');
+        }
+
+        const repairAttempts = renderRepairAttemptsRef.current.get(mermaidCode) || 0;
+        if (repairAttempts < 2 && !isRefining) {
+          renderRepairAttemptsRef.current.set(mermaidCode, repairAttempts + 1);
+          setIsRefining(true);
+          setDynamicLoadingText('Repairing render error...');
+          setAgentSteps(prev => [
+            ...prev,
+            `Browser render failed: ${renderMessage}`,
+            'Sending the exact Mermaid render error back to the diagram agent.'
+          ]);
+
+          try {
+            const repaired = await agentRefineDiagram(
+              `Fix this Mermaid code so it renders successfully. Browser render error: ${renderMessage}`,
+              mermaidCode,
+              diagramType,
+              {
+                signal: abortControllerRef.current?.signal,
+                onProgress: (step) => {
+                  if (pendingScratch) handleScratchpadProgress(pendingScratch.scratchpadId, step);
+                  else setDynamicLoadingText(typeof step === 'object' ? step.title : step);
+                }
+              }
+            );
+
+            if (repaired?.mermaid_code && repaired.mermaid_code !== mermaidCode) {
+              const repairedCode = cleanMermaidOutput(repaired.mermaid_code, diagramType);
+              setRenderError(null);
+              if (pendingScratch) {
+                pendingScratchRenderRef.current = { ...pendingScratch, code: repairedCode };
+                updateScratchpadPhase(pendingScratch.scratchpadId, 'diagnose', 'done', 'Render issue diagnosed', 'Produced a corrected Mermaid candidate.');
+                updateScratchpadPhase(pendingScratch.scratchpadId, 'rewrite', 'done', 'Mermaid rewrite repaired', 'Removed the statements responsible for the render failure.');
+                updateScratchpadPhase(pendingScratch.scratchpadId, 'verify', 'done', 'Repair verified', repaired.verification?.summary || 'The repaired candidate passed validation.');
+                updateScratchpadPhase(pendingScratch.scratchpadId, 'render', 'active', 'Retrying browser render', 'Rendering the corrected candidate with Mermaid.');
+              }
+              setMermaidCode(repairedCode);
+              setHistory(prev => [...prev, repairedCode]);
+              setHistoryIndex(prev => prev + 1);
+              setAgentSteps(prev => [
+                ...prev,
+                ...(repaired.agent_steps || ['Agent repaired the Mermaid render error.'])
+              ]);
+            }
+          } catch (repairErr) {
+            if (repairErr?.name !== 'AbortError') {
+              console.error('Mermaid render repair failed:', repairErr);
+              if (pendingScratch) {
+                updateScratchpad(pendingScratch.scratchpadId, scratchpad => ({ ...scratchpad, status: 'error', expanded: true }));
+                updateScratchpadPhase(pendingScratch.scratchpadId, 'diagnose', 'error', 'Automatic repair failed', repairErr.message || 'Unknown repair error');
+              }
+              setAgentSteps(prev => [
+                ...prev,
+                `Automatic render repair failed: ${repairErr.message || 'Unknown error'}`
+              ]);
+            }
+          } finally {
+            setIsRefining(false);
+          }
+        } else if (pendingScratch) {
+          updateScratchpad(pendingScratch.scratchpadId, scratchpad => ({ ...scratchpad, status: 'error', expanded: true }));
+          updateScratchpadPhase(pendingScratch.scratchpadId, 'diagnose', 'error', 'Render could not be repaired', 'The bounded repair attempts were exhausted.');
+        }
       } finally {
         setIsRendering(false);
       }
@@ -1041,7 +1386,7 @@ User's latest message: ${userText}`;
 
     const t = setTimeout(render, 50);
     return () => clearTimeout(t);
-  }, [mermaidCode, activeTemplate, isLoading, renderKey, flowchartRenderer]);
+  }, [mermaidCode, activeTemplate, isLoading, renderKey, flowchartRenderer, diagramType]);
 
   // Re-attach listeners when tool changes
   useEffect(() => {
@@ -2270,8 +2615,24 @@ User's latest message: ${userText}`;
   const handleWheel = (e) => { e.preventDefault(); setZoom(z => Math.max(0.3, Math.min(10, z + (e.deltaY > 0 ? -0.1 : 0.1)))); };
 
   /* ─── Undo / Redo ─── */
-  const handleUndo = () => { if (historyIndex > 0) { setHistoryIndex(historyIndex - 1); setMermaidCode(history[historyIndex - 1]); } };
-  const handleRedo = () => { if (historyIndex < history.length - 1) { setHistoryIndex(historyIndex + 1); setMermaidCode(history[historyIndex + 1]); } };
+  const handleUndo = () => {
+    if (historyIndex > 0) {
+      const nextIndex = historyIndex - 1;
+      const nextCode = history[nextIndex];
+      setHistoryIndex(nextIndex);
+      setMermaidCode(nextCode);
+      if (showCodeEditor) setCodeEditorValue(nextCode);
+    }
+  };
+  const handleRedo = () => {
+    if (historyIndex < history.length - 1) {
+      const nextIndex = historyIndex + 1;
+      const nextCode = history[nextIndex];
+      setHistoryIndex(nextIndex);
+      setMermaidCode(nextCode);
+      if (showCodeEditor) setCodeEditorValue(nextCode);
+    }
+  };
 
   /* ─── Code Editor ─── */
   const openCodeEditor = () => { setCodeEditorValue(mermaidCode); setShowCodeEditor(true); };
@@ -2802,6 +3163,7 @@ User's latest message: ${userText}`;
                     msg={msg}
                     canClickPlan={canClickPlan}
                     handleProceedWithPlan={handleProceedWithPlan}
+                    handleScratchpadToggle={handleScratchpadToggle}
                     idx={idx}
                     onTypingComplete={handleTypingComplete}
                   />
@@ -2919,6 +3281,14 @@ User's latest message: ${userText}`;
               exit={{ opacity: 0, scale: 0.95, y: 20 }} transition={{ duration: 0.15 }}>
               <div className="code-editor-header">
                 <div className="code-editor-title"><Code2 size={18} /><span>Mermaid Code</span></div>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button className="tool-btn" onClick={handleUndo} title="Undo code change" disabled={historyIndex <= 0}>
+                    <Undo size={16} />
+                  </button>
+                  <button className="tool-btn" onClick={handleRedo} title="Redo code change" disabled={historyIndex >= history.length - 1}>
+                    <Redo size={16} />
+                  </button>
+                </div>
               </div>
               <textarea className="code-editor-textarea" value={codeEditorValue}
                 onChange={e => setCodeEditorValue(e.target.value)} spellCheck={false} />

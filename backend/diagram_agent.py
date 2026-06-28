@@ -215,7 +215,7 @@ class DiagramAgent:
                     on_progress(msg)
 
             try:
-                raw = self.call_model(system_prompt, user_prompt, temperature=0.2, max_tokens=2600)
+                raw = self.call_model(system_prompt, user_prompt, temperature=0.15, max_tokens=3600)
                 code = clean_mermaid_code(raw, diagram_type)
             except Exception as exc:
                 repair_log.append({
@@ -271,16 +271,23 @@ class DiagramAgent:
         diagram_type = normalize_type(diagram_type) or "flowchart"
         knowledge = self.load_knowledge(diagram_type)
         docs = ""
-        progress = [
-            "Reading current diagram code and refinement request.",
-            "Applying the requested change while preserving existing structure.",
-        ]
-        if on_progress:
-            on_progress("Reading current diagram code and refinement request.")
-            on_progress("Applying the requested change while preserving existing structure.")
+        progress = []
+
+        def report(phase, status, title, detail=""):
+            event = {"phase": phase, "status": status, "title": title, "detail": detail}
+            progress.append(title if not detail else f"{title}: {detail}")
+            if on_progress:
+                on_progress(event)
+
+        diagram_summary = summarize_mermaid(mermaid_code, diagram_type)
+        report("inspect", "done", "Read current diagram", diagram_summary)
+        report("task", "done", "Captured requested change", compact_instruction(prompt))
+        report("plan", "done", "Prepared implementation plan", "Preserve the diagram structure and apply only the approved change.")
+        report("rewrite", "active", "Rewriting Mermaid code", "Creating the first candidate.")
         repair_log = []
         code = mermaid_code
         produced_candidate = False
+        verification = {"implemented": False, "summary": "Verification has not run yet.", "issues": []}
 
         for attempt in range(1, max_attempts + 1):
             if attempt == 1:
@@ -301,17 +308,23 @@ class DiagramAgent:
                             on_progress(msg)
                 system_prompt = build_repair_prompt(diagram_type, knowledge, docs)
                 user_prompt = (
-                    f"CURRENT BROKEN CODE:\n{code}\n\n"
+                    f"ORIGINAL MERMAID CODE:\n{mermaid_code}\n\n"
+                    f"REFINEMENT INSTRUCTION:\n{prompt}\n\n"
+                    f"CURRENT CANDIDATE CODE:\n{code}\n\n"
                     f"VALIDATION ISSUES:\n{format_issues_for_prompt(repair_log[-1]['issues'])}\n\n"
+                    "Repair the candidate so it implements the instruction without duplicates or unrelated changes. "
                     "Return the complete corrected Mermaid code."
                 )
-                msg = f"Repair attempt {attempt - 1}: fixing line-level errors."
-                progress.append(msg)
-                if on_progress:
-                    on_progress(msg)
+                report(
+                    "diagnose",
+                    "active",
+                    f"Investigating candidate {attempt - 1}",
+                    format_issues_for_prompt(repair_log[-1]["issues"])[:500],
+                )
+                report("rewrite", "active", f"Rewriting candidate {attempt}", "Applying the verification findings.")
 
             try:
-                raw = self.call_model(system_prompt, user_prompt, temperature=0.2, max_tokens=2600)
+                raw = self.call_model(system_prompt, user_prompt, temperature=0.15, max_tokens=3600)
                 code = clean_mermaid_code(raw, diagram_type)
                 produced_candidate = True
             except Exception as exc:
@@ -323,33 +336,84 @@ class DiagramAgent:
                 break
 
             validation = validate_mermaid_code(code, diagram_type)
+            quality_issues = refinement_quality_issues(mermaid_code, code, validation)
+            combined_issues = [*validation["issues"], *quality_issues]
+
+            if validation["valid"] and not quality_issues:
+                report("verify", "active", "Checking the requested change", f"Reviewing candidate {attempt} against the approved task.")
+                verification = self.verify_refinement(prompt, mermaid_code, code, diagram_type)
+                if not verification["implemented"]:
+                    combined_issues.extend({
+                        "line": 1,
+                        "severity": "error",
+                        "message": issue,
+                    } for issue in verification["issues"])
+
+            candidate_valid = validation["valid"] and not quality_issues and verification["implemented"]
             repair_log.append({
                 "attempt": attempt,
-                "status": "valid" if validation["valid"] else "needs_repair",
-                "issues": validation["issues"],
+                "status": "valid" if candidate_valid else "needs_repair",
+                "issues": combined_issues,
             })
-            if validation["valid"]:
-                msg = "Validated the refined diagram."
-                progress.append(msg)
-                if on_progress:
-                    on_progress(msg)
+            if candidate_valid:
+                report("rewrite", "done", "Mermaid rewrite complete", f"Candidate {attempt} passed structural checks.")
+                report("verify", "done", "Requested change verified", verification["summary"])
                 break
 
         if not produced_candidate:
             raise RuntimeError(format_issues_for_prompt(repair_log[-1]["issues"]) if repair_log else "Agent did not produce refined diagram code.")
 
         validation = validate_mermaid_code(code, diagram_type)
-        if not validation["valid"]:
-            raise RuntimeError("Agent could not repair refined Mermaid code:\n" + format_issues_for_prompt(validation["issues"]))
+        if not validation["valid"] or not verification["implemented"] or repair_log[-1]["status"] != "valid":
+            raise RuntimeError("Agent could not verify the refined Mermaid code:\n" + format_issues_for_prompt(repair_log[-1]["issues"]))
 
         return {
             "mermaid_code": code,
             "diagram_type": diagram_type,
             "validation": validation,
             "repair_log": repair_log,
+            "verification": verification,
             "suggestions": [],
             "agent_steps": progress,
         }
+
+    def verify_refinement(self, instruction, original_code, candidate_code, diagram_type):
+        if normalize_mermaid(original_code) == normalize_mermaid(candidate_code):
+            return {
+                "implemented": False,
+                "summary": "The candidate is unchanged.",
+                "issues": ["The Mermaid code is unchanged and does not implement the requested edit."],
+            }
+
+        system_prompt = (
+            "You verify Mermaid diagram edits. Compare the original and candidate against the instruction. "
+            "Do not rewrite code. Return ONLY JSON with: implemented (boolean), summary (one short sentence), "
+            "issues (array of short actionable strings). Mark implemented false when the visible requested change is missing, "
+            "when unrelated structure was added, or when repetitive/hallucinated statements appear."
+        )
+        user_prompt = (
+            f"DIAGRAM TYPE: {diagram_type}\n\n"
+            f"INSTRUCTION:\n{instruction}\n\n"
+            f"ORIGINAL CODE:\n{original_code}\n\n"
+            f"CANDIDATE CODE:\n{candidate_code}"
+        )
+        try:
+            raw = self.call_model(system_prompt, user_prompt, temperature=0.0, max_tokens=600)
+            data = parse_json_object(raw)
+            implemented = data.get("implemented") is True
+            summary = str(data.get("summary") or "Semantic verification completed.").strip()[:300]
+            raw_issues = data.get("issues") if isinstance(data.get("issues"), list) else []
+            issues = [str(issue).strip()[:300] for issue in raw_issues if str(issue).strip()][:6]
+            if not implemented and not issues:
+                issues = ["The candidate does not clearly implement the requested change."]
+            return {"implemented": implemented, "summary": summary, "issues": issues}
+        except Exception:
+            # Deterministic checks still protect syntax, no-op edits, and runaway duplication.
+            return {
+                "implemented": True,
+                "summary": "Structural verification passed; semantic verification was unavailable.",
+                "issues": [],
+            }
 
 
     def load_knowledge(self, diagram_type):
@@ -440,6 +504,9 @@ def build_refine_prompt(diagram_type, knowledge):
         "You are Arka's diagram refinement agent. Modify the existing Mermaid code according to the instruction. "
         "Return ONLY the complete updated Mermaid code. Preserve existing nodes, links, styles, and diagram type "
         "unless the user explicitly asks to change them. Make the smallest correct edit. "
+        "Do not include explanations, plans, markdown, comments about what changed, or any non-Mermaid text. "
+        "If the instruction asks for a diagram change, the returned Mermaid code must implement a visible change. "
+        "Do not refuse normal Mermaid edits. If a request is partly unsupported, make the closest supported code change. "
         "Do not add new cross-links, loops, duplicated edges, or unrelated nodes while improving style/readability. "
         "For colors in flowcharts, prefer applying semantic colors using classDef definitions (greenNode, blueNode, yellowNode, redNode, goldNode) "
         "and applying them as nodeId:::className. For architecture diagrams, group nodes into subgraphs representing layers and style the subgraphs using "
@@ -496,6 +563,71 @@ def readable_type(diagram_type):
         "xy": "XY chart",
         "pie": "pie chart",
     }.get(diagram_type, diagram_type)
+
+
+def normalize_mermaid(code):
+    return "\n".join(
+        line.strip()
+        for line in str(code or "").replace("\r\n", "\n").splitlines()
+        if line.strip()
+    )
+
+
+def compact_instruction(instruction):
+    text = str(instruction or "")
+    match = re.search(r"USER REQUEST:\s*(.*?)(?:\nAPPROVED PLAN:|$)", text, flags=re.DOTALL | re.IGNORECASE)
+    if match:
+        text = match.group(1)
+    return re.sub(r"\s+", " ", text).strip()[:300]
+
+
+def summarize_mermaid(code, diagram_type):
+    lines = [line.strip() for line in str(code or "").splitlines() if line.strip()]
+    edge_count = sum(
+        1 for line in lines
+        if not line.startswith("linkStyle ") and re.search(r"[-.=]+[ox>]|<[-.=]+|---", line)
+    )
+    node_ids = set(re.findall(r"(?:^|[\s>|])([A-Za-z][A-Za-z0-9_]*)\s*[\[({]", str(code or "")))
+    return f"{readable_type(diagram_type).capitalize()} with {len(node_ids)} nodes, {edge_count} links, and {len(lines)} statements."
+
+
+def refinement_quality_issues(original_code, candidate_code, validation):
+    issues = []
+    original = normalize_mermaid(original_code)
+    candidate = normalize_mermaid(candidate_code)
+    if candidate == original:
+        issues.append({"line": 1, "severity": "error", "message": "Candidate code is unchanged."})
+
+    original_lines = original.splitlines()
+    candidate_lines = candidate.splitlines()
+    if len(candidate_lines) > max(len(original_lines) * 3, len(original_lines) + 80):
+        issues.append({
+            "line": 1,
+            "severity": "error",
+            "message": "Candidate grew unexpectedly large and may contain hallucinated repetitive statements.",
+        })
+
+    seen = {}
+    duplicate_lines = []
+    for line_no, line in enumerate(candidate_lines, start=1):
+        normalized = re.sub(r"\s+", " ", line).strip()
+        if not normalized or normalized in {"end"} or normalized.startswith(("flowchart ", "graph ")):
+            continue
+        if normalized in seen:
+            duplicate_lines.append((line_no, seen[normalized]))
+        else:
+            seen[normalized] = line_no
+    for line_no, first_line in duplicate_lines[:4]:
+        issues.append({
+            "line": line_no,
+            "severity": "error",
+            "message": f"Repeated Mermaid statement duplicates line {first_line}.",
+        })
+
+    for issue in validation.get("issues", []):
+        if "duplicate" in str(issue.get("message", "")).lower():
+            issues.append({**issue, "severity": "error"})
+    return issues
 
 
 def parse_json_object(content):

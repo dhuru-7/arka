@@ -245,7 +245,7 @@ def agent_chat():
 
     try:
         agent = agent_from_request(data)
-        content = agent.call_model(system_prompt, user_message, temperature=0.3, max_tokens=1500)
+        content = agent.call_model(system_prompt, user_message, temperature=0.2, max_tokens=650)
         return jsonify({"content": content})
     except Exception as e:
         print(f"Agent chat error: {e}")
