@@ -254,9 +254,6 @@ const Tutorial = ({ step, onGotIt }) => {
           {step === 6 ? (
             /* Step 6: Got It Card */
             <div className="tutorial-final-card" style={{ boxShadow: 'none' }}>
-              <div className="tutorial-final-icon">
-                <Check size={28} />
-              </div>
               <h2 className="tutorial-final-title">You're all set! 🎉</h2>
               <p className="tutorial-final-subtitle">
                 Your diagram is ready. The canvas and Agent button are highlighted.
