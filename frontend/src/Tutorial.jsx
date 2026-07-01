@@ -141,7 +141,9 @@ const Tutorial = ({ step, onGotIt }) => {
         top: '50%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
-        zIndex: 10001
+        zIndex: 10001,
+        maxWidth: '520px',
+        width: '90%'
       };
     }
 
