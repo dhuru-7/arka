@@ -15,8 +15,28 @@ const Auth = () => {
   const navigate = useNavigate();
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isPersistenceReady, setIsPersistenceReady] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
+
+    const preparePersistence = async () => {
+      try {
+        await setPersistence(auth, browserLocalPersistence);
+      } catch (persistenceError) {
+        console.warn('Local auth persistence unavailable; using session persistence.', persistenceError);
+        try {
+          await setPersistence(auth, browserSessionPersistence);
+        } catch (sessionError) {
+          console.warn('Session auth persistence unavailable; using Firebase default.', sessionError);
+        }
+      } finally {
+        if (isMounted) setIsPersistenceReady(true);
+      }
+    };
+
+    preparePersistence();
+
     // Navigate only after Firebase confirms the persisted user. This also
     // recovers cleanly if the popup closes before this page's promise settles.
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -24,23 +44,18 @@ const Auth = () => {
         navigate('/diagrams', { replace: true });
       }
     });
-    return unsubscribe;
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
   }, [navigate]);
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      // Edge can restrict local storage in stricter privacy modes. Prefer a
-      // durable session, but retain a same-tab session if local persistence is
-      // unavailable instead of losing the login after the popup closes.
-      try {
-        await setPersistence(auth, browserLocalPersistence);
-      } catch (persistenceError) {
-        console.warn('Local auth persistence unavailable; using session persistence.', persistenceError);
-        await setPersistence(auth, browserSessionPersistence);
-      }
-
+      // Keep this as the first async operation in the click handler. Edge
+      // requires the popup to open directly from the trusted user gesture.
       await signInWithPopup(auth, provider);
       navigate('/diagrams', { replace: true });
     } catch (err) {
@@ -108,8 +123,8 @@ const Auth = () => {
 
         <button 
           onClick={handleGoogleSignIn}
-          disabled={isLoading}
-          className={`submit-btn ${isLoading ? 'inactive' : 'active'}`}
+          disabled={isLoading || !isPersistenceReady}
+          className={`submit-btn ${isLoading || !isPersistenceReady ? 'inactive' : 'active'}`}
           style={{
             width: '100%',
             height: '3.5rem',
@@ -121,10 +136,10 @@ const Auth = () => {
             fontWeight: 600,
             fontSize: '1rem',
             borderRadius: '1rem',
-            opacity: isLoading ? 0.7 : 1
+            opacity: isLoading || !isPersistenceReady ? 0.7 : 1
           }}
         >
-          {isLoading ? (
+          {isLoading || !isPersistenceReady ? (
             <div className="loader" style={{ width: '20px', height: '20px' }}></div>
           ) : (
             <>
