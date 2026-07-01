@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { signInWithPopup } from 'firebase/auth';
+import React, { useState, useEffect } from 'react';
+import { signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 import { auth, provider } from './firebase';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -10,7 +10,21 @@ const Auth = () => {
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
-
+  useEffect(() => {
+    // Handle redirect sign-in result when returning from Google
+    const handleRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result?.user) {
+          navigate('/diagrams');
+        }
+      } catch (err) {
+        console.error("Redirect Auth Error:", err);
+        setError("Failed to sign in with Google redirect. Please try again.");
+      }
+    };
+    handleRedirectResult();
+  }, [navigate]);
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
@@ -20,10 +34,20 @@ const Auth = () => {
       // User signed in successfully
       navigate('/diagrams');
     } catch (err) {
-      console.error(err);
-      setError("Failed to sign in with Google. Please try again.");
-    } finally {
-      setIsLoading(false);
+      console.error("Popup Auth Error:", err);
+      // If popup is blocked or closed, fall back to redirect
+      if (err.code === 'auth/popup-blocked' || err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
+        try {
+          await signInWithRedirect(auth, provider);
+        } catch (redirectErr) {
+          console.error("Redirect Trigger Error:", redirectErr);
+          setError("Failed to open sign-in screen. Please try again.");
+          setIsLoading(false);
+        }
+      } else {
+        setError("Failed to sign in with Google. Please try again.");
+        setIsLoading(false);
+      }
     }
   };
 
