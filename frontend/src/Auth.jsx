@@ -20,7 +20,7 @@ const Auth = () => {
         }
       } catch (err) {
         console.error("Redirect Auth Error:", err);
-        setError("Failed to sign in with Google redirect. Please try again.");
+        setError(`Redirect Sign-in failed: ${err.code || err.message}`);
       }
     };
     handleRedirectResult();
@@ -41,11 +41,11 @@ const Auth = () => {
           await signInWithRedirect(auth, provider);
         } catch (redirectErr) {
           console.error("Redirect Trigger Error:", redirectErr);
-          setError("Failed to open sign-in screen. Please try again.");
+          setError(`Failed to open redirect sign-in: ${redirectErr.code || redirectErr.message}`);
           setIsLoading(false);
         }
       } else {
-        setError("Failed to sign in with Google. Please try again.");
+        setError(`Sign-in failed: ${err.code || err.message}`);
         setIsLoading(false);
       }
     }
