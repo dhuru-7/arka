@@ -4,11 +4,14 @@ import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBFyhlhtu3oTjtrxd3lNqUaQti0QDXMg6Q",
-  // Production auth helpers are reverse-proxied by Vercel so browsers with
-  // strict popup/cross-site storage policies can complete redirect sign-in.
-  authDomain: typeof window !== 'undefined' && window.location.hostname === 'arka-plum.vercel.app'
-    ? 'arka-plum.vercel.app'
-    : 'arkasystems-61e93.firebaseapp.com',
+  // Keep OAuth on Firebase's official hosted auth domain. Google/Firebase
+  // expects this callback by default:
+  // https://arkasystems-61e93.firebaseapp.com/__/auth/handler
+  //
+  // Using the Vercel hostname here changes the callback to
+  // https://arka-plum.vercel.app/__/auth/handler and causes Google's
+  // redirect_uri_mismatch unless that URI is manually registered too.
+  authDomain: "arkasystems-61e93.firebaseapp.com",
   projectId: "arkasystems-61e93",
   storageBucket: "arkasystems-61e93.firebasestorage.app",
   messagingSenderId: "793610509032",
