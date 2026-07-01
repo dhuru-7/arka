@@ -1,5 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
+import {
+  browserLocalPersistence,
+  browserSessionPersistence,
+  onAuthStateChanged,
+  setPersistence,
+  signInWithPopup,
+} from 'firebase/auth';
 import { auth, provider } from './firebase';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -11,43 +17,42 @@ const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // Handle redirect sign-in result when returning from Google
-    const handleRedirectResult = async () => {
-      try {
-        const result = await getRedirectResult(auth);
-        if (result?.user) {
-          navigate('/diagrams');
-        }
-      } catch (err) {
-        console.error("Redirect Auth Error:", err);
-        setError(`Redirect Sign-in failed: ${err.code || err.message}`);
+    // Navigate only after Firebase confirms the persisted user. This also
+    // recovers cleanly if the popup closes before this page's promise settles.
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        navigate('/diagrams', { replace: true });
       }
-    };
-    handleRedirectResult();
+    });
+    return unsubscribe;
   }, [navigate]);
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     setError(null);
     try {
+      // Edge can restrict local storage in stricter privacy modes. Prefer a
+      // durable session, but retain a same-tab session if local persistence is
+      // unavailable instead of losing the login after the popup closes.
+      try {
+        await setPersistence(auth, browserLocalPersistence);
+      } catch (persistenceError) {
+        console.warn('Local auth persistence unavailable; using session persistence.', persistenceError);
+        await setPersistence(auth, browserSessionPersistence);
+      }
+
       await signInWithPopup(auth, provider);
-      // User signed in successfully
-      navigate('/diagrams');
+      navigate('/diagrams', { replace: true });
     } catch (err) {
       console.error("Popup Auth Error:", err);
-      // If popup is blocked or closed, fall back to redirect
-      if (err.code === 'auth/popup-blocked' || err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
-        try {
-          await signInWithRedirect(auth, provider);
-        } catch (redirectErr) {
-          console.error("Redirect Trigger Error:", redirectErr);
-          setError(`Failed to open redirect sign-in: ${redirectErr.code || redirectErr.message}`);
-          setIsLoading(false);
-        }
+      if (err.code === 'auth/popup-blocked') {
+        setError('Your browser blocked the Google sign-in window. Allow popups for this site and try again.');
+      } else if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
+        setError('Google sign-in was cancelled. Please try again.');
       } else {
         setError(`Sign-in failed: ${err.code || err.message}`);
-        setIsLoading(false);
       }
+      setIsLoading(false);
     }
   };
 
