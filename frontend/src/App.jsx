@@ -503,7 +503,13 @@ const DiagramsPage = () => {
                 {viewState === 'result' || viewState === 'loading' ? (
                   <button
                     className="show-all-header-btn"
-                    onClick={() => setShowAll(!showAll)}
+                    onClick={() => {
+                      const willShowAll = !showAll;
+                      setShowAll(willShowAll);
+                      if (isTutorialActive && tutorialStep === 3 && willShowAll) {
+                        setTutorialStep(4);
+                      }
+                    }}
                     style={{
                       padding: '0.6rem 1.2rem',
                       borderRadius: '12px',
@@ -876,12 +882,7 @@ const DiagramsPage = () => {
                                         className={`card-info-btn ${isExpanded ? 'btn-close-red' : 'btn-info-aqua'}`}
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          const willClose = isExpanded;
                                           setExpandedCardType(isExpanded ? null : suggestion.type);
-                                          // Advance to Step 4 only when the user CLOSES the explanation
-                                          if (isTutorialActive && tutorialStep === 3 && willClose) {
-                                            setTutorialStep(4);
-                                          }
                                         }}
                                         title={isExpanded ? "Close explanation" : "Show explanation"}
                                       >
@@ -928,7 +929,15 @@ const DiagramsPage = () => {
                               initial={{ opacity: 0, scale: 0.9 }}
                               animate={{ opacity: 1, scale: 1 }}
                               className={`type-card grid-card ${suggestedType === type.id ? 'highlight-border' : ''}`}
-                              onClick={() => { setSuggestedType(type.id); setShowAll(false); }}
+                              onClick={() => {
+                                setSuggestedType(type.id);
+                                setShowAll(false);
+                                if (isTutorialActive && tutorialStep === 4) {
+                                  localStorage.removeItem('arka_last_mermaid_code');
+                                  setTutorialStep(5);
+                                  setViewState('arena');
+                                }
+                              }}
                             >
                               <div className="icon-box-static" style={{ color: type.color }}>
                                 <type.icon size={32} strokeWidth={1.5} />
@@ -949,7 +958,7 @@ const DiagramsPage = () => {
       </AnimatePresence>
 
       {/* Onboarding Tutorial Overlay */}
-      {isTutorialActive && (tutorialStep === 1 || tutorialStep === 3 || tutorialStep === 4 || (tutorialStep === 6 && showTutorialFinal)) && (
+      {isTutorialActive && (tutorialStep === 1 || tutorialStep === 3 || (tutorialStep === 6 && showTutorialFinal)) && (
         <Tutorial
           step={tutorialStep}
           onGotIt={async () => {

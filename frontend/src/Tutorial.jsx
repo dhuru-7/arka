@@ -4,10 +4,10 @@
  * Steps:
  *  1 = Spotlight on prompt box ("Type your idea here!")
  *  2 = Loading (no spotlight) — handled by parent
- *  3 = Spotlight on info (ℹ) button on diagram card (card expands, guides to close)
- *  4 = Spotlight on Proceed button
- *  5 = Loading (no spotlight) — handled by parent
- *  6 = Highlight on Plus, Chat, Export buttons on Arena screen + "Got It" card
+ *  3 = Spotlight on the "Show all diagrams" button
+ *  4 = Diagram picker is open (no spotlight)
+ *  5 = Diagram is loading in the arena (no spotlight)
+ *  6 = Spotlight on the diagram and Agent button + "Got it" card
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -25,22 +25,15 @@ const STEP_CONFIG = {
     padding: 12,
   },
   3: {
-    selectors: ['.card-info-btn'], // matches both btn-info-aqua and btn-close-red
-    text: 'Click here to see why our AI agent suggested this diagram type',
+    selectors: ['.show-all-header-btn'],
+    text: 'Click Show all diagrams to explore every available diagram type.',
     hint: null,
-    position: 'left',
-    padding: 6,
-  },
-  4: {
-    selectors: ['.confirm-btn'],
-    text: 'Great! Now click Proceed to generate your diagram 🚀',
-    hint: null,
-    position: 'top',
+    position: 'bottom',
     padding: 8,
   },
   6: {
-    selectors: ['.nav-btn-main', '.chat-toggle-btn', '.export-btn'],
-    text: 'Your diagram is ready! Click nodes to edit, use the Agent to refine, and Export your work.',
+    selectors: ['.mermaid-render-target', '.chat-toggle-btn'],
+    text: 'Your diagram is ready! Use the Agent to refine it, or click Got it to finish the tutorial.',
     hint: null,
     position: 'center',
     padding: 8,
@@ -117,32 +110,20 @@ const Tutorial = ({ step, onGotIt }) => {
     };
   }, [updateSpotlights, step]);
 
-  if (step === 2 || step === 5) return null;
+  if (step === 2 || step === 4 || step === 5) return null;
   if (!config) return null;
-
-  // Determine active tooltip text (Step 3 text changes if card is already expanded)
-  const getStepText = () => {
-    if (step === 3) {
-      const infoBtn = document.querySelector('.card-info-btn');
-      if (infoBtn && infoBtn.classList.contains('btn-close-red')) {
-        return 'Click the X to close the explanation and proceed!';
-      }
-    }
-    return config.text;
-  };
 
   const getTooltipStyle = () => {
     if (spotlightRects.length === 0) return { opacity: 0 };
     
-    // For Step 6, center the tooltip/tips card on screen
+    // Keep the completion card clear of the diagram and Agent button.
     if (step === 6) {
       return {
         position: 'fixed',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
+        left: '1.5rem',
+        bottom: '1.5rem',
         zIndex: 10001,
-        maxWidth: '520px',
+        maxWidth: '440px',
         width: '90%'
       };
     }
@@ -219,8 +200,8 @@ const Tutorial = ({ step, onGotIt }) => {
                   y={r.top}
                   width={r.width}
                   height={r.height}
-                  rx={step === 3 ? 9999 : 12} // round circle cutout for info button
-                  ry={step === 3 ? 9999 : 12}
+                  rx={12}
+                  ry={12}
                   fill="black"
                 />
               ))}
@@ -244,7 +225,7 @@ const Tutorial = ({ step, onGotIt }) => {
               left: r.left,
               width: r.width,
               height: r.height,
-              borderRadius: step === 3 ? '50%' : '0.75rem',
+              borderRadius: '0.75rem',
             }}
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -252,7 +233,7 @@ const Tutorial = ({ step, onGotIt }) => {
           />
         ))}
 
-        {/* Tooltip Card (Step 1, 3, 4) OR Tips got-it Card (Step 6) */}
+        {/* Tooltip Card (Steps 1 and 3) OR completion card (Step 6) */}
         <motion.div
           className="tutorial-tooltip"
           style={getTooltipStyle()}
@@ -268,7 +249,7 @@ const Tutorial = ({ step, onGotIt }) => {
               </div>
               <h2 className="tutorial-final-title">You're all set! 🎉</h2>
               <p className="tutorial-final-subtitle">
-                Your trial diagram is ready. Here are the key options highlighted:
+                Your diagram is ready. The canvas and Agent button are highlighted.
               </p>
 
               <div className="tutorial-tips-list">
@@ -285,24 +266,8 @@ const Tutorial = ({ step, onGotIt }) => {
                 <div className="tutorial-tip-item">
                   <span className="tutorial-tip-icon">💬</span>
                   <div className="tutorial-tip-text">
-                    <strong>AI Agent Chat</strong>
-                    <span>Use the Chat button in the top right to ask the AI to refine details or add nodes.</span>
-                  </div>
-                </div>
-
-                <div className="tutorial-tip-item">
-                  <span className="tutorial-tip-icon">📥</span>
-                  <div className="tutorial-tip-text">
-                    <strong>Export</strong>
-                    <span>Click the Export button to save your diagram as PNG, SVG, or copy Mermaid code.</span>
-                  </div>
-                </div>
-
-                <div className="tutorial-tip-item">
-                  <span className="tutorial-tip-icon">➕</span>
-                  <div className="tutorial-tip-text">
-                    <strong>New Diagram</strong>
-                    <span>Use the Plus button on the left to start a brand new diagram from scratch.</span>
+                    <strong>Agent</strong>
+                    <span>Use the Agent button in the top right to refine the diagram or add nodes.</span>
                   </div>
                 </div>
               </div>
@@ -312,10 +277,10 @@ const Tutorial = ({ step, onGotIt }) => {
               </button>
             </div>
           ) : (
-            /* Steps 1, 3, 4: Tooltip Bubble */
+            /* Steps 1 and 3: Tooltip Bubble */
             <div className="tutorial-tooltip-card">
               <div className="tutorial-step-badge">
-                {[1, 3, 4].map((s) => (
+                {[1, 3, 6].map((s) => (
                   <span
                     key={s}
                     className={`tutorial-step-dot ${s === step ? 'active' : s < step ? 'done' : ''}`}
@@ -325,7 +290,7 @@ const Tutorial = ({ step, onGotIt }) => {
                   Step {step === 1 ? 1 : step === 3 ? 2 : 3} of 3
                 </span>
               </div>
-              <p className="tutorial-tooltip-text">{getStepText()}</p>
+              <p className="tutorial-tooltip-text">{config.text}</p>
               {config.hint && (
                 <div className="tutorial-tooltip-hint">
                   {config.hintKbd ? (
