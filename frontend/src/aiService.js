@@ -7,7 +7,6 @@
  *
  * API keys are NEVER stored on the server. They live in localStorage only.
  */
-
 export const CLOUD_PROVIDERS = {
   gemini: {
     name: 'Google AI',
@@ -212,6 +211,10 @@ export function isBYOK() {
 
 /** Returns the provider label for display */
 export function getProviderLabel() {
+  // Check trial mode
+  if (localStorage.getItem('arka_trial_completed') !== 'true') {
+    return 'Trial · Gemini 3.1 Flash Lite';
+  }
   const s = getSettings();
   if (s.providerType === 'free') return 'Arka AI (Free)';
   if (s.providerType === 'local') return `Local · ${s.localModel}`;

@@ -1,0 +1,343 @@
+/* ═══════════════════════════════════════════════════
+   Tutorial.css — Guided Onboarding Overlay Styles
+   ═══════════════════════════════════════════════════ */
+
+/* ─── Backdrop ─── */
+.tutorial-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  pointer-events: none;
+  transition: opacity 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.tutorial-backdrop-fill {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  pointer-events: none;
+}
+
+/* ─── Spotlight Cutout ─── */
+.tutorial-spotlight {
+  position: absolute;
+  border-radius: 1rem;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
+  z-index: 9999;
+  pointer-events: none;
+  transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.tutorial-spotlight::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: inherit;
+  border: 2.5px solid rgba(255, 255, 255, 0.5);
+  animation: tutorial-pulse-ring 2s ease-in-out infinite;
+}
+
+.tutorial-spotlight::after {
+  content: '';
+  position: absolute;
+  inset: -12px;
+  border-radius: inherit;
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  animation: tutorial-pulse-ring 2s ease-in-out 0.4s infinite;
+}
+
+@keyframes tutorial-pulse-ring {
+  0%, 100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.025);
+  }
+}
+
+/* Allow clicks through the spotlight area */
+.tutorial-spotlight-click-area {
+  position: absolute;
+  z-index: 10000;
+  pointer-events: all;
+  cursor: pointer;
+  border-radius: 1rem;
+}
+
+/* ─── Tooltip Bubble ─── */
+.tutorial-tooltip {
+  position: absolute;
+  z-index: 10001;
+  pointer-events: all;
+  max-width: 340px;
+  min-width: 220px;
+}
+
+.tutorial-tooltip-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 1rem;
+  padding: 1.25rem 1.5rem;
+  box-shadow:
+    0 20px 50px -10px rgba(0, 0, 0, 0.15),
+    0 8px 20px -5px rgba(0, 0, 0, 0.08);
+  font-family: var(--font-body);
+}
+
+.tutorial-tooltip-text {
+  font-size: 0.92rem;
+  color: var(--text-main);
+  line-height: 1.6;
+  font-weight: 500;
+  margin-bottom: 0;
+}
+
+.tutorial-tooltip-hint {
+  font-size: 0.78rem;
+  color: var(--text-alt);
+  font-family: var(--font-mono);
+  margin-top: 0.6rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.tutorial-tooltip-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.15rem 0.45rem;
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 0.35rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #374151;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+/* ─── Step Counter Badge ─── */
+.tutorial-step-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.6rem;
+}
+
+.tutorial-step-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #d1d5db;
+  transition: all 0.3s ease;
+}
+
+.tutorial-step-dot.active {
+  background: #000;
+  width: 18px;
+  border-radius: 3px;
+}
+
+.tutorial-step-dot.done {
+  background: #10b981;
+}
+
+/* ─── Arrow Pointer ─── */
+.tutorial-arrow {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  z-index: 10002;
+  pointer-events: none;
+}
+
+/* ─── Final Overlay (Step 6 "Got It" screen) ─── */
+.tutorial-final-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.tutorial-final-card {
+  background: #ffffff;
+  border-radius: 1.5rem;
+  padding: 2.5rem 2.5rem 2rem;
+  max-width: 520px;
+  width: 90%;
+  box-shadow:
+    0 30px 80px -15px rgba(0, 0, 0, 0.2),
+    0 10px 30px -10px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.tutorial-final-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #f0fdf4;
+  border: 2px solid #bbf7d0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.25rem;
+  color: #16a34a;
+}
+
+.tutorial-final-title {
+  font-family: var(--font-body);
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--text-main);
+  margin-bottom: 0.5rem;
+}
+
+.tutorial-final-subtitle {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--text-alt);
+  margin-bottom: 1.5rem;
+  line-height: 1.5;
+}
+
+.tutorial-tips-list {
+  text-align: left;
+  margin-bottom: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.tutorial-tip-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  font-size: 0.88rem;
+  color: var(--text-main);
+  line-height: 1.5;
+  font-family: var(--font-body);
+}
+
+.tutorial-tip-icon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 0.5rem;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  margin-top: 1px;
+}
+
+.tutorial-tip-text {
+  flex: 1;
+}
+
+.tutorial-tip-text strong {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 1px;
+}
+
+.tutorial-tip-text span {
+  font-size: 0.8rem;
+  color: var(--text-alt);
+}
+
+.tutorial-got-it-btn {
+  width: 100%;
+  padding: 0.9rem;
+  border-radius: 0.85rem;
+  font-weight: 700;
+  font-size: 0.95rem;
+  background: #000;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-body);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 4px 14px -3px rgba(0, 0, 0, 0.25);
+}
+
+.tutorial-got-it-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.3);
+}
+
+.tutorial-got-it-btn:active {
+  transform: translateY(0) scale(0.97);
+}
+
+/* ─── Skip button ─── */
+.tutorial-skip-btn {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 10003;
+  padding: 0.5rem 1.1rem;
+  border-radius: 0.65rem;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.75);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  pointer-events: all;
+}
+
+.tutorial-skip-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 640px) {
+  .tutorial-tooltip {
+    max-width: 280px;
+    min-width: 180px;
+  }
+
+  .tutorial-tooltip-card {
+    padding: 1rem 1.15rem;
+  }
+
+  .tutorial-tooltip-text {
+    font-size: 0.85rem;
+  }
+
+  .tutorial-final-card {
+    padding: 2rem 1.5rem 1.5rem;
+  }
+
+  .tutorial-final-title {
+    font-size: 1.2rem;
+  }
+}

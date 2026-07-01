@@ -4,6 +4,7 @@ import { ChevronLeft, Database, Cloud, Zap, Eye, EyeOff, Check, X } from './goog
 import { auth } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { getSettings, saveSettings, CLOUD_PROVIDERS, LOCAL_MODELS } from './aiService';
+import { isTrialMode } from './trialService';
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -17,6 +18,7 @@ const Settings = () => {
   const [localModel, setLocalModel] = useState('');
   const [saved, setSaved] = useState(false);
   const [savedModel, setSavedModel] = useState(null);
+  const [inTrial, setInTrial] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -39,7 +41,8 @@ const Settings = () => {
     setLocalModel(s.localModel);
     if (s.providerType === 'cloud') setSavedModel(s.cloudModel);
     else if (s.providerType === 'local') setSavedModel(s.localModel);
-  }, []);
+    setInTrial(isTrialMode());
+  }, []);;
 
 
 
@@ -92,6 +95,29 @@ const Settings = () => {
 
         <h1 style={{ fontFamily: 'var(--font-sans)', fontSize: '1.75rem', fontWeight: 800, marginBottom: '0.5rem', color: '#000' }}>Settings</h1>
         <p style={{ color: '#9ca3af', fontSize: '0.85rem', marginBottom: '2rem', fontFamily: 'var(--font-mono)' }}>Configure how Arka generates your diagrams.</p>
+
+        {/* Trial Mode Banner */}
+        {inTrial && (
+          <div style={{
+            padding: '0.85rem 1.1rem',
+            background: '#eff6ff',
+            borderRadius: '0.75rem',
+            border: '1px solid #bfdbfe',
+            marginBottom: '1.5rem',
+            fontSize: '0.82rem',
+            color: '#1e40af',
+            lineHeight: 1.6,
+            fontFamily: 'var(--font-mono)',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '0.5rem'
+          }}>
+            <span style={{ fontSize: '1rem', flexShrink: 0 }}>🎓</span>
+            <span>
+              <strong>Trial Mode Active</strong> — You're using a free trial key. Complete the tutorial to unlock settings, then add your own API key for unlimited use.
+            </span>
+          </div>
+        )}
 
         {/* ─── Provider Selection ─── */}
         <div style={cardStyle}>
@@ -166,9 +192,11 @@ const Settings = () => {
                 <div style={{ position: 'relative' }}>
                   <input
                     type={showKey ? 'text' : 'password'}
-                    value={apiKey}
-                    onChange={e => setApiKey(e.target.value)}
+                    value={inTrial ? (showKey ? 'Trial' : 'Trial') : apiKey}
+                    onChange={e => !inTrial && setApiKey(e.target.value)}
+                    readOnly={inTrial}
                     placeholder={
+                      inTrial ? 'Trial' :
                       cloudProvider === 'gemini' ? 'AQ.Ab...' :
                       (cloudProvider === 'invidia' || cloudProvider === 'nvidia') ? 'nvapi-...' :
                       'sk_...'
@@ -176,11 +204,14 @@ const Settings = () => {
                     style={{
                       ...inputStyle,
                       paddingRight: '2.5rem',
-                      transition: 'all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)'
+                      transition: 'all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                      ...(inTrial ? { background: '#f8fafc', color: '#6b7280', cursor: 'default' } : {})
                     }}
                     onFocus={e => {
-                      e.currentTarget.style.borderColor = '#000000';
-                      e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0, 0, 0, 0.05)';
+                      if (!inTrial) {
+                        e.currentTarget.style.borderColor = '#000000';
+                        e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0, 0, 0, 0.05)';
+                      }
                     }}
                     onBlur={e => {
                       e.currentTarget.style.borderColor = '#e5e7eb';
@@ -277,7 +308,7 @@ const Settings = () => {
             transition: 'all 0.2s', opacity: saved ? 0.7 : 1,
           }}
         >
-          {saved ? <><Check size={18} /> Saved!</> : 'Save Settings'}
+          {saved ? <><Check size={18} /> Saved!</> : (inTrial ? '🔒 Complete tutorial to unlock' : 'Save Settings')}
         </button>
 
         <div style={{ display: 'flex', justifyContent: 'center', gap: '1.5rem', marginTop: '1.5rem' }}>

@@ -6,6 +6,7 @@ import ProfileDropdown from './ProfileDropdown';
 import { auth, db } from './firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { agentGenerateDiagram, agentRefineDiagram, getProviderLabel, agentChat, cleanMermaidOutput } from './aiService';
+import { trialGenerateDiagram } from './trialService';
 import './Arena.css';
 
 let mermaidPromise = null;
@@ -361,7 +362,7 @@ const AgentChatMessage = ({ msg, canClickPlan, handleProceedWithPlan, handleScra
 };
 
 
-const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory }) => {
+const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory, isTutorialActive, onTutorialDiagramReady }) => {
   const navigate = useNavigate();
   const [mermaidCode, setMermaidCode] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -1075,7 +1076,8 @@ User's latest message: ${userText}`;
       }
 
       try {
-        const byokResult = await agentGenerateDiagram(prompt, diagramType, {
+        const generateFn = isTutorialActive ? trialGenerateDiagram : agentGenerateDiagram;
+        const byokResult = await generateFn(prompt, diagramType, {
           signal: abortController.signal,
           onProgress: (step) => {
             if (!cancelled) {
@@ -1105,7 +1107,14 @@ User's latest message: ${userText}`;
         setAgentError(err.message || 'Agent generation failed.');
         setAgentSteps(prev => [...prev, 'Generation stopped before a valid diagram was produced.']);
       } finally {
-        if (!cancelled) setIsLoading(false);
+        if (!cancelled) {
+          setIsLoading(false);
+          // Trigger tutorial final overlay after diagram renders
+          if (isTutorialActive && onTutorialDiagramReady) {
+            // Small delay to let the diagram render visually
+            setTimeout(() => onTutorialDiagramReady(), 800);
+          }
+        }
       }
     };
     gen();

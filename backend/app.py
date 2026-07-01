@@ -26,6 +26,15 @@ CORS(app)
 SARVAM_API_KEY = os.getenv("SARVAM_API_KEY")
 KNOWLEDGE_DIR = os.path.join(os.path.dirname(__file__), "knowledge")
 
+# Trial mode: 3 Gemini API keys for free trial with automatic failover
+TRIAL_GEMINI_KEYS = [
+    os.getenv("TRIAL_GEMINI_KEY_1", ""),
+    os.getenv("TRIAL_GEMINI_KEY_2", ""),
+    os.getenv("TRIAL_GEMINI_KEY_3", ""),
+]
+TRIAL_GEMINI_KEYS = [k for k in TRIAL_GEMINI_KEYS if k]  # Filter empty keys
+TRIAL_MODEL = "gemini-3.1-flash-lite"
+
 # Map diagram types to knowledge bank files
 KNOWLEDGE_FILES = {
     "flowchart": "flowchart.md",
@@ -882,6 +891,135 @@ def generate_byok():
     except Exception as e:
         print(f"BYOK proxy error for {provider}: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+# ═══════════════════════════════════════════════════════
+# Trial Mode Endpoints — Server-side Gemini key failover
+# ═══════════════════════════════════════════════════════
+
+def _call_gemini_with_failover(system_prompt, user_message, temperature=0.1, max_tokens=2500):
+    """Try each trial Gemini key in order. If one hits rate limit, try next."""
+    if not TRIAL_GEMINI_KEYS:
+        raise RuntimeError("No trial API keys configured on the server.")
+
+    last_error = None
+    for key in TRIAL_GEMINI_KEYS:
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{TRIAL_MODEL}:generateContent?key={key}"
+            body = {
+                "contents": [{"role": "user", "parts": [{"text": user_message}]}],
+                "systemInstruction": {"parts": [{"text": system_prompt}]},
+                "generationConfig": {"temperature": temperature, "maxOutputTokens": max_tokens}
+            }
+            response = requests.post(url, json=body, timeout=60)
+            if response.status_code == 429 or response.status_code == 403:
+                # Rate limited or forbidden — try next key
+                last_error = f"Key rate limited (HTTP {response.status_code})"
+                continue
+            response.raise_for_status()
+            data = response.json()
+            text = data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "").strip()
+            if not text:
+                last_error = "Gemini returned empty response"
+                continue
+            return text
+        except requests.exceptions.RequestException as e:
+            last_error = str(e)
+            continue
+    raise RuntimeError(f"All trial API keys exhausted. Last error: {last_error}")
+
+
+@app.route('/api/trial/suggest', methods=['POST'])
+def trial_suggest_diagram():
+    """Trial mode: suggest diagram type using server-side Gemini keys."""
+    data = request.json or {}
+    user_prompt = data.get('prompt', '')
+    if not user_prompt:
+        return jsonify({"error": "No prompt provided"}), 400
+
+    try:
+        # Use the same agent logic but with trial keys
+        agent = DiagramAgent(
+            api_key='trial-placeholder',
+            provider='gemini',
+            model=TRIAL_MODEL,
+            knowledge_dir=KNOWLEDGE_DIR
+        )
+        # Override call_model to use our failover function
+        original_call = agent.call_model
+        def trial_call(system_prompt, user_message, temperature=0.2, max_tokens=2500):
+            return _call_gemini_with_failover(system_prompt, user_message, temperature, max_tokens)
+        agent.call_model = trial_call
+
+        result = agent.suggest_type(user_prompt)
+        return jsonify(result)
+    except Exception as e:
+        print(f"Trial suggest error: {e}")
+        return jsonify({"error": f"Trial suggestion failed: {str(e)}"}), 500
+
+
+@app.route('/api/trial/generate', methods=['POST'])
+def trial_generate_diagram():
+    """Trial mode: generate diagram using server-side Gemini keys."""
+    data = request.json or {}
+    user_prompt = data.get('prompt', '')
+    diagram_type = data.get('diagramType', 'flowchart')
+    if not user_prompt:
+        return jsonify({"error": "No prompt provided"}), 400
+
+    try:
+        agent = DiagramAgent(
+            api_key='trial-placeholder',
+            provider='gemini',
+            model=TRIAL_MODEL,
+            knowledge_dir=KNOWLEDGE_DIR
+        )
+        # Override call_model to use our failover function
+        def trial_call(system_prompt, user_message, temperature=0.2, max_tokens=2500):
+            return _call_gemini_with_failover(system_prompt, user_message, temperature, max_tokens)
+        agent.call_model = trial_call
+
+        is_vercel = os.getenv('VERCEL') == '1' or 'VERCEL' in os.environ
+        if is_vercel:
+            steps = []
+            def on_progress(step):
+                steps.append(step)
+            result = agent.generate(user_prompt, diagram_type, on_progress=on_progress)
+            response_data = []
+            for step in steps:
+                response_data.append(json.dumps({"type": "progress", "content": step}) + "\n")
+            response_data.append(json.dumps({"type": "result", "content": result}) + "\n")
+            return Response("".join(response_data), mimetype='application/x-ndjson')
+
+        import queue
+        import threading
+        q = queue.Queue()
+
+        def run_agent():
+            try:
+                def on_progress(step):
+                    q.put({"type": "progress", "content": step})
+                result = agent.generate(user_prompt, diagram_type, on_progress=on_progress)
+                q.put({"type": "result", "content": result})
+            except Exception as e:
+                q.put({"type": "error", "content": str(e)})
+            finally:
+                q.put(None)
+
+        threading.Thread(target=run_agent).start()
+
+        def event_stream():
+            while True:
+                item = q.get()
+                if item is None:
+                    break
+                yield json.dumps(item) + "\n"
+
+        return Response(event_stream(), mimetype='application/x-ndjson')
+    except Exception as e:
+        print(f"Trial generate error: {e}")
+        error_line = json.dumps({"type": "error", "content": str(e)}) + "\n"
+        return Response(error_line, mimetype='application/x-ndjson')
 
 
 if __name__ == '__main__':

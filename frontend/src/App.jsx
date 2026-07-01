@@ -8,10 +8,12 @@ import Settings from './Settings';
 import Help from './Help';
 import Docs from './Docs';
 import ProfileDropdown from './ProfileDropdown';
+import Tutorial, { TutorialFinalOverlay } from './Tutorial';
 import { auth, db } from './firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { collection, query, orderBy, limit, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
 import { agentSuggestDiagramType, optimizePrompt } from './aiService';
+import { isTrialMode, checkTrialStatus, completeTrial, trialSuggestDiagramType } from './trialService';
 
 
 // Lander import removed
@@ -64,6 +66,11 @@ const DiagramsPage = () => {
   const [animationTokens, setAnimationTokens] = useState([]);
   const [staggerDelay, setStaggerDelay] = useState(0.015);
 
+  // Tutorial state
+  const [isTutorialActive, setIsTutorialActive] = useState(false);
+  const [tutorialStep, setTutorialStep] = useState(1);
+  const [showTutorialFinal, setShowTutorialFinal] = useState(false);
+
   const handleCancelSuggest = () => {
     if (suggestAbortControllerRef.current) {
       suggestAbortControllerRef.current.abort();
@@ -72,11 +79,23 @@ const DiagramsPage = () => {
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) {
         navigate('/auth');
       } else {
         setAuthLoading(false);
+        // Check trial status from Firestore
+        const trialActive = await checkTrialStatus(user.uid);
+        setIsTutorialActive(trialActive);
+        if (trialActive) {
+          setTutorialStep(1);
+          // Reset to input view for tutorial
+          setViewState('input');
+          setPrompt('');
+          setSuggestedType(null);
+          setAgentSuggestion(null);
+          localStorage.removeItem('arka_last_mermaid_code');
+        }
       }
     });
     return () => unsubscribe();
@@ -255,21 +274,38 @@ const DiagramsPage = () => {
     setSuggestionError('');
     setViewState('loading');
 
+    // Advance tutorial to loading step
+    if (isTutorialActive && tutorialStep === 1) {
+      setTutorialStep(2);
+    }
+
     const abortController = new AbortController();
     suggestAbortControllerRef.current = abortController;
 
     try {
-      const suggestResult = await agentSuggestDiagramType(prompt, abortController.signal);
+      // Use trial endpoint if in tutorial mode
+      const suggestResult = isTutorialActive
+        ? await trialSuggestDiagramType(prompt, abortController.signal)
+        : await agentSuggestDiagramType(prompt, abortController.signal);
       const nextType = suggestResult?.suggestions?.[0]?.type || suggestResult?.suggested_type;
       if (!nextType) throw new Error('The selected AI model returned no diagram suggestions.');
       setSuggestedType(nextType);
       setAgentSuggestion(suggestResult || null);
       setViewState('result');
+
+      // Advance tutorial to "click info button" step
+      if (isTutorialActive && tutorialStep === 2) {
+        setTutorialStep(3);
+      }
     } catch (error) {
       if (error.name === 'AbortError') return;
       console.error("AI Error:", error);
       setSuggestionError(error.message || 'The selected AI model could not analyze this prompt.');
       setViewState('input');
+      // Reset tutorial to step 1 on error
+      if (isTutorialActive) {
+        setTutorialStep(1);
+      }
     }
   };
 
@@ -292,6 +328,10 @@ const DiagramsPage = () => {
   const handleProceed = () => {
     if (!suggestedType) return;
     localStorage.removeItem('arka_last_mermaid_code');
+    // Advance tutorial to arena loading step
+    if (isTutorialActive && (tutorialStep === 3 || tutorialStep === 4)) {
+      setTutorialStep(5);
+    }
     setViewState('arena');
   };
 
@@ -395,6 +435,12 @@ const DiagramsPage = () => {
               diagramId={currentDiagramId}
               onBack={handleReset}
               onShowHistory={() => setIsSidebarOpen(true)}
+              isTutorialActive={isTutorialActive}
+              onTutorialDiagramReady={() => {
+                if (isTutorialActive && tutorialStep === 5) {
+                  setShowTutorialFinal(true);
+                }
+              }}
             />
           </motion.div>
         ) : (
@@ -830,6 +876,10 @@ const DiagramsPage = () => {
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           setExpandedCardType(isExpanded ? null : suggestion.type);
+                                          // Advance tutorial when info button is clicked
+                                          if (isTutorialActive && tutorialStep === 3) {
+                                            setTutorialStep(4);
+                                          }
                                         }}
                                         title={isExpanded ? "Close explanation" : "Show explanation"}
                                       >
@@ -895,8 +945,43 @@ const DiagramsPage = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Tutorial Overlay — spotlight steps 1, 3, 4 */}
+      {isTutorialActive && !showTutorialFinal && (tutorialStep === 1 || tutorialStep === 3 || tutorialStep === 4) && (
+        <Tutorial
+          step={tutorialStep}
+          onSkip={async () => {
+            const uid = auth?.currentUser?.uid;
+            await completeTrial(uid);
+            setIsTutorialActive(false);
+            setShowTutorialFinal(false);
+          }}
+        />
+      )}
+
+      {/* Tutorial Final "Got It" Overlay — step 6 */}
+      <AnimatePresence>
+        {showTutorialFinal && (
+          <TutorialFinalOverlay
+            onGotIt={async () => {
+              const uid = auth?.currentUser?.uid;
+              await completeTrial(uid);
+              setIsTutorialActive(false);
+              setShowTutorialFinal(false);
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
+};
+
+const handleTutorialGotIt = async (setIsTutorialActive, setShowTutorialFinal, setTutorialStep) => {
+  const uid = auth?.currentUser?.uid;
+  await completeTrial(uid);
+  setIsTutorialActive(false);
+  setShowTutorialFinal(false);
+  setTutorialStep(1);
 };
 
 function AnimatedRoutes() {
