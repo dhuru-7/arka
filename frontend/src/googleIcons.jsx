@@ -50,6 +50,7 @@ import {
   MdUndo,
   MdRedo,
   MdVisibility,
+  MdVisibilityOff,
   MdDashboard,
   MdDonutLarge,
   MdViewInAr,
@@ -129,6 +130,7 @@ export const Diamond = googleIcon(MdDiamond);
 export const Box = googleIcon(MdViewInAr);
 export const ArrowRight = googleIcon(MdEast);
 export const Eye = googleIcon(MdVisibility);
+export const EyeOff = googleIcon(MdVisibilityOff);
 export const RefreshCw = googleIcon(MdRefresh);
 export const Loader2 = googleIcon(MdAutorenew);
 export const Brush = googleIcon(MdGesture);

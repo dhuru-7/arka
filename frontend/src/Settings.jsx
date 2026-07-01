@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Database, Cloud, Zap, Eye, Check, X } from './googleIcons';
+import { ChevronLeft, Database, Cloud, Zap, Eye, EyeOff, Check, X } from './googleIcons';
 import { auth } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { getSettings, saveSettings, CLOUD_PROVIDERS, LOCAL_MODELS } from './aiService';
@@ -169,17 +169,49 @@ const Settings = () => {
                     value={apiKey}
                     onChange={e => setApiKey(e.target.value)}
                     placeholder={
-                      cloudProvider === 'gemini' ? 'AIzaSy...' :
+                      cloudProvider === 'gemini' ? 'AQ.Ab...' :
                       (cloudProvider === 'invidia' || cloudProvider === 'nvidia') ? 'nvapi-...' :
                       'sk_...'
                     }
-                    style={inputStyle}
+                    style={{
+                      ...inputStyle,
+                      paddingRight: '2.5rem',
+                      transition: 'all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)'
+                    }}
+                    onFocus={e => {
+                      e.currentTarget.style.borderColor = '#000000';
+                      e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0, 0, 0, 0.05)';
+                    }}
+                    onBlur={e => {
+                      e.currentTarget.style.borderColor = '#e5e7eb';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
                   />
-                  <button onClick={() => setShowKey(!showKey)} style={{
-                    position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)',
-                    background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: '4px'
-                  }}>
-                    <Eye size={16} />
+                  <button 
+                    onClick={() => setShowKey(!showKey)} 
+                    style={{
+                      position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%) scale(1)',
+                      background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: '4px',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      transition: 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.2s ease',
+                      outline: 'none'
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.color = '#1f2937';
+                      e.currentTarget.style.transform = 'translateY(-50%) scale(1.15)';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.color = '#9ca3af';
+                      e.currentTarget.style.transform = 'translateY(-50%) scale(1)';
+                    }}
+                    onMouseDown={e => {
+                      e.currentTarget.style.transform = 'translateY(-50%) scale(0.9)';
+                    }}
+                    onMouseUp={e => {
+                      e.currentTarget.style.transform = 'translateY(-50%) scale(1.15)';
+                    }}
+                  >
+                    {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
               </div>
