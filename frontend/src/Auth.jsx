@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import {
   browserLocalPersistence,
   browserSessionPersistence,
+  getRedirectResult,
   onAuthStateChanged,
   setPersistence,
   signInWithPopup,
+  signInWithRedirect,
 } from 'firebase/auth';
 import { auth, provider } from './firebase';
 import { useNavigate } from 'react-router-dom';
@@ -37,6 +39,15 @@ const Auth = () => {
 
     preparePersistence();
 
+    // Completes a same-origin redirect fallback when a browser refuses popups.
+    getRedirectResult(auth).catch((redirectError) => {
+      console.error('Redirect Auth Error:', redirectError);
+      if (isMounted) {
+        setError(`Google sign-in failed: ${redirectError.code || redirectError.message}`);
+        setIsLoading(false);
+      }
+    });
+
     // Navigate only after Firebase confirms the persisted user. This also
     // recovers cleanly if the popup closes before this page's promise settles.
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -61,7 +72,15 @@ const Auth = () => {
     } catch (err) {
       console.error("Popup Auth Error:", err);
       if (err.code === 'auth/popup-blocked') {
-        setError('Your browser blocked the Google sign-in window. Allow popups for this site and try again.');
+        try {
+          // Vercel proxies Firebase's helper on this same domain, avoiding the
+          // third-party storage restriction that broke the previous redirect.
+          await signInWithRedirect(auth, provider);
+          return;
+        } catch (redirectError) {
+          console.error('Redirect Trigger Error:', redirectError);
+          setError(`Google sign-in failed: ${redirectError.code || redirectError.message}`);
+        }
       } else if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
         setError('Google sign-in was cancelled. Please try again.');
       } else {
