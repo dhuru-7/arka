@@ -64,6 +64,7 @@ const Tutorial = ({ step, onGotIt }) => {
   // Track the spotlight targets' positions
   const updateSpotlights = useCallback(() => {
     if (!config?.selectors) {
+      console.log("[Tutorial Debug] No selectors defined for step:", step);
       setSpotlightRects([]);
       return;
     }
@@ -74,6 +75,12 @@ const Tutorial = ({ step, onGotIt }) => {
       if (el) {
         const rect = el.getBoundingClientRect();
         const pad = config.padding || 8;
+        console.log(`[Tutorial Debug] Step ${step} - Found ${selector}:`, {
+          top: rect.top,
+          left: rect.left,
+          width: rect.width,
+          height: rect.height
+        });
         rects.push({
           top: rect.top - pad,
           left: rect.left - pad,
@@ -81,10 +88,12 @@ const Tutorial = ({ step, onGotIt }) => {
           height: rect.height + pad * 2,
           selector
         });
+      } else {
+        console.log(`[Tutorial Debug] Step ${step} - Selector NOT found: ${selector}`);
       }
     }
     setSpotlightRects(rects);
-  }, [config]);
+  }, [config, step]);
 
   useEffect(() => {
     updateSpotlights();
