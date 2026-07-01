@@ -8,7 +8,7 @@ import Settings from './Settings';
 import Help from './Help';
 import Docs from './Docs';
 import ProfileDropdown from './ProfileDropdown';
-import Tutorial, { TutorialFinalOverlay } from './Tutorial';
+import Tutorial from './Tutorial';
 import { auth, db } from './firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { collection, query, orderBy, limit, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
@@ -438,6 +438,7 @@ const DiagramsPage = () => {
               isTutorialActive={isTutorialActive}
               onTutorialDiagramReady={() => {
                 if (isTutorialActive && tutorialStep === 5) {
+                  setTutorialStep(6);
                   setShowTutorialFinal(true);
                 }
               }}
@@ -875,9 +876,10 @@ const DiagramsPage = () => {
                                         className={`card-info-btn ${isExpanded ? 'btn-close-red' : 'btn-info-aqua'}`}
                                         onClick={(e) => {
                                           e.stopPropagation();
+                                          const willClose = isExpanded;
                                           setExpandedCardType(isExpanded ? null : suggestion.type);
-                                          // Advance tutorial when info button is clicked
-                                          if (isTutorialActive && tutorialStep === 3) {
+                                          // Advance to Step 4 only when the user CLOSES the explanation
+                                          if (isTutorialActive && tutorialStep === 3 && willClose) {
                                             setTutorialStep(4);
                                           }
                                         }}
@@ -946,32 +948,19 @@ const DiagramsPage = () => {
         )}
       </AnimatePresence>
 
-      {/* Tutorial Overlay — spotlight steps 1, 3, 4 */}
-      {isTutorialActive && !showTutorialFinal && (tutorialStep === 1 || tutorialStep === 3 || tutorialStep === 4) && (
+      {/* Onboarding Tutorial Overlay */}
+      {isTutorialActive && (tutorialStep === 1 || tutorialStep === 3 || tutorialStep === 4 || (tutorialStep === 6 && showTutorialFinal)) && (
         <Tutorial
           step={tutorialStep}
-          onSkip={async () => {
+          onGotIt={async () => {
             const uid = auth?.currentUser?.uid;
             await completeTrial(uid);
             setIsTutorialActive(false);
             setShowTutorialFinal(false);
+            setTutorialStep(1);
           }}
         />
       )}
-
-      {/* Tutorial Final "Got It" Overlay — step 6 */}
-      <AnimatePresence>
-        {showTutorialFinal && (
-          <TutorialFinalOverlay
-            onGotIt={async () => {
-              const uid = auth?.currentUser?.uid;
-              await completeTrial(uid);
-              setIsTutorialActive(false);
-              setShowTutorialFinal(false);
-            }}
-          />
-        )}
-      </AnimatePresence>
     </div>
   );
 };
