@@ -12,8 +12,8 @@ export const CLOUD_PROVIDERS = {
   gemini: {
     name: 'Google AI',
     models: [
-      { id: 'gemini-3.5-flash', label: 'Gemini 3.5 Flash', desc: 'Google\'s recommended flagship model for general task speed and capability.', suggestModel: 'gemini-3.5-flash', generateModel: 'gemini-3.5-flash' },
-      { id: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash Lite', desc: 'Google\'s highly cost-effective, ultra-fast model.', suggestModel: 'gemini-3.1-flash-lite', generateModel: 'gemini-3.1-flash-lite' }
+      { id: 'gemini-3.5-flash', label: 'Gemini 3.5 Flash', desc: 'Google\'s recommended flagship model for general task speed and capability.', suggestModel: 'gemini-3.5-flash', generateModel: 'gemini-3.5-flash', badge: 'Best' },
+      { id: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash Lite', desc: 'Google\'s highly cost-effective, ultra-fast model.', suggestModel: 'gemini-3.1-flash-lite', generateModel: 'gemini-3.1-flash-lite', badge: 'Best' }
     ]
   },
   sarvam: {
@@ -21,15 +21,6 @@ export const CLOUD_PROVIDERS = {
     models: [
       { id: 'sarvam-105b', label: 'Sarvam 105B', desc: 'Most powerful. Best for complex diagrams.', suggestModel: 'sarvam-105b', generateModel: 'sarvam-105b' },
       { id: 'sarvam-30b', label: 'Sarvam 30B', desc: 'Faster responses, good for simple diagrams.', suggestModel: 'sarvam-30b', generateModel: 'sarvam-30b' }
-    ]
-  },
-  invidia: {
-    name: 'Invidia',
-    models: [
-      { id: 'llama-3.3-nemotron-super-49b-v1.5', label: 'Llama 3.3 Nemotron Super 49B v1.5', desc: 'NVIDIA custom-aligned high reasoning model.', suggestModel: 'nvidia/llama-3.3-nemotron-super-49b-v1.5', generateModel: 'nvidia/llama-3.3-nemotron-super-49b-v1.5' },
-      { id: 'llama-3.3-70b-instruct', label: 'Llama 3.3 70B', desc: 'Meta flagship LLM for advanced reasoning.', suggestModel: 'meta/llama-3.3-70b-instruct', generateModel: 'meta/llama-3.3-70b-instruct' },
-      { id: 'llama-3.2-90b-vision-instruct', label: 'Llama 3.2 90B Vision', desc: 'Meta vision-language model for image and text reasoning.', suggestModel: 'meta/llama-3.2-90b-vision-instruct', generateModel: 'meta/llama-3.2-90b-vision-instruct' },
-      { id: 'dracarys-llama-3.1-70b-instruct', label: 'Dracarys Llama 3.1 70B', desc: 'Abacus AI fine-tuned model for code and logic.', suggestModel: 'abacusai/dracarys-llama-3.1-70b-instruct', generateModel: 'abacusai/dracarys-llama-3.1-70b-instruct' }
     ]
   }
 };

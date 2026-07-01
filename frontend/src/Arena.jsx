@@ -2593,7 +2593,17 @@ User's latest message: ${userText}`;
       startBrushing(e);
       return;
     }
-    if (activeTool === 'pan' || e.button === 1) {
+    if (activeTool === 'select' || activeTool === 'pan' || e.button === 1) {
+      if (
+        e.target.closest('.node') || 
+        e.target.closest('.edge-hitbox-overlay') || 
+        e.target.closest('.edgeLabel') || 
+        e.target.closest('.node-add-btn') || 
+        e.target.closest('.node-action-btn') || 
+        e.target.closest('.edge-action-btn')
+      ) {
+        return;
+      }
       setIsPanning(true);
       setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
     }
@@ -2844,7 +2854,11 @@ User's latest message: ${userText}`;
         onMouseDown={handleMouseDown} onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}
         onWheel={handleWheel} onClick={handleCanvasClick}
-        style={{ cursor: activeTool === 'pan' ? (isPanning ? 'grabbing' : 'grab') : activeTool === 'brush' ? 'crosshair' : 'default' }}
+        style={{ 
+          cursor: activeTool === 'brush' 
+            ? 'crosshair' 
+            : (isPanning ? 'grabbing' : (activeTool === 'pan' ? 'grab' : 'default'))
+        }}
       >
         {/* Brush Overlay */}
         {isBrushing && brushPath.length > 1 && (
@@ -3216,9 +3230,8 @@ User's latest message: ${userText}`;
         <motion.div className="tool-tray-left"
           initial={{ opacity: 0, x: -40 }} animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.1, type: 'spring', stiffness: 350, damping: 28 }}>
-          <button className={`tool-btn ${activeTool === 'select' ? 'active' : ''}`} onClick={() => setActiveTool('select')} title="Select" disabled={isLoading || isRefining}><MousePointer2 size={18} /></button>
-          <button className={`tool-btn ${activeTool === 'pan' ? 'active' : ''}`} onClick={() => setActiveTool('pan')} title="Pan" disabled={isLoading || isRefining}><Move size={18} /></button>
-          <button className={`tool-btn ${activeTool === 'brush' ? 'active' : ''}`} onClick={() => setActiveTool('brush')} title="Brush Refinement (Circle area)" disabled={isLoading || isRefining}><Brush size={18} /></button>
+          <button className={`tool-btn ${activeTool === 'select' ? 'active' : ''}`} onClick={() => { setActiveTool('select'); setIsPanning(false); }} title="Select & Pan" disabled={isLoading || isRefining}><MousePointer2 size={18} /></button>
+          <button className={`tool-btn ${activeTool === 'brush' ? 'active' : ''}`} onClick={() => { setActiveTool('brush'); setIsPanning(false); }} title="Brush Refinement (Circle area)" disabled={isLoading || isRefining}><Brush size={18} /></button>
           <div className="tool-divider" />
           <button className={`tool-btn-theme ${showTemplates ? 'active' : ''}`} onClick={() => setShowTemplates(!showTemplates)} title="Themes" disabled={isLoading || isRefining}>
             <span>{TEMPLATES[activeTemplate]?.name || 'Theme'}</span>
