@@ -3125,32 +3125,32 @@ User's latest message: ${userText}`;
 
             <div className="popover-section">
               <label className="popover-label-mini">Line Style</label>
-              <div className="popover-shapes">
-                <button className={`shape-btn ${edgeStyle === 'solid' ? 'active' : ''}`} onClick={() => setEdgeStyle('solid')} title="Solid" style={{ gap: '4px' }}>
+              <div className="popover-shapes" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+                <button className={`shape-btn ${edgeStyle === 'solid' ? 'active' : ''}`} onClick={() => setEdgeStyle('solid')} title="Solid" style={{ gap: '6px', padding: '0 8px' }}>
                   <ArrowRight size={16} />
-                  <span style={{ fontSize: '0.65rem' }}>Solid</span>
+                  <span style={{ fontSize: '0.7rem', whiteSpace: 'nowrap' }}>Solid</span>
                 </button>
-                <button className={`shape-btn ${edgeStyle === 'dotted' ? 'active' : ''}`} onClick={() => setEdgeStyle('dotted')} title="Dotted" style={{ gap: '4px' }}>
+                <button className={`shape-btn ${edgeStyle === 'dotted' ? 'active' : ''}`} onClick={() => setEdgeStyle('dotted')} title="Dotted" style={{ gap: '6px', padding: '0 8px' }}>
                   <ArrowRight size={16} style={{ strokeDasharray: '4 2' }} />
-                  <span style={{ fontSize: '0.65rem' }}>Dotted</span>
+                  <span style={{ fontSize: '0.7rem', whiteSpace: 'nowrap' }}>Dotted</span>
                 </button>
-                <button className={`shape-btn ${edgeStyle === 'thick' ? 'active' : ''}`} onClick={() => setEdgeStyle('thick')} title="Thick" style={{ gap: '4px' }}>
+                <button className={`shape-btn ${edgeStyle === 'thick' ? 'active' : ''}`} onClick={() => setEdgeStyle('thick')} title="Thick" style={{ gap: '6px', padding: '0 8px' }}>
                   <ArrowRight size={16} style={{ strokeWidth: '3px' }} />
-                  <span style={{ fontSize: '0.65rem' }}>Thick</span>
+                  <span style={{ fontSize: '0.7rem', whiteSpace: 'nowrap' }}>Thick</span>
                 </button>
               </div>
             </div>
 
             <div className="popover-section">
               <label className="popover-label-mini">Arrow Ends</label>
-              <div className="popover-shapes">
-                <button className={`shape-btn ${edgeHead === 'single' ? 'active' : ''}`} onClick={() => setEdgeHead('single')} title="Single-ended" style={{ gap: '4px' }}>
+              <div className="popover-shapes" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+                <button className={`shape-btn ${edgeHead === 'single' ? 'active' : ''}`} onClick={() => setEdgeHead('single')} title="Single-ended" style={{ gap: '8px', padding: '0 12px' }}>
                   <ArrowRight size={16} />
-                  <span style={{ fontSize: '0.65rem' }}>One Side</span>
+                  <span style={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}>One Side</span>
                 </button>
-                <button className={`shape-btn ${edgeHead === 'both' ? 'active' : ''}`} onClick={() => setEdgeHead('both')} title="Double-ended (both sides)" style={{ gap: '4px' }}>
+                <button className={`shape-btn ${edgeHead === 'both' ? 'active' : ''}`} onClick={() => setEdgeHead('both')} title="Double-ended (both sides)" style={{ gap: '8px', padding: '0 12px' }}>
                   <DoubleArrowIcon size={16} />
-                  <span style={{ fontSize: '0.65rem' }}>Both Sides</span>
+                  <span style={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}>Both Sides</span>
                 </button>
               </div>
             </div>
