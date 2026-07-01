@@ -202,6 +202,14 @@ const DecisionIcon = ({ size = 16 }) => (
 );
 const BetaBadge = () => <span className="popup-beta-badge">Beta</span>;
 
+const DoubleArrowIcon = ({ size = 16, ...props }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M21 12H3" />
+    <path d="M9 5L2 12L9 19" />
+    <path d="M15 19L22 12L15 5" />
+  </svg>
+);
+
 const SHAPES = [
   { id: 'rect', label: 'Rectangle', icon: Square, wrap: (t) => `[${t}]` },
   { id: 'round', label: 'Rounded', icon: RoundedIcon, wrap: (t) => `(${t})` },
@@ -952,6 +960,7 @@ User's latest message: ${userText}`;
   const [editShape, setEditShape] = useState('');
   const [edgeStyle, setEdgeStyle] = useState('solid');
   const [edgeColor, setEdgeColor] = useState('');
+  const [edgeHead, setEdgeHead] = useState('single');
 
   // Custom colors from color picker (persisted in localStorage)
   const [customColors, setCustomColors] = useState(() => {
@@ -1686,6 +1695,10 @@ User's latest message: ${userText}`;
     const originalPathPointerEvents = path.style.pointerEvents;
     let currentHoverNodeId = null;
 
+    if (canvasRef.current) {
+      canvasRef.current.classList.add('is-dragging-edge');
+    }
+
     // Disable pointer-events on path and drag handles group so document.elementFromPoint hits the underlying nodes
     path.style.pointerEvents = 'none';
     const handlesGroup = svg.querySelector('#edge-drag-handles');
@@ -1736,6 +1749,10 @@ User's latest message: ${userText}`;
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
       handleCircle.style.cursor = 'grab';
+
+      if (canvasRef.current) {
+        canvasRef.current.classList.remove('is-dragging-edge');
+      }
 
       canvasRef.current.querySelectorAll('.node-drag-hover').forEach(node => {
         node.classList.remove('node-drag-hover');
@@ -1795,7 +1812,7 @@ User's latest message: ${userText}`;
       const escapedSource = escapeRegExp(oldSourceId);
       const escapedTarget = escapeRegExp(oldTargetId);
       connRegex = new RegExp(
-        `^(.*?(?:^|[^a-zA-Z0-9_-]))(${escapedSource})((?:[^a-zA-Z0-9_-].*?)?(?:-->|-\\.-\\->|==>|---|-.->|==\\>|\\-\\-\\-)(?:.*?[^\n]*?[^a-zA-Z0-9_-])?)(${escapedTarget})((?:[^a-zA-Z0-9_-].*?)?)$`
+        `^(.*?(?:^|[^a-zA-Z0-9_-]))(${escapedSource})((?:[^a-zA-Z0-9_-].*?)?(?:<-->|<-.->|<==>|-->|-\\.-\\->|==>|---|-.->|==\\>|\\-\\-\\-)(?:.*?[^\n]*?[^a-zA-Z0-9_-])?)(${escapedTarget})((?:[^a-zA-Z0-9_-].*?)?)$`
       );
 
       for (let i = 0; i < lines.length; i++) {
@@ -1819,7 +1836,7 @@ User's latest message: ${userText}`;
           const dstIndex = line.indexOf(oldTargetId);
           if (srcIndex < dstIndex) {
             const between = line.substring(srcIndex + oldSourceId.length, dstIndex);
-            const arrowMatch = between.match(/(-->|-\.-\->|==>|---|-.->|==>|\-\-\-)/);
+            const arrowMatch = between.match(/(<-->|<-.->|<==>|-->|-\.-\->|==>|---|-.->|==>|\-\-\-)/);
             if (arrowMatch) {
               targetLineIndex = i;
               break;
@@ -2065,6 +2082,7 @@ User's latest message: ${userText}`;
     let label = '';
     let style = 'solid';
     let color = '';
+    let head = 'single';
     const edgeIndex = getDOMEdgeIndex(edge);
 
     if (nodeInfo) {
@@ -2080,12 +2098,15 @@ User's latest message: ${userText}`;
           const dstIndex = line.indexOf(targetId);
           if (srcIndex < dstIndex) {
             const between = line.substring(srcIndex + sourceId.length, dstIndex);
-            const arrowMatch = between.match(/(-->|-\.-\->|==>|---|-.->|==>|\-\-\-)/);
+            const arrowMatch = between.match(/(<-->|<-.->|<==>|-->|-\.-\->|==>|---|-.->|==>|\-\-\-)/);
             if (arrowMatch) {
               targetLineIndex = i;
               const arrow = arrowMatch[0];
-              if (arrow === '-.->') style = 'dotted';
-              else if (arrow === '==>') style = 'thick';
+              if (arrow.includes('.') || arrow.includes('-.-')) style = 'dotted';
+              else if (arrow.includes('==')) style = 'thick';
+              else style = 'solid';
+              
+              head = (arrow.startsWith('<') && arrow.endsWith('>') && arrow.length > 2) ? 'both' : 'single';
               
               // Get current label
               const pipeMatch = between.match(/\|([^|]+)\|/);
@@ -2155,6 +2176,7 @@ User's latest message: ${userText}`;
     setEditText(label);
     setEdgeColor(color);
     setEdgeStyle(style);
+    setEdgeHead(head);
     setEditPopover({
       type: 'edge',
       x: Math.min(e.clientX - containerRect.left + 16, window.innerWidth - 300),
@@ -2212,6 +2234,7 @@ User's latest message: ${userText}`;
     setSelectedEdge(null);
     setEditPopover(null);
     setAddNodeTarget(null);
+    setEdgeHead('single');
     setShowAddNodeInput(false);
     setAddNodeText('');
     setAddNodeShape('rect');
@@ -2416,7 +2439,7 @@ User's latest message: ${userText}`;
     const escapedSource = sourceId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const escapedTarget = targetId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const edgeRegex = new RegExp(
-      `((?:^|[^a-zA-Z0-9_-]))(${escapedSource})((?:[^a-zA-Z0-9_-].*?)?(?:-->|-\\.-\\->|==>|---|-.->|==\\>|\\-\\-\\-)(?:.*?[^\\n]*?)?)(${escapedTarget})((?:$|[^a-zA-Z0-9_-]))`
+      `((?:^|[^a-zA-Z0-9_-]))(${escapedSource})((?:[^a-zA-Z0-9_-].*?)?(?:<-->|<-.->|<==>|-->|-\\.-\\->|==>|---|-.->|==\\>|\\-\\-\\-)(?:.*?[^\\n]*?)?)(${escapedTarget})((?:$|[^a-zA-Z0-9_-]))`
     );
 
     // 1. Find the line in the code
@@ -2435,12 +2458,24 @@ User's latest message: ${userText}`;
       return;
     }
     
-    // Determine the new arrow representation based on style
+    // Determine the new arrow representation based on style and arrowhead type
     let newArrow = '-->';
-    if (edgeStyle === 'dotted') {
-      newArrow = '-.->';
-    } else if (edgeStyle === 'thick') {
-      newArrow = '==>';
+    if (edgeHead === 'both') {
+      if (edgeStyle === 'dotted') {
+        newArrow = '<-.->';
+      } else if (edgeStyle === 'thick') {
+        newArrow = '<==>';
+      } else {
+        newArrow = '<-->';
+      }
+    } else {
+      if (edgeStyle === 'dotted') {
+        newArrow = '-.->';
+      } else if (edgeStyle === 'thick') {
+        newArrow = '==>';
+      } else {
+        newArrow = '-->';
+      }
     }
     
     // Determine the new line content
@@ -3102,6 +3137,20 @@ User's latest message: ${userText}`;
                 <button className={`shape-btn ${edgeStyle === 'thick' ? 'active' : ''}`} onClick={() => setEdgeStyle('thick')} title="Thick" style={{ gap: '4px' }}>
                   <ArrowRight size={16} style={{ strokeWidth: '3px' }} />
                   <span style={{ fontSize: '0.65rem' }}>Thick</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="popover-section">
+              <label className="popover-label-mini">Arrow Ends</label>
+              <div className="popover-shapes">
+                <button className={`shape-btn ${edgeHead === 'single' ? 'active' : ''}`} onClick={() => setEdgeHead('single')} title="Single-ended" style={{ gap: '4px' }}>
+                  <ArrowRight size={16} />
+                  <span style={{ fontSize: '0.65rem' }}>One Side</span>
+                </button>
+                <button className={`shape-btn ${edgeHead === 'both' ? 'active' : ''}`} onClick={() => setEdgeHead('both')} title="Double-ended (both sides)" style={{ gap: '4px' }}>
+                  <DoubleArrowIcon size={16} />
+                  <span style={{ fontSize: '0.65rem' }}>Both Sides</span>
                 </button>
               </div>
             </div>
