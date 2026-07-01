@@ -293,8 +293,10 @@ const DiagramsPage = () => {
       setAgentSuggestion(suggestResult || null);
       setViewState('result');
 
-      // Advance tutorial to "click info button" step
-      if (isTutorialActive && tutorialStep === 2) {
+      // The request is asynchronous, so `tutorialStep` here can still be the
+      // value captured before step 2 was rendered. Once a tutorial suggestion
+      // succeeds, always advance to the catalogue spotlight.
+      if (isTutorialActive) {
         setTutorialStep(3);
       }
     } catch (error) {
