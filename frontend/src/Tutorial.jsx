@@ -131,48 +131,55 @@ const Tutorial = ({ step, onGotIt }) => {
     // Single element positioning
     const r = spotlightRects[0];
     const gap = 16;
-    const tooltipWidth = 340; // max-width of .tutorial-tooltip
+    const tooltipWidth = Math.min(340, window.innerWidth - 32);
+    const tooltipHeight = 160;
     const margin = 16;
+    const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
     let effectivePosition = config.position;
     // Auto flip top/bottom
-    if (effectivePosition === 'bottom' && (r.top + r.height + gap + 160) > window.innerHeight) {
+    if (effectivePosition === 'bottom' && (r.top + r.height + gap + tooltipHeight) > window.innerHeight) {
       effectivePosition = 'top';
     }
 
-    // Horizontal clamping to prevent viewport overflow
-    let leftVal = r.left + r.width / 2;
-    const halfWidth = tooltipWidth / 2;
-    if (leftVal - halfWidth < margin) {
-      leftVal = halfWidth + margin;
-    } else if (leftVal + halfWidth > window.innerWidth - margin) {
-      leftVal = window.innerWidth - halfWidth - margin;
-    }
+    // Use explicit coordinates rather than CSS transforms. Framer Motion owns
+    // the transform property for its scale animation and would otherwise
+    // replace translateX/translateY, pushing edge tooltips off-screen.
+    const centeredLeft = clamp(
+      r.left + r.width / 2 - tooltipWidth / 2,
+      margin,
+      window.innerWidth - tooltipWidth - margin
+    );
+    const centeredTop = clamp(
+      r.top + r.height / 2 - tooltipHeight / 2,
+      margin,
+      window.innerHeight - tooltipHeight - margin
+    );
 
     switch (effectivePosition) {
       case 'bottom':
         return {
           top: r.top + r.height + gap,
-          left: leftVal,
-          transform: 'translateX(-50%)',
+          left: centeredLeft,
+          width: tooltipWidth,
         };
       case 'top':
         return {
           bottom: window.innerHeight - r.top + gap,
-          left: leftVal,
-          transform: 'translateX(-50%)',
+          left: centeredLeft,
+          width: tooltipWidth,
         };
       case 'left':
         return {
-          top: r.top + r.height / 2,
-          right: window.innerWidth - r.left + gap,
-          transform: 'translateY(-50%)',
+          top: centeredTop,
+          left: Math.max(margin, r.left - tooltipWidth - gap),
+          width: tooltipWidth,
         };
       case 'right':
         return {
-          top: r.top + r.height / 2,
-          left: r.left + r.width + gap,
-          transform: 'translateY(-50%)',
+          top: centeredTop,
+          left: Math.min(window.innerWidth - tooltipWidth - margin, r.left + r.width + gap),
+          width: tooltipWidth,
         };
       default:
         return {};
