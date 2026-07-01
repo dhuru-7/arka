@@ -28,76 +28,6 @@ const loadMermaid = () => {
 };
 
 const TEMPLATES = {
-  midnight: {
-    name: 'Midnight', preview: 'linear-gradient(135deg, #0f0f23, #1a1a3e, #2d1b69)',
-    config: {
-      theme: 'base', themeVariables: {
-        darkMode: true, background: 'transparent', primaryColor: '#7c3aed', primaryTextColor: '#f0e6ff', primaryBorderColor: '#a78bfa', secondaryColor: '#1e1b4b', secondaryTextColor: '#c4b5fd', secondaryBorderColor: '#6d28d9', tertiaryColor: '#312e81', tertiaryTextColor: '#e0e7ff', tertiaryBorderColor: '#818cf8', lineColor: '#a78bfa', textColor: '#e2e8f0', mainBkg: '#1e1b4b', nodeBorder: '#7c3aed', clusterBkg: 'rgba(124,58,237,0.08)', clusterBorder: 'rgba(167,139,250,0.3)', titleColor: '#c4b5fd', edgeLabelBackground: '#1e1b4b', nodeTextColor: '#f0e6ff', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#1e1b4b',
-        pieTitleTextColor: '#e2e8f0', pieSectionTextColor: '#ffffff', pieLegendTextColor: '#c4b5fd', pie1: '#7c3aed', pie2: '#f59e0b', pie3: '#10b981', pie4: '#ef4444', pie5: '#06b6d4', pie6: '#f97316', pie7: '#ec4899', pie8: '#84cc16',
-        xyChart: { backgroundColor: 'transparent', titleColor: '#c4b5fd', xAxisLabelColor: '#a78bfa', yAxisLabelColor: '#a78bfa', xAxisTitleColor: '#c4b5fd', yAxisTitleColor: '#c4b5fd', xAxisTickColor: '#6d28d9', yAxisTickColor: '#6d28d9', xAxisLineColor: '#4c1d95', yAxisLineColor: '#4c1d95', plotColorPalette: '#7c3aed,#a78bfa,#c4b5fd,#8b5cf6,#6d28d9' }
-      }
-    }
-  },
-  obsidian: {
-    name: 'Obsidian', preview: 'linear-gradient(135deg, #000000, #141414, #262626)',
-    config: {
-      theme: 'base', themeVariables: {
-        darkMode: true, background: 'transparent', primaryColor: '#262626', primaryTextColor: '#ffffff', primaryBorderColor: '#525252', secondaryColor: '#171717', secondaryTextColor: '#e5e5e5', secondaryBorderColor: '#404040', tertiaryColor: '#0a0a0a', tertiaryTextColor: '#d4d4d4', tertiaryBorderColor: '#262626', lineColor: '#737373', textColor: '#ffffff', mainBkg: '#171717', nodeBorder: '#404040', clusterBkg: 'rgba(38,38,38,0.3)', clusterBorder: 'rgba(82,82,82,0.5)', titleColor: '#ffffff', edgeLabelBackground: '#171717', nodeTextColor: '#ffffff', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#171717',
-        pieTitleTextColor: '#ffffff', pieSectionTextColor: '#000000', pieLegendTextColor: '#e5e5e5', pie1: '#ffffff', pie2: '#f59e0b', pie3: '#10b981', pie4: '#ef4444', pie5: '#3b82f6', pie6: '#ec4899', pie7: '#a78bfa', pie8: '#06b6d4',
-        xyChart: { backgroundColor: 'transparent', titleColor: '#ffffff', xAxisLabelColor: '#737373', yAxisLabelColor: '#737373', xAxisTitleColor: '#ffffff', yAxisTitleColor: '#ffffff', xAxisTickColor: '#525252', yAxisTickColor: '#525252', xAxisLineColor: '#262626', yAxisLineColor: '#262626', plotColorPalette: '#ffffff,#a3a3a3,#737373,#525252,#262626' }
-      }
-    }
-  },
-  emerald: {
-    name: 'Emerald City', preview: 'linear-gradient(135deg, #064e3b, #059669, #34d399)',
-    config: {
-      theme: 'base', themeVariables: {
-        darkMode: true, background: 'transparent', primaryColor: '#059669', primaryTextColor: '#ecfdf5', primaryBorderColor: '#34d399', secondaryColor: '#064e3b', secondaryTextColor: '#6ee7b7', secondaryBorderColor: '#10b981', tertiaryColor: '#022c22', tertiaryTextColor: '#a7f3d0', tertiaryBorderColor: '#047857', lineColor: '#34d399', textColor: '#ecfdf5', mainBkg: '#064e3b', nodeBorder: '#10b981', clusterBkg: 'rgba(5,150,105,0.1)', clusterBorder: 'rgba(52,211,153,0.3)', titleColor: '#34d399', edgeLabelBackground: '#064e3b', nodeTextColor: '#ffffff', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#064e3b',
-        pieTitleTextColor: '#ecfdf5', pieSectionTextColor: '#022c22', pieLegendTextColor: '#6ee7b7', pie1: '#10b981', pie2: '#f59e0b', pie3: '#ef4444', pie4: '#3b82f6', pie5: '#a78bfa', pie6: '#ec4899', pie7: '#06b6d4', pie8: '#f97316',
-        xyChart: { backgroundColor: 'transparent', titleColor: '#10b981', xAxisLabelColor: '#6ee7b7', yAxisLabelColor: '#6ee7b7', xAxisTitleColor: '#10b981', yAxisTitleColor: '#10b981', xAxisTickColor: '#047857', yAxisTickColor: '#047857', xAxisLineColor: '#022c22', yAxisLineColor: '#022c22', plotColorPalette: '#10b981,#34d399,#6ee7b7,#a7f3d0,#059669' }
-      }
-    }
-  },
-  crimson: {
-    name: 'Crimson Tide', preview: 'linear-gradient(135deg, #450a0a, #991b1b, #ef4444)',
-    config: {
-      theme: 'base', themeVariables: {
-        darkMode: true, background: 'transparent', primaryColor: '#dc2626', primaryTextColor: '#fef2f2', primaryBorderColor: '#f87171', secondaryColor: '#7f1d1d', secondaryTextColor: '#fca5a5', secondaryBorderColor: '#ef4444', tertiaryColor: '#450a0a', tertiaryTextColor: '#fecaca', tertiaryBorderColor: '#b91c1c', lineColor: '#f87171', textColor: '#fef2f2', mainBkg: '#7f1d1d', nodeBorder: '#ef4444', clusterBkg: 'rgba(220,38,38,0.1)', clusterBorder: 'rgba(248,113,113,0.3)', titleColor: '#f87171', edgeLabelBackground: '#7f1d1d', nodeTextColor: '#ffffff', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#7f1d1d',
-        pieTitleTextColor: '#fef2f2', pieSectionTextColor: '#450a0a', pieLegendTextColor: '#fca5a5', pie1: '#ef4444', pie2: '#3b82f6', pie3: '#f59e0b', pie4: '#10b981', pie5: '#a78bfa', pie6: '#06b6d4', pie7: '#ec4899', pie8: '#84cc16',
-        xyChart: { backgroundColor: 'transparent', titleColor: '#ef4444', xAxisLabelColor: '#fca5a5', yAxisLabelColor: '#fca5a5', xAxisTitleColor: '#ef4444', yAxisTitleColor: '#ef4444', xAxisTickColor: '#b91c1c', yAxisTickColor: '#b91c1c', xAxisLineColor: '#450a0a', yAxisLineColor: '#450a0a', plotColorPalette: '#ef4444,#f87171,#fca5a5,#fecaca,#dc2626' }
-      }
-    }
-  },
-  ocean: {
-    name: 'Deep Ocean', preview: 'linear-gradient(135deg, #0f172a, #1e3a8a, #3b82f6)',
-    config: {
-      theme: 'base', themeVariables: {
-        darkMode: true, background: 'transparent', primaryColor: '#2563eb', primaryTextColor: '#eff6ff', primaryBorderColor: '#60a5fa', secondaryColor: '#1e3a8a', secondaryTextColor: '#93c5fd', secondaryBorderColor: '#3b82f6', tertiaryColor: '#0f172a', tertiaryTextColor: '#bfdbfe', tertiaryBorderColor: '#1d4ed8', lineColor: '#60a5fa', textColor: '#eff6ff', mainBkg: '#1e3a8a', nodeBorder: '#3b82f6', clusterBkg: 'rgba(37,99,235,0.1)', clusterBorder: 'rgba(96,165,250,0.3)', titleColor: '#60a5fa', edgeLabelBackground: '#1e3a8a', nodeTextColor: '#ffffff', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#1e3a8a',
-        pieTitleTextColor: '#eff6ff', pieSectionTextColor: '#0f172a', pieLegendTextColor: '#93c5fd', pie1: '#3b82f6', pie2: '#f59e0b', pie3: '#ef4444', pie4: '#10b981', pie5: '#ec4899', pie6: '#a78bfa', pie7: '#06b6d4', pie8: '#f97316',
-        xyChart: { backgroundColor: 'transparent', titleColor: '#3b82f6', xAxisLabelColor: '#93c5fd', yAxisLabelColor: '#93c5fd', xAxisTitleColor: '#3b82f6', yAxisTitleColor: '#3b82f6', xAxisTickColor: '#1d4ed8', yAxisTickColor: '#1d4ed8', xAxisLineColor: '#0f172a', yAxisLineColor: '#0f172a', plotColorPalette: '#3b82f6,#60a5fa,#93c5fd,#bfdbfe,#2563eb' }
-      }
-    }
-  },
-  amber: {
-    name: 'Amber Glow', preview: 'linear-gradient(135deg, #451a03, #92400e, #f59e0b)',
-    config: {
-      theme: 'base', themeVariables: {
-        darkMode: true, background: 'transparent', primaryColor: '#f59e0b', primaryTextColor: '#fffbeb', primaryBorderColor: '#fbbf24', secondaryColor: '#78350f', secondaryTextColor: '#fde68a', secondaryBorderColor: '#d97706', tertiaryColor: '#451a03', tertiaryTextColor: '#fef3c7', tertiaryBorderColor: '#b45309', lineColor: '#fbbf24', textColor: '#fffbeb', mainBkg: '#78350f', nodeBorder: '#d97706', clusterBkg: 'rgba(245,158,11,0.1)', clusterBorder: 'rgba(251,191,36,0.3)', titleColor: '#fbbf24', edgeLabelBackground: '#78350f', nodeTextColor: '#ffffff', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#78350f',
-        pieTitleTextColor: '#fffbeb', pieSectionTextColor: '#451a03', pieLegendTextColor: '#fde68a', pie1: '#f59e0b', pie2: '#3b82f6', pie3: '#ef4444', pie4: '#10b981', pie5: '#a78bfa', pie6: '#ec4899', pie7: '#06b6d4', pie8: '#84cc16',
-        xyChart: { backgroundColor: 'transparent', titleColor: '#fbbf24', xAxisLabelColor: '#fde68a', yAxisLabelColor: '#fde68a', xAxisTitleColor: '#fbbf24', yAxisTitleColor: '#fbbf24', xAxisTickColor: '#b45309', yAxisTickColor: '#b45309', xAxisLineColor: '#451a03', yAxisLineColor: '#451a03', plotColorPalette: '#f59e0b,#fbbf24,#fde68a,#d97706,#b45309' }
-      }
-    }
-  },
-  slate: {
-    name: 'Slate Steel', preview: 'linear-gradient(135deg, #0f172a, #334155, #64748b)',
-    config: {
-      theme: 'base', themeVariables: {
-        darkMode: true, background: 'transparent', primaryColor: '#475569', primaryTextColor: '#f8fafc', primaryBorderColor: '#94a3b8', secondaryColor: '#1e293b', secondaryTextColor: '#cbd5e1', secondaryBorderColor: '#64748b', tertiaryColor: '#0f172a', tertiaryTextColor: '#e2e8f0', tertiaryBorderColor: '#334155', lineColor: '#94a3b8', textColor: '#f8fafc', mainBkg: '#1e293b', nodeBorder: '#64748b', clusterBkg: 'rgba(71,85,105,0.1)', clusterBorder: 'rgba(148,163,184,0.3)', titleColor: '#94a3b8', edgeLabelBackground: '#1e293b', nodeTextColor: '#f8fafc', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#1e293b',
-        pieTitleTextColor: '#f8fafc', pieSectionTextColor: '#0f172a', pieLegendTextColor: '#cbd5e1', pie1: '#64748b', pie2: '#f59e0b', pie3: '#ef4444', pie4: '#10b981', pie5: '#3b82f6', pie6: '#ec4899', pie7: '#a78bfa', pie8: '#06b6d4',
-        xyChart: { backgroundColor: 'transparent', titleColor: '#94a3b8', xAxisLabelColor: '#cbd5e1', yAxisLabelColor: '#cbd5e1', xAxisTitleColor: '#94a3b8', yAxisTitleColor: '#94a3b8', xAxisTickColor: '#334155', yAxisTickColor: '#334155', xAxisLineColor: '#0f172a', yAxisLineColor: '#0f172a', plotColorPalette: '#64748b,#94a3b8,#cbd5e1,#475569,#334155' }
-      }
-    }
-  },
   // ─── White BG friendly templates ───
   paper: {
     name: 'Paper Minimal', preview: 'linear-gradient(135deg, #ffffff, #f0f0f0, #e0e0e0)',
@@ -106,56 +36,6 @@ const TEMPLATES = {
         darkMode: false, background: 'transparent', primaryColor: '#f4f4f5', primaryTextColor: '#000000', primaryBorderColor: '#a1a1aa', secondaryColor: '#ffffff', secondaryTextColor: '#3f3f46', secondaryBorderColor: '#d4d4d8', tertiaryColor: '#fafafa', tertiaryTextColor: '#27272a', tertiaryBorderColor: '#e4e4e7', lineColor: '#525252', textColor: '#000000', mainBkg: '#ffffff', nodeBorder: '#525252', clusterBkg: 'rgba(0,0,0,0.02)', clusterBorder: 'rgba(0,0,0,0.15)', titleColor: '#000000', edgeLabelBackground: '#ffffff', nodeTextColor: '#000000', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#ffffff',
         pieTitleTextColor: '#000000', pieSectionTextColor: '#ffffff', pieLegendTextColor: '#3f3f46', pie1: '#18181b', pie2: '#ef4444', pie3: '#3b82f6', pie4: '#f59e0b', pie5: '#10b981', pie6: '#a78bfa', pie7: '#ec4899', pie8: '#06b6d4',
         xyChart: { backgroundColor: 'transparent', titleColor: '#000000', xAxisLabelColor: '#3f3f46', yAxisLabelColor: '#3f3f46', xAxisTitleColor: '#000000', yAxisTitleColor: '#000000', xAxisTickColor: '#d4d4d8', yAxisTickColor: '#d4d4d8', xAxisLineColor: '#a1a1aa', yAxisLineColor: '#a1a1aa', plotColorPalette: '#000000,#3f3f46,#525252,#71717a,#a1a1aa' }
-      }
-    }
-  },
-  frost: {
-    name: 'Frostbite', preview: 'linear-gradient(135deg, #e0f2fe, #bae6fd, #7dd3fc)',
-    config: {
-      theme: 'base', themeVariables: {
-        darkMode: false, background: 'transparent', primaryColor: '#38bdf8', primaryTextColor: '#ffffff', primaryBorderColor: '#0284c7', secondaryColor: '#e0f2fe', secondaryTextColor: '#0c4a6e', secondaryBorderColor: '#7dd3fc', tertiaryColor: '#f0f9ff', tertiaryTextColor: '#075985', tertiaryBorderColor: '#bae6fd', lineColor: '#0369a1', textColor: '#0f172a', mainBkg: '#e0f2fe', nodeBorder: '#0284c7', clusterBkg: 'rgba(56,189,248,0.08)', clusterBorder: 'rgba(2,132,199,0.25)', titleColor: '#0369a1', edgeLabelBackground: '#ffffff', nodeTextColor: '#0f172a', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#ffffff',
-        pieTitleTextColor: '#0f172a', pieSectionTextColor: '#ffffff', pieLegendTextColor: '#0c4a6e', pie1: '#0ea5e9', pie2: '#ef4444', pie3: '#f59e0b', pie4: '#10b981', pie5: '#a78bfa', pie6: '#ec4899', pie7: '#f97316', pie8: '#84cc16',
-        xyChart: { backgroundColor: 'transparent', titleColor: '#0f172a', xAxisLabelColor: '#0c4a6e', yAxisLabelColor: '#0c4a6e', xAxisTitleColor: '#0f172a', yAxisTitleColor: '#0f172a', xAxisTickColor: '#bae6fd', yAxisTickColor: '#bae6fd', xAxisLineColor: '#7dd3fc', yAxisLineColor: '#7dd3fc', plotColorPalette: '#0ea5e9,#38bdf8,#7dd3fc,#0284c7,#0369a1' }
-      }
-    }
-  },
-  blossom: {
-    name: 'Sakura Blossom', preview: 'linear-gradient(135deg, #fce7f3, #fbcfe8, #f472b6)',
-    config: {
-      theme: 'base', themeVariables: {
-        darkMode: false, background: 'transparent', primaryColor: '#ec4899', primaryTextColor: '#ffffff', primaryBorderColor: '#be185d', secondaryColor: '#fce7f3', secondaryTextColor: '#831843', secondaryBorderColor: '#fbcfe8', tertiaryColor: '#fdf2f8', tertiaryTextColor: '#9d174d', tertiaryBorderColor: '#f9a8d4', lineColor: '#9d174d', textColor: '#111827', mainBkg: '#fce7f3', nodeBorder: '#be185d', clusterBkg: 'rgba(236,72,153,0.08)', clusterBorder: 'rgba(190,24,93,0.25)', titleColor: '#be185d', edgeLabelBackground: '#ffffff', nodeTextColor: '#111827', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#ffffff',
-        pieTitleTextColor: '#111827', pieSectionTextColor: '#ffffff', pieLegendTextColor: '#831843', pie1: '#ec4899', pie2: '#3b82f6', pie3: '#f59e0b', pie4: '#10b981', pie5: '#ef4444', pie6: '#a78bfa', pie7: '#06b6d4', pie8: '#84cc16',
-        xyChart: { backgroundColor: 'transparent', titleColor: '#111827', xAxisLabelColor: '#831843', yAxisLabelColor: '#831843', xAxisTitleColor: '#111827', yAxisTitleColor: '#111827', xAxisTickColor: '#f9a8d4', yAxisTickColor: '#f9a8d4', xAxisLineColor: '#fbcfe8', yAxisLineColor: '#fbcfe8', plotColorPalette: '#db2777,#ec4899,#f472b6,#be185d,#9d174d' }
-      }
-    }
-  },
-  mint: {
-    name: 'Fresh Mint', preview: 'linear-gradient(135deg, #ccfbf1, #99f6e4, #2dd4bf)',
-    config: {
-      theme: 'base', themeVariables: {
-        darkMode: false, background: 'transparent', primaryColor: '#14b8a6', primaryTextColor: '#ffffff', primaryBorderColor: '#0f766e', secondaryColor: '#ccfbf1', secondaryTextColor: '#134e4a', secondaryBorderColor: '#99f6e4', tertiaryColor: '#f0fdfa', tertiaryTextColor: '#115e59', tertiaryBorderColor: '#5eead4', lineColor: '#0f766e', textColor: '#0f172a', mainBkg: '#ccfbf1', nodeBorder: '#0f766e', clusterBkg: 'rgba(20,184,166,0.08)', clusterBorder: 'rgba(15,118,110,0.25)', titleColor: '#0f766e', edgeLabelBackground: '#ffffff', nodeTextColor: '#0f172a', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#ffffff',
-        pieTitleTextColor: '#0f172a', pieSectionTextColor: '#ffffff', pieLegendTextColor: '#134e4a', pie1: '#14b8a6', pie2: '#ef4444', pie3: '#f59e0b', pie4: '#3b82f6', pie5: '#a78bfa', pie6: '#ec4899', pie7: '#f97316', pie8: '#84cc16',
-        xyChart: { backgroundColor: 'transparent', titleColor: '#0f172a', xAxisLabelColor: '#134e4a', yAxisLabelColor: '#134e4a', xAxisTitleColor: '#0f172a', yAxisTitleColor: '#0f172a', xAxisTickColor: '#99f6e4', yAxisTickColor: '#99f6e4', xAxisLineColor: '#5eead4', yAxisLineColor: '#5eead4', plotColorPalette: '#0d9488,#14b8a6,#2dd4bf,#0f766e,#115e59' }
-      }
-    }
-  },
-  lavender: {
-    name: 'Lavender Haze', preview: 'linear-gradient(135deg, #f3e8ff, #e9d5ff, #c084fc)',
-    config: {
-      theme: 'base', themeVariables: {
-        darkMode: false, background: 'transparent', primaryColor: '#a855f7', primaryTextColor: '#ffffff', primaryBorderColor: '#7e22ce', secondaryColor: '#f3e8ff', secondaryTextColor: '#581c87', secondaryBorderColor: '#e9d5ff', tertiaryColor: '#faf5ff', tertiaryTextColor: '#6b21a8', tertiaryBorderColor: '#d8b4fe', lineColor: '#7e22ce', textColor: '#111827', mainBkg: '#f3e8ff', nodeBorder: '#7e22ce', clusterBkg: 'rgba(168,85,247,0.08)', clusterBorder: 'rgba(126,34,206,0.25)', titleColor: '#7e22ce', edgeLabelBackground: '#ffffff', nodeTextColor: '#111827', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#ffffff',
-        pieTitleTextColor: '#111827', pieSectionTextColor: '#ffffff', pieLegendTextColor: '#581c87', pie1: '#a855f7', pie2: '#ef4444', pie3: '#f59e0b', pie4: '#10b981', pie5: '#3b82f6', pie6: '#ec4899', pie7: '#06b6d4', pie8: '#84cc16',
-        xyChart: { backgroundColor: 'transparent', titleColor: '#111827', xAxisLabelColor: '#581c87', yAxisLabelColor: '#581c87', xAxisTitleColor: '#111827', yAxisTitleColor: '#111827', xAxisTickColor: '#d8b4fe', yAxisTickColor: '#d8b4fe', xAxisLineColor: '#e9d5ff', yAxisLineColor: '#e9d5ff', plotColorPalette: '#a855f7,#c084fc,#d8b4fe,#7e22ce,#6b21a8' }
-      }
-    }
-  },
-  terracotta: {
-    name: 'Terracotta', preview: 'linear-gradient(135deg, #fef2f2, #fecaca, #f87171)',
-    config: {
-      theme: 'base', themeVariables: {
-        darkMode: false, background: 'transparent', primaryColor: '#e11d48', primaryTextColor: '#ffffff', primaryBorderColor: '#9f1239', secondaryColor: '#fff1f2', secondaryTextColor: '#881337', secondaryBorderColor: '#fecdd3', tertiaryColor: '#fff1f2', tertiaryTextColor: '#9f1239', tertiaryBorderColor: '#fda4af', lineColor: '#9f1239', textColor: '#111827', mainBkg: '#fff1f2', nodeBorder: '#9f1239', clusterBkg: 'rgba(225,29,72,0.06)', clusterBorder: 'rgba(159,18,57,0.2)', titleColor: '#9f1239', edgeLabelBackground: '#ffffff', nodeTextColor: '#111827', fontFamily: 'Space Grotesk, sans-serif', fontSize: '14px', labelBackground: '#ffffff',
-        pieTitleTextColor: '#111827', pieSectionTextColor: '#ffffff', pieLegendTextColor: '#881337', pie1: '#e11d48', pie2: '#3b82f6', pie3: '#f59e0b', pie4: '#10b981', pie5: '#a78bfa', pie6: '#06b6d4', pie7: '#84cc16', pie8: '#f97316',
-        xyChart: { backgroundColor: 'transparent', titleColor: '#111827', xAxisLabelColor: '#881337', yAxisLabelColor: '#881337', xAxisTitleColor: '#111827', yAxisTitleColor: '#111827', xAxisTickColor: '#fda4af', yAxisTickColor: '#fda4af', xAxisLineColor: '#fecdd3', yAxisLineColor: '#fecdd3', plotColorPalette: '#e11d48,#fb7185,#fda4af,#9f1239,#881337' }
       }
     }
   },
