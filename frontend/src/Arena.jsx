@@ -3162,8 +3162,8 @@ User's latest message: ${userText}`;
           <button className={`tool-btn ${activeTool === 'select' ? 'active' : ''}`} onClick={() => { setActiveTool('select'); setIsPanning(false); }} title="Select & Pan" disabled={isLoading || isRefining}><MousePointer2 size={18} /></button>
           <button className={`tool-btn ${activeTool === 'brush' ? 'active' : ''}`} onClick={() => { setActiveTool('brush'); setIsPanning(false); }} title="Brush Refinement (Circle area)" disabled={isLoading || isRefining}><Brush size={18} /></button>
           <div className="tool-divider" />
-          <button className={`tool-btn-theme ${showTemplates ? 'active' : ''}`} onClick={() => setShowTemplates(!showTemplates)} title="Themes" disabled={isLoading || isRefining}>
-            <span>{TEMPLATES[activeTemplate]?.name || 'Theme'}</span>
+          <button className={`tool-btn-theme ${showTemplates ? 'active' : ''}`} onClick={() => setShowTemplates(!showTemplates)} title="Templates" disabled={isLoading || isRefining}>
+            <span>{TEMPLATES[activeTemplate]?.name || 'Template'}</span>
           </button>
           <button className={`tool-btn ${showCodeEditor ? 'active' : ''}`} onClick={openCodeEditor} title="Edit Code" disabled={isLoading || isRefining}><Code2 size={18} /></button>
           <div className="tool-divider" />
@@ -3196,7 +3196,7 @@ User's latest message: ${userText}`;
 
             <div className="template-scroll-area">
               <section className="template-section">
-                <h3 className="template-section-title">Color Themes</h3>
+                <h3 className="template-section-title">Templates</h3>
                 <div className="template-grid">
                   {Object.entries(TEMPLATES).map(([key, tmpl]) => (
                     <button key={key} className={`template-card ${activeTemplate === key ? 'active' : ''}`} onClick={() => setActiveTemplate(key)}>
