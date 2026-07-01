@@ -4,11 +4,7 @@ import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBFyhlhtu3oTjtrxd3lNqUaQti0QDXMg6Q",
-  // Production auth helpers are reverse-proxied by Vercel so browsers with
-  // strict popup/cross-site storage policies can complete redirect sign-in.
-  authDomain: typeof window !== 'undefined' && window.location.hostname === 'arka-plum.vercel.app'
-    ? 'arka-plum.vercel.app'
-    : 'arkasystems-61e93.firebaseapp.com',
+  authDomain: 'arkasystems-61e93.firebaseapp.com',
   projectId: "arkasystems-61e93",
   storageBucket: "arkasystems-61e93.firebasestorage.app",
   messagingSenderId: "793610509032",
