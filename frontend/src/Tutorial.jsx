@@ -131,25 +131,35 @@ const Tutorial = ({ step, onGotIt }) => {
     // Single element positioning
     const r = spotlightRects[0];
     const gap = 16;
-    const tooltipHeight = 160;
+    const tooltipWidth = 340; // max-width of .tutorial-tooltip
+    const margin = 16;
 
     let effectivePosition = config.position;
     // Auto flip top/bottom
-    if (effectivePosition === 'bottom' && (r.top + r.height + gap + tooltipHeight) > window.innerHeight) {
+    if (effectivePosition === 'bottom' && (r.top + r.height + gap + 160) > window.innerHeight) {
       effectivePosition = 'top';
+    }
+
+    // Horizontal clamping to prevent viewport overflow
+    let leftVal = r.left + r.width / 2;
+    const halfWidth = tooltipWidth / 2;
+    if (leftVal - halfWidth < margin) {
+      leftVal = halfWidth + margin;
+    } else if (leftVal + halfWidth > window.innerWidth - margin) {
+      leftVal = window.innerWidth - halfWidth - margin;
     }
 
     switch (effectivePosition) {
       case 'bottom':
         return {
           top: r.top + r.height + gap,
-          left: r.left + r.width / 2,
+          left: leftVal,
           transform: 'translateX(-50%)',
         };
       case 'top':
         return {
           bottom: window.innerHeight - r.top + gap,
-          left: r.left + r.width / 2,
+          left: leftVal,
           transform: 'translateX(-50%)',
         };
       case 'left':
