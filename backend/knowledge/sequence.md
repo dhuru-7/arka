@@ -145,3 +145,558 @@ Here is a list of the customizations supported by Mermaid JS sequence diagrams:
    - **Links & Callbacks**:
      - `link ParticipantAlias: {"Label": "https://example.com"}` to add external links.
      - `click ParticipantAlias call callbackName()` for custom javascript execution when clicking a participant node.
+
+---
+
+# Mermaid Sequence Diagram Generation Rules
+
+Based on all seven diagrams (the two Arka AI black-and-white diagrams and the Mermaid-generated colored diagrams), there is a very clear pattern in how the Mermaid generator constructs sequence diagrams. It follows a fairly deterministic template rather than making arbitrary design choices.
+
+## 1. Participant Ordering
+
+Always place participants horizontally from left to right in the order they first appear in the workflow.
+
+Typical ordering:
+
+```text
+User / Customer
+↓
+Frontend / Mobile App
+↓
+Backend
+↓
+Internal Services
+↓
+Databases / Storage
+↓
+External Services
+```
+
+Examples:
+
+```text
+Customer
+Frontend
+Backend
+Auth Service
+Cart Service
+Inventory Service
+Payment Service
+Payment Gateway
+Order Service
+Notification Service
+```
+
+or
+
+```text
+User
+Frontend
+Upload Service
+Cloud Storage
+Processing Service
+Vector Database
+Backend
+LLM API
+```
+
+No participants overlap or change positions once declared.
+
+---
+
+## 2. Participant Types
+
+Mermaid consistently models each major system as a separate participant.
+
+Typical participant categories:
+
+* Human actors
+* Frontend/UI
+* Backend/API
+* Microservices
+* Databases
+* External APIs
+* Background services
+
+Example:
+
+```text
+User
+Frontend
+Backend
+Database
+Notification Service
+```
+
+---
+
+## 3. Participant Styling
+
+Mermaid automatically colors participants.
+
+Observed color palette:
+
+| Type                  | Color              |
+| --------------------- | ------------------ |
+| Human Actor           | Purple / Pink      |
+| Frontend              | Cyan / Teal        |
+| Backend               | Orange             |
+| Business Services     | Blue / Green       |
+| Databases             | Light Blue         |
+| External APIs         | Yellow             |
+| Notification Services | Light Green        |
+| Payment Services      | Light Red / Purple |
+
+The colors remain consistent within a single diagram.
+
+It appears Mermaid cycles through a predefined pastel palette rather than assigning semantic colors.
+
+---
+
+## 4. Lifelines
+
+Every participant gets
+
+* top participant box
+* vertical lifeline
+* bottom participant box
+
+Like:
+
+```text
+┌──────────┐
+│ Backend  │
+└──────────┘
+     │
+     │
+     │
+┌──────────┐
+│ Backend  │
+└──────────┘
+```
+
+---
+
+## 5. Messages
+
+Requests use solid arrows.
+
+```text
+Frontend ─────────► Backend
+```
+
+Responses use dotted arrows.
+
+```text
+Backend - - - - -► Frontend
+```
+
+This convention is followed consistently.
+
+---
+
+## 6. Self Calls
+
+Internal work is modeled using self messages.
+
+Example:
+
+```text
+Backend
+   │
+   │─────┐
+   │     │ Validate User
+   └─────┘
+```
+
+Seen for
+
+* Generate Token
+* Validate User
+* Extract Text
+* Rider Picks Up
+* Rider Delivers
+
+---
+
+## 7. Control Structures
+
+Mermaid uses UML combined fragments.
+
+### alt
+
+Alternative paths
+
+```text
+alt User Found
+
+...
+
+else User Not Found
+
+...
+```
+
+Examples:
+
+* Login success/failure
+* Token valid/expired
+* Payment success/failure
+* Restaurant accepts/rejects
+
+---
+
+### loop
+
+Repeated behavior
+
+Examples:
+
+```text
+loop Retry 3 Times
+```
+
+```text
+loop GPS Updates
+```
+
+```text
+loop Driver Search
+```
+
+---
+
+### par
+
+Parallel execution
+
+Used for concurrent workflows.
+
+Example:
+
+```text
+par
+
+Payment Processing
+
+and
+
+Rider Search
+```
+
+---
+
+### opt
+
+Optional behavior
+
+Seen for
+
+```text
+opt
+
+Order Confirmed
+
+...
+```
+
+---
+
+## 8. Arrow Labels
+
+Every arrow has an action.
+
+Examples
+
+```text
+Request Ride
+
+Upload PDF
+
+Validate User
+
+Create Payment Session
+
+Store File
+
+Retrieve Chunks
+
+Generate Embeddings
+
+Update Inventory
+```
+
+No unlabeled arrows.
+
+---
+
+## 9. Response Labels
+
+Return messages include
+
+```text
+Payment Verified
+
+Driver Details
+
+User Found
+
+Email Sent
+
+Processing Complete
+
+200 Success
+
+404 Error
+```
+
+Usually on dashed arrows.
+
+---
+
+## 10. External APIs
+
+External systems are modeled exactly like services.
+
+Examples
+
+```text
+Payment Gateway
+
+LLM API
+
+Notification Service
+```
+
+No special icons.
+
+---
+
+## 11. Databases
+
+Databases are participants rather than database symbols.
+
+Examples
+
+```text
+Database
+
+Cloud Storage
+
+Vector Database
+```
+
+---
+
+## 12. Error Handling
+
+Errors always appear inside
+
+```text
+alt
+```
+
+blocks.
+
+Examples
+
+```text
+Payment Failed
+
+Retry
+
+Token Expired
+
+Driver Not Found
+
+Timeout
+
+LLM Failure
+```
+
+---
+
+## 13. Retry Logic
+
+Retries are represented using
+
+```text
+loop
+```
+
+or repeated request arrows.
+
+Example
+
+```text
+Attempt 1
+
+Timeout
+
+Attempt 2
+
+Timeout
+
+Attempt 3
+
+Success
+```
+
+---
+
+## 14. Background Processes
+
+Background processing is shown as messages.
+
+Example
+
+```text
+Upload Service
+
+↓
+
+Cloud Storage
+
+↓
+
+Processing Service
+
+↓
+
+Vector Database
+```
+
+instead of using notes.
+
+---
+
+## 15. Message Ordering
+
+Everything follows time.
+
+Top
+
+↓
+
+Bottom
+
+No upward arrows.
+
+---
+
+## 16. Activation Bars
+
+Mermaid adds thin colored activation rectangles automatically when a participant is actively processing a message.
+
+Observed colors generally match the participant's assigned pastel color.
+
+---
+
+## 17. Diagram Layout
+
+Participants
+
+↓
+
+Messages
+
+↓
+
+Combined Fragments
+
+↓
+
+Responses
+
+↓
+
+End
+
+Always vertically chronological.
+
+---
+
+## 18. Combined Fragment Placement
+
+Mermaid wraps only the relevant section.
+
+Example
+
+```text
+alt
+
+Payment Success
+
+...
+
+else
+
+Payment Failed
+
+...
+```
+
+rather than surrounding the entire diagram.
+
+---
+
+## 19. Notes / Highlights
+
+Special annotations (like **"Timeout"**, **"Email with reset link"**, or **"Flow returns to password reset request"**) are rendered as colored note boxes adjacent to the relevant participant or message.
+
+---
+
+## 20. Naming Convention
+
+Participants use concise Title Case names.
+
+Examples
+
+```text
+Backend
+
+Frontend
+
+Order Service
+
+Auth Service
+
+Vector Database
+
+LLM API
+```
+
+Messages use verb phrases.
+
+Examples
+
+```text
+Validate User
+
+Store File
+
+Retrieve Chunks
+
+Generate Embeddings
+
+Send Receipt
+
+Display Success Message
+```
+
+---
+
+# Overall Mermaid Style Guide
+
+The generator consistently follows these high-level design principles:
+
+* **One participant per system/component**, declared once and kept in a fixed left-to-right order.
+* **Pastel-colored participant headers** with matching activation bars; actors typically use purple/pink, frontend cyan, backend orange, services blue/green, databases light blue, and external APIs yellow/red.
+* **Solid arrows for requests**, **dashed arrows for responses/returns**.
+* **Self-messages** for internal processing within a participant.
+* **UML combined fragments** (`alt`, `loop`, `par`, `opt`) to represent branching, retries, concurrency, and optional flows.
+* **Chronological top-to-bottom execution** with no upward message flow.
+* **Clear verb-based message labels** and concise participant names.
+* **Activation bars** appear only while a participant is executing work.
+* **Optional notes/highlights** for exceptional events such as timeouts or emailed links.
+* **Minimal visual clutter**: no icons beyond actors, no custom shapes, and no crossing lifelines.

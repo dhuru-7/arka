@@ -1271,25 +1271,420 @@
   margin-top: 1px;
 }
 
-.scratchpad-notice {
+/* ─── LAYOUT TOGGLE ─── */
+.layout-toggle-btn {
+  background: #000000;
+  border: 2px solid #000000;
+  color: #ffffff;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
   display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
-  margin-top: 0.85rem;
-  padding: 0.6rem 0.75rem;
-  background: #fffbeb;
-  border: 1px solid #fef3c7;
-  border-radius: 8px;
-  color: #b45309;
-  font-size: 0.7rem;
-  line-height: 1.4;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
 }
 
-.scratchpad-notice-icon {
-  font-size: 0.85rem;
+.layout-toggle-btn svg {
+  color: #ffffff;
+  transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.layout-toggle-btn:hover {
+  background: var(--accent);
+  border-color: #000000;
+  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.15);
+}
+
+.layout-toggle-btn:hover svg {
+  color: #000000;
+}
+
+.layout-toggle-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Layout switch notification toast */
+.layout-notification-toast-wrapper {
+  position: absolute;
+  bottom: 5rem;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 6500; /* Over loader and sidebars */
+}
+
+.layout-notification-toast {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  color: #000000;
+  padding: 0.6rem 1.2rem;
+  border-radius: 99rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  pointer-events: auto;
+}
+
+/* ─── AGENT SCRATCHPAD ─── */
+.agent-scratchpad {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  margin: 1rem 0;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 100%;
+}
+
+.agent-scratchpad.working {
+  border-color: #3b82f6;
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.1);
+}
+
+.agent-scratchpad.success {
+  border-color: #10b981;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.1);
+}
+
+.agent-scratchpad.error {
+  border-color: #ef4444;
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.1);
+}
+
+.scratchpad-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  color: inherit;
+  font-family: var(--font-body);
+}
+
+.scratchpad-toggle:hover {
+  background-color: #f9fafb;
+}
+
+.scratchpad-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #374151;
+  padding: 6px;
+  background: #f3f4f6;
+  border-radius: 8px;
+}
+
+.scratchpad-heading {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.scratchpad-heading strong {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.scratchpad-heading small {
+  font-size: 0.65rem;
+  color: #6b7280;
+  margin-top: 1px;
+}
+
+.scratchpad-spinner {
+  animation: spin 1s linear infinite;
+  color: #6b7280;
+}
+
+.agent-scratchpad.working .scratchpad-spinner {
+  color: #3b82f6;
+}
+
+.scratchpad-chevron {
+  color: #9ca3af;
+  transition: transform 0.2s ease;
+}
+
+.scratchpad-chevron.open {
+  transform: rotate(180deg);
+  color: #111827;
+}
+
+.scratchpad-body {
+  border-top: 1px solid #f1f5f9;
+  background: #fcfcfd;
+  padding: 1rem;
+}
+
+.scratchpad-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.scratchpad-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+}
+
+.scratchpad-step-icon {
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 0.7rem;
   flex-shrink: 0;
 }
 
-.scratchpad-notice-text strong {
-  font-weight: 700;
+.scratchpad-step.done .scratchpad-step-icon {
+  background: #e2f0d9;
+  color: #385723;
+}
+
+.scratchpad-step.error .scratchpad-step-icon {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.scratchpad-step.active .scratchpad-step-icon {
+  color: #3b82f6;
+  background: #dbeafe;
+}
+
+.scratchpad-step-copy {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.scratchpad-step-copy strong {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.scratchpad-step-copy small {
+  font-size: 0.68rem;
+  color: #6b7280;
+  margin-top: 1px;
+}
+
+/* ─── Sequence Diagram Participant Semantic Coloring ─── */
+
+/* Default styling for all participant boxes (White background, neutral gray border) */
+.actor {
+  fill: #ffffff !important;
+  stroke: #a1a1aa !important;
+  stroke-width: 2px !important;
+}
+
+/* Default styling for the stick figure (User actor) */
+g.actor-man circle,
+g.actor-man line,
+g.actor-man path {
+  stroke: #00e5ff !important;
+  fill: #e0f7fa !important;
+  stroke-width: 2px !important;
+}
+
+/* Lifelines */
+.actor-line {
+  stroke: #a1a1aa !important;
+}
+
+/* ── Hover: applied to .seq-participant-group so shape + text move together ── */
+.seq-participant-group {
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), filter 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transform-origin: center center;
+  cursor: pointer;
+}
+
+.seq-participant-group:hover {
+  transform: translateY(-1.5px) !important;
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.12)) !important;
+}
+
+/* Reset any old individual shape hovers so they don't double-transform */
+rect.actor:hover,
+circle.actor:hover,
+path.actor:hover,
+polygon.actor:hover,
+g.actor-man:hover {
+  transform: none !important;
+  filter: none !important;
+}
+
+/* 1. Processing / Domain / Notification Services (Green) */
+.actor[name*="service" i],
+.actor[name*="svc" i],
+.actor[name*="manager" i],
+.actor[name*="processor" i],
+.actor[name*="handler" i],
+.actor[name*="cart" i],
+.actor[name*="inventory" i],
+.actor[name*="order" i],
+.actor[name*="catalog" i],
+.actor[name*="product" i],
+.actor[name*="search" i],
+.actor[name*="processing" i],
+.actor[name*="notification" i],
+.actor[name*="email" i],
+.actor[name*="sms" i],
+.actor[name*="mailer" i],
+.actor[name*="notifier" i],
+.actor[name*="smtp" i],
+.actor[name*="ses" i],
+.actor[name*="push" i] {
+  fill: #e8f5e9 !important;
+  stroke: #81c784 !important;
+  stroke-width: 2px !important;
+}
+
+/* 2. LLM / AI / External APIs (Yellow) */
+.actor[name*="external" i],
+.actor[name*="stripe" i],
+.actor[name*="paypal" i],
+.actor[name*="google" i],
+.actor[name*="openai" i],
+.actor[name*="llm" i],
+.actor[name*="gpt" i],
+.actor[name*="github" i],
+.actor[name*="thirdparty" i],
+.actor[name*="paymentgateway" i],
+.actor[name*="gatewayapi" i],
+.actor[name*="extapi" i],
+.actor[name*="ai" i] {
+  fill: #fffde7 !important;
+  stroke: #fdd835 !important;
+  stroke-width: 2px !important;
+}
+
+/* 3. Databases / Storage / Cache (Lavender/Purple) */
+.actor[name*="database" i],
+.actor[name*="db" i],
+.actor[name*="sql" i],
+.actor[name*="nosql" i],
+.actor[name*="mongodb" i],
+.actor[name*="redis" i],
+.actor[name*="cache" i],
+.actor[name*="vectordb" i],
+.actor[name*="postgres" i],
+.actor[name*="repository" i] {
+  fill: #f3e8ff !important;
+  stroke: #c084fc !important;
+  stroke-width: 2px !important;
+}
+
+/* 4. Backend / Server (Red) */
+.actor[name*="backend" i],
+.actor[name*="be" i],
+.actor[name*="api" i],
+.actor[name*="gateway" i],
+.actor[name*="server" i],
+.actor[name*="appserver" i],
+.actor[name*="webserver" i] {
+  fill: #ffebee !important;
+  stroke: #e57373 !important;
+  stroke-width: 2px !important;
+}
+
+/* 5. Upload / Auth / Services (Orange) */
+.actor[name*="upload" i],
+.actor[name*="auth" i],
+.actor[name*="login" i],
+.actor[name*="payment" i],
+.actor[name*="checkout" i],
+.actor[name*="billing" i],
+.actor[name*="transaction" i] {
+  fill: #ffe0b2 !important;
+  stroke: #ffb74d !important;
+  stroke-width: 2px !important;
+}
+
+/* 6. Frontend / Storage / App (Cyan / Teal / Aqua) */
+.actor[name*="frontend" i],
+.actor[name*="fe" i],
+.actor[name*="app" i],
+.actor[name*="mobile" i],
+.actor[name*="ui" i],
+.actor[name*="clientapp" i],
+.actor[name*="web" i],
+.actor[name*="browser" i],
+.actor[name*="client" i],
+.actor[name*="cloudstorage" i],
+.actor[name*="s3" i],
+.actor[name*="storage" i] {
+  fill: #e0f7fa !important;
+  stroke: #00e5ff !important;
+  stroke-width: 2px !important;
+}
+
+/* 7. Human Actor (Aqua) */
+.actor[name*="user" i],
+.actor[name*="customer" i],
+.actor[name*="client" i],
+.actor[name*="actor" i],
+.actor[name*="driver" i],
+.actor[name*="rider" i],
+.actor[name*="admin" i],
+.actor[name*="guest" i],
+.actor[name*="consumer" i] {
+  fill: #e0f7fa !important;
+  stroke: #00e5ff !important;
+  stroke-width: 2px !important;
+}
+
+/* 8. Payment Services (Light Red / Pink) */
+.actor[name*="payment" i],
+.actor[name*="stripeservice" i],
+.actor[name*="paypalservice" i],
+.actor[name*="checkout" i],
+.actor[name*="billing" i],
+.actor[name*="transaction" i] {
+  fill: #ffebee !important;
+  stroke: #e57373 !important;
+  stroke-width: 2px !important;
+}
+
+/* Highlight style for selected sequence diagram participants (static black outline) */
+.seq-participant-selected .actor,
+.seq-participant-selected path.actor,
+.seq-participant-selected rect.actor,
+.seq-participant-selected circle.actor,
+.seq-participant-selected polygon.actor {
+  stroke: #000000 !important;
+  stroke-width: 3px !important;
+  stroke-dasharray: none !important;
+  animation: none !important;
+}
+
+g.actor-man.node-selected circle,
+g.actor-man.node-selected line,
+g.actor-man.node-selected path {
+  stroke: #000000 !important;
+  stroke-width: 3px !important;
+  stroke-dasharray: none !important;
+  animation: none !important;
 }

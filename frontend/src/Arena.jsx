@@ -104,6 +104,25 @@ const SHAPES = [
   { id: 'trapezoid', label: 'Trapezoid', icon: TrapezoidIcon, wrap: (t) => `[/${t}\\]` },
 ];
 
+const PARTICIPANT_TYPES = [
+  { id: 'participant', label: 'Participant',
+    icon: (s = 16) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="5" width="18" height="14" rx="2"/></svg> },
+  { id: 'actor', label: 'Actor',
+    icon: (s = 16) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="6" r="3"/><line x1="12" y1="9" x2="12" y2="17"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="12" y1="17" x2="8" y2="22"/><line x1="12" y1="17" x2="16" y2="22"/></svg> },
+  { id: 'database', label: 'Database',
+    icon: (s = 16) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3"/></svg> },
+  { id: 'queue', label: 'Queue',
+    icon: (s = 16) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="M17 8a3 3 0 0 1 0 8"/></svg> },
+  { id: 'boundary', label: 'Boundary',
+    icon: (s = 16) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="4" y1="4" x2="4" y2="20"/><circle cx="14" cy="12" r="6"/><line x1="4" y1="12" x2="8" y2="12"/></svg> },
+  { id: 'control', label: 'Control',
+    icon: (s = 16) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="8"/><path d="M8 5l4-3"/></svg> },
+  { id: 'entity', label: 'Entity',
+    icon: (s = 16) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="8"/><line x1="4" y1="20" x2="20" y2="20"/></svg> },
+  { id: 'collections', label: 'Collections',
+    icon: (s = 16) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="5" y="7" width="14" height="12" rx="2"/><rect x="3" y="5" width="14" height="12" rx="2"/></svg> }
+];
+
 const getInitialAgentRemarks = (steps, repairLog) => {
   let remarks = "Hello! I am your diagram assistant. Here is a summary of how I generated this diagram:\n\n";
   if (steps && steps.length > 0) {
@@ -839,6 +858,7 @@ User's latest message: ${userText}`;
   const [editColor, setEditColor] = useState('');
   const [editStrokeColor, setEditStrokeColor] = useState('');
   const [editShape, setEditShape] = useState('');
+  const [editParticipantType, setEditParticipantType] = useState('participant');
   const [edgeStyle, setEdgeStyle] = useState('solid');
   const [edgeColor, setEdgeColor] = useState('');
   const [edgeHead, setEdgeHead] = useState('single');
@@ -1154,7 +1174,7 @@ User's latest message: ${userText}`;
 
       try {
         const mermaidApi = await loadMermaid();
-        mermaidApi.initialize({
+        const mermaidConfig = {
           startOnLoad: false,
           securityLevel: 'loose',
           ...tmpl.config,
@@ -1163,7 +1183,21 @@ User's latest message: ${userText}`;
           sequence: { useMaxWidth: false, showSequenceNumbers: false, actorMargin: 80, mirrorActors: false, messageAlign: 'center', messageFontSize: 13, noteFontSize: 12, wrap: true },
           er: { useMaxWidth: false, layoutDirection: 'TB', entityPadding: 15, fontSize: 13 },
           gantt: { useMaxWidth: false, fontSize: 12, barHeight: 24, barGap: 6, topPadding: 50, sidePadding: 100, gridLineStartPadding: 35, numberSectionStyles: 4 },
-        });
+        };
+
+        if (diagramType === 'sequence') {
+          mermaidConfig.theme = 'default';
+          if (tmpl.config && tmpl.config.themeVariables) {
+            mermaidConfig.themeVariables = {
+              fontFamily: tmpl.config.themeVariables.fontFamily,
+              fontSize: tmpl.config.themeVariables.fontSize,
+              background: 'transparent',
+              darkMode: false,
+            };
+          }
+        }
+
+        mermaidApi.initialize(mermaidConfig);
 
         if (canvasRef.current) canvasRef.current.innerHTML = '';
         renderCounter.current++;
@@ -1180,6 +1214,98 @@ User's latest message: ${userText}`;
             svgEl.style.height = 'auto';
             svgEl.removeAttribute('height');
             svgEl.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+
+            if (diagramType === 'sequence') {
+              const actors = [];
+              
+              // 1. Collect standard actor boxes (any shape)
+              svgEl.querySelectorAll('rect.actor, circle.actor, path.actor, polygon.actor').forEach(rect => {
+                let centerX = null;
+                const bbox = rect.getBBox ? rect.getBBox() : null;
+                
+                if (rect.tagName === 'circle') {
+                  centerX = parseFloat(rect.getAttribute('cx') || (bbox ? bbox.x + bbox.width / 2 : 0));
+                } else if (rect.tagName === 'rect') {
+                  const x = parseFloat(rect.getAttribute('x'));
+                  const w = parseFloat(rect.getAttribute('width'));
+                  centerX = x + w / 2;
+                } else if (bbox) {
+                  centerX = bbox.x + bbox.width / 2;
+                }
+                
+                const stroke = rect.style.stroke || window.getComputedStyle(rect).stroke;
+                const fill = rect.style.fill || window.getComputedStyle(rect).fill;
+                if (centerX !== null && stroke) {
+                  actors.push({ centerX, stroke, fill });
+                }
+              });
+
+              // 2. Collect stick figure actors
+              svgEl.querySelectorAll('g.actor-man').forEach(g => {
+                const circle = g.querySelector('circle');
+                if (circle) {
+                  const cx = parseFloat(circle.getAttribute('cx'));
+                  const stroke = circle.style.stroke || window.getComputedStyle(circle).stroke;
+                  const fill = circle.style.fill || window.getComputedStyle(circle).fill;
+                  if (cx && stroke) {
+                    actors.push({ centerX: cx, stroke, fill });
+                  }
+                }
+              });
+
+              // 3. Color all activation rects based on proximity to actor centerX
+              svgEl.querySelectorAll('rect').forEach(rect => {
+                const className = rect.className?.baseVal || '';
+                if (className.includes('activation')) {
+                  const x = parseFloat(rect.getAttribute('x'));
+                  const w = parseFloat(rect.getAttribute('width'));
+                  const centerX = x + w / 2;
+                  
+                  let closestActor = null;
+                  let minDiff = Infinity;
+                  actors.forEach(actor => {
+                    const diff = Math.abs(actor.centerX - centerX);
+                    if (diff < minDiff) {
+                      minDiff = diff;
+                      closestActor = actor;
+                    }
+                  });
+
+                  if (closestActor && minDiff < 20) {
+                    rect.style.setProperty('stroke', closestActor.stroke, 'important');
+                    rect.style.setProperty('fill', closestActor.fill, 'important');
+                    rect.style.setProperty('stroke-width', '2px', 'important');
+                  }
+                }
+              });
+
+              // 4. Mark parent groups of all participant shapes for hover/click targeting.
+              //    Mermaid wraps each participant's shape+text in a <g> group.
+              //    For standard boxes: rect.actor[name] is inside the group.
+              //    For control/entity: g with class actor and name attribute IS the group.
+              //    For actor-man: g.actor-man[name] IS the group.
+              const markedGroups = new Set();
+              
+              // Standard rect/path-based participants (participant, database, queue, boundary, collections)
+              svgEl.querySelectorAll('.actor[name]').forEach(shape => {
+                // Walk up to find the parent <g> that wraps shape + text
+                let parentG = shape.closest('g');
+                if (parentG && !markedGroups.has(parentG)) {
+                  parentG.classList.add('seq-participant-group');
+                  parentG.setAttribute('data-participant-name', shape.getAttribute('name'));
+                  markedGroups.add(parentG);
+                }
+              });
+              
+              // Stick figure actors
+              svgEl.querySelectorAll('g.actor-man[name]').forEach(g => {
+                if (!markedGroups.has(g)) {
+                  g.classList.add('seq-participant-group');
+                  g.setAttribute('data-participant-name', g.getAttribute('name'));
+                  markedGroups.add(g);
+                }
+              });
+            }
           }
           // Delay listener attachment to allow strict layout calculation
           setTimeout(() => {
@@ -1289,13 +1415,20 @@ User's latest message: ${userText}`;
   // Re-attach listeners when tool changes
   useEffect(() => {
     if (!isLoading && canvasRef.current) {
-      const nodes = canvasRef.current.querySelectorAll('.node');
-      nodes.forEach(n => {
-        n.style.cursor = activeTool === 'select' ? 'pointer' : 'default';
-        n.style.pointerEvents = activeTool === 'select' ? 'auto' : 'none';
-      });
+      if (diagramType === 'sequence') {
+        canvasRef.current.querySelectorAll('.seq-participant-group').forEach(n => {
+          n.style.cursor = activeTool === 'select' ? 'pointer' : 'default';
+          n.style.pointerEvents = activeTool === 'select' ? 'auto' : 'none';
+        });
+      } else {
+        const nodes = canvasRef.current.querySelectorAll('.node');
+        nodes.forEach(n => {
+          n.style.cursor = activeTool === 'select' ? 'pointer' : 'default';
+          n.style.pointerEvents = activeTool === 'select' ? 'auto' : 'none';
+        });
+      }
     }
-  }, [activeTool, isLoading, mermaidCode]);
+  }, [activeTool, isLoading, mermaidCode, diagramType]);
 
   const attachInteractionListeners = () => {
     if (!canvasRef.current) return;
@@ -1304,7 +1437,21 @@ User's latest message: ${userText}`;
     canvasRef.current.querySelectorAll('.node-add-btn').forEach(b => b.remove());
 
     // Only attach interactive editing for diagram types that support it
-    if (diagramType !== 'flowchart' && diagramType !== 'architecture') return;
+    if (diagramType !== 'flowchart' && diagramType !== 'architecture' && diagramType !== 'sequence') return;
+
+    if (diagramType === 'sequence') {
+      // Attach click listeners to all marked participant groups
+      canvasRef.current.querySelectorAll('.seq-participant-group').forEach(el => {
+        el.style.cursor = activeTool === 'select' ? 'pointer' : 'default';
+        el.style.pointerEvents = activeTool === 'select' ? 'auto' : 'none';
+        el.onclick = (e) => {
+          if (activeTool !== 'select') return;
+          e.stopPropagation();
+          handleParticipantClick(el, e);
+        };
+      });
+      return;
+    }
 
     // Nodes
     canvasRef.current.querySelectorAll('.node').forEach(node => {
@@ -1947,6 +2094,150 @@ User's latest message: ${userText}`;
     });
   };
 
+  const handleParticipantClick = (el, e) => {
+    clearSelection();
+
+    // el is a .seq-participant-group group. Read the participant name from our data attribute.
+    const participantName = el.getAttribute('data-participant-name') || '';
+
+    if (!participantName) return;
+
+    // Highlight all groups with the same participant name (top and bottom boxes)
+    canvasRef.current.querySelectorAll('.seq-participant-group').forEach(group => {
+      if (group.getAttribute('data-participant-name') === participantName) {
+        group.classList.add('seq-participant-selected');
+      }
+    });
+
+    const containerRect = containerRef.current?.getBoundingClientRect() || { left: 0, top: 0 };
+    const participantInfo = findParticipantInfoFromCode(participantName);
+
+    setSelectedNode({
+      id: participantInfo.id,
+      label: participantInfo.label,
+      type: participantInfo.type,
+      isParticipant: true,
+      element: el
+    });
+    setEditText(participantInfo.label);
+    setEditParticipantType(participantInfo.type);
+
+    setEditPopover({
+      type: 'node',
+      x: Math.min(e.clientX - containerRect.left + 16, window.innerWidth - 300),
+      y: Math.min(e.clientY - containerRect.top, window.innerHeight - 450),
+    });
+  };
+
+  const findParticipantInfoFromCode = (name) => {
+    const lines = mermaidCode.split('\n');
+    const nameLower = name.trim().toLowerCase();
+    
+    for (let line of lines) {
+      const trimmed = line.trim();
+      
+      const actorMatch = trimmed.match(/^actor\s+([A-Za-z0-9_]+)(?:\s+as\s+(.+))?$/i);
+      if (actorMatch) {
+        const id = actorMatch[1];
+        let label = actorMatch[2] ? actorMatch[2].replace(/"/g, '').trim() : id;
+        if (id.toLowerCase() === nameLower || label.toLowerCase() === nameLower) {
+          return { id, label, type: 'actor' };
+        }
+      }
+      
+      const partMatch = trimmed.match(/^participant\s+([A-Za-z0-9_]+)(?:@\{"type"\s*:\s*"([a-z]+)"\})?(?:\s+as\s+(.+))?$/i);
+      if (partMatch) {
+        const id = partMatch[1];
+        const type = partMatch[2] || 'participant';
+        let label = partMatch[3] ? partMatch[3].replace(/"/g, '').trim() : id;
+        if (id.toLowerCase() === nameLower || label.toLowerCase() === nameLower) {
+          return { id, label, type };
+        }
+      }
+    }
+    
+    return { id: name, label: name, type: 'participant' };
+  };
+
+  const applyParticipantEdit = () => {
+    if (!selectedNode) return;
+    const { id: participantId, label: oldLabel } = selectedNode;
+    const newLabel = editText.trim() || oldLabel;
+    const newType = editParticipantType || 'participant';
+
+    let lines = mermaidCode.split('\n');
+    let targetIndex = -1;
+    const escapedId = participantId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    for (let i = 0; i < lines.length; i++) {
+      const trimmed = lines[i].trim();
+      if (trimmed.match(new RegExp(`^(?:participant|actor)\\s+${escapedId}\\b`, 'i'))) {
+        targetIndex = i;
+        break;
+      }
+    }
+
+    let newLine = '';
+    const indent = targetIndex >= 0 ? lines[targetIndex].match(/^\s*/)[0] : '    ';
+    
+    if (newType === 'actor') {
+      newLine = `${indent}actor ${participantId} as ${newLabel}`;
+    } else if (newType === 'participant') {
+      newLine = `${indent}participant ${participantId} as ${newLabel}`;
+    } else {
+      newLine = `${indent}participant ${participantId}@{"type": "${newType}"} as ${newLabel}`;
+    }
+
+    if (targetIndex >= 0) {
+      lines[targetIndex] = newLine;
+    } else {
+      let insertIndex = -1;
+      for (let i = 0; i < lines.length; i++) {
+        const trimmed = lines[i].trim();
+        if (trimmed.startsWith('sequenceDiagram')) {
+          insertIndex = i + 1;
+        }
+        if (trimmed.startsWith('autonumber')) {
+          insertIndex = i + 1;
+        }
+      }
+      
+      if (insertIndex >= 0) {
+        lines.splice(insertIndex, 0, newLine);
+      } else {
+        lines.push(newLine);
+      }
+    }
+
+    const newCode = lines.join('\n');
+    setMermaidCode(newCode);
+    localStorage.setItem('arka_last_mermaid_code', newCode);
+    clearSelection();
+  };
+
+  const deleteParticipant = () => {
+    if (!selectedNode) return;
+    const { id: participantId } = selectedNode;
+    const escapedId = participantId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    
+    const lines = mermaidCode.split('\n');
+    const filteredLines = lines.filter(line => {
+      const trimmed = line.trim();
+      if (trimmed.match(new RegExp(`^(?:participant|actor)\\s+${escapedId}\\b`, 'i'))) {
+        return false;
+      }
+      if (trimmed.match(new RegExp(`\\b${escapedId}\\b`))) {
+        return false;
+      }
+      return true;
+    });
+
+    const newCode = filteredLines.join('\n');
+    setMermaidCode(newCode);
+    localStorage.setItem('arka_last_mermaid_code', newCode);
+    clearSelection();
+  };
+
   const handleEdgeClick = (edge, e) => {
     clearSelection();
 
@@ -2112,6 +2403,10 @@ User's latest message: ${userText}`;
       });
       canvasRef.current.querySelectorAll('.label-selected').forEach(el => {
         el.classList.remove('label-selected');
+      });
+      // Clear sequence diagram participant selection
+      canvasRef.current.querySelectorAll('.seq-participant-selected').forEach(el => {
+        el.classList.remove('seq-participant-selected');
       });
       canvasRef.current.querySelector('#edge-drag-handles')?.remove();
       canvasRef.current.querySelector('#node-selection-overlay')?.remove();
@@ -2896,65 +3191,94 @@ User's latest message: ${userText}`;
                 <div className="popover-section">
                   <label className="popover-label-mini">Content</label>
                   <input className="popover-input" value={editText} onChange={e => setEditText(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && applyNodeEdit()} autoFocus />
+                    onKeyDown={e => e.key === 'Enter' && (selectedNode.isParticipant ? applyParticipantEdit() : applyNodeEdit())} autoFocus />
                 </div>
-                <div className="popover-section">
-                  <label className="popover-label-mini">Shape</label>
-                  <div className="sidebar-shapes-grid">
-                    {SHAPES.map(s => (
-                      <button key={s.id} className={`shape-btn-sidebar ${editShape === s.id ? 'active' : ''}`}
-                        onClick={() => setEditShape(s.id)} title={s.label}>
-                        <s.icon size={16} />
-                        <span>{s.label}</span>
+
+                {selectedNode.isParticipant ? (
+                  <>
+                    <div className="popover-section">
+                      <label className="popover-label-mini">Participant Type</label>
+                      <div className="sidebar-shapes-grid">
+                        {PARTICIPANT_TYPES.map(pt => (
+                          <button key={pt.id} className={`shape-btn-sidebar ${editParticipantType === pt.id ? 'active' : ''}`}
+                            onClick={() => setEditParticipantType(pt.id)} title={pt.label}>
+                            {pt.icon(16)}
+                            <span>{pt.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="sidebar-footer-actions">
+                      <button className="popover-apply-btn" onClick={applyParticipantEdit}>
+                        <Check size={17} /> Update Participant
                       </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="popover-section">
-                  <label className="popover-label-mini">Fill Color</label>
-                  <div className="popover-colors">
-                    {NODE_COLORS.map(c => (
-                      <button key={c} className={`color-swatch ${editColor === c ? 'active' : ''}`}
-                        style={{ background: c }} onClick={() => setEditColor(editColor === c ? '' : c)} />
-                    ))}
-                    {customColors.filter(c => !NODE_COLORS.includes(c)).map(c => (
-                      <button key={c} className={`color-swatch ${editColor === c ? 'active' : ''}`}
-                        style={{ background: c }} onClick={() => setEditColor(editColor === c ? '' : c)} />
-                    ))}
-                    <label className="color-plus-swatch">
-                      <PlusIcon size={12} />
-                      <input type="color" className="custom-color-input" value={customColors[0] || '#000000'}
-                        onChange={e => handlePickerChange(e.target.value, setEditColor)}
-                        onBlur={handlePickerClose} />
-                    </label>
-                  </div>
-                </div>
-                <div className="popover-section">
-                  <label className="popover-label-mini">Stroke Color</label>
-                  <div className="popover-colors">
-                    {NODE_COLORS.map(c => (
-                      <button key={c} className={`color-swatch ${editStrokeColor === c ? 'active' : ''}`}
-                        style={{ background: c }} onClick={() => setEditStrokeColor(editStrokeColor === c ? '' : c)} />
-                    ))}
-                    {customColors.filter(c => !NODE_COLORS.includes(c)).map(c => (
-                      <button key={c} className={`color-swatch ${editStrokeColor === c ? 'active' : ''}`}
-                        style={{ background: c }} onClick={() => setEditStrokeColor(editStrokeColor === c ? '' : c)} />
-                    ))}
-                    <label className="color-plus-swatch">
-                      <PlusIcon size={12} />
-                      <input type="color" className="custom-color-input" value={customColors[0] || '#000000'}
-                        onChange={e => handlePickerChange(e.target.value, setEditStrokeColor)}
-                        onBlur={handlePickerClose} />
-                    </label>
-                  </div>
-                </div>
-                <div className="sidebar-footer-actions">
-                  <button className="popover-apply-btn" onClick={applyNodeEdit}><Check size={17} /> Update Node</button>
-                  <button className="popover-delete-btn" onClick={deleteNode} title="Delete Node">
-                    <Trash2 size={17} />
-                    <span>Delete</span>
-                  </button>
-                </div>
+                      <button className="popover-delete-btn" onClick={deleteParticipant} title="Delete Participant">
+                        <Trash2 size={17} />
+                        <span>Delete</span>
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="popover-section">
+                      <label className="popover-label-mini">Shape</label>
+                      <div className="sidebar-shapes-grid">
+                        {SHAPES.map(s => (
+                          <button key={s.id} className={`shape-btn-sidebar ${editShape === s.id ? 'active' : ''}`}
+                            onClick={() => setEditShape(s.id)} title={s.label}>
+                            <s.icon size={16} />
+                            <span>{s.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="popover-section">
+                      <label className="popover-label-mini">Fill Color</label>
+                      <div className="popover-colors">
+                        {NODE_COLORS.map(c => (
+                          <button key={c} className={`color-swatch ${editColor === c ? 'active' : ''}`}
+                            style={{ background: c }} onClick={() => setEditColor(editColor === c ? '' : c)} />
+                        ))}
+                        {customColors.filter(c => !NODE_COLORS.includes(c)).map(c => (
+                          <button key={c} className={`color-swatch ${editColor === c ? 'active' : ''}`}
+                            style={{ background: c }} onClick={() => setEditColor(editColor === c ? '' : c)} />
+                        ))}
+                        <label className="color-plus-swatch">
+                          <PlusIcon size={12} />
+                          <input type="color" className="custom-color-input" value={customColors[0] || '#000000'}
+                            onChange={e => handlePickerChange(e.target.value, setEditColor)}
+                            onBlur={handlePickerClose} />
+                        </label>
+                      </div>
+                    </div>
+                    <div className="popover-section">
+                      <label className="popover-label-mini">Stroke Color</label>
+                      <div className="popover-colors">
+                        {NODE_COLORS.map(c => (
+                          <button key={c} className={`color-swatch ${editStrokeColor === c ? 'active' : ''}`}
+                            style={{ background: c }} onClick={() => setEditStrokeColor(editStrokeColor === c ? '' : c)} />
+                        ))}
+                        {customColors.filter(c => !NODE_COLORS.includes(c)).map(c => (
+                          <button key={c} className={`color-swatch ${editStrokeColor === c ? 'active' : ''}`}
+                            style={{ background: c }} onClick={() => setEditStrokeColor(editStrokeColor === c ? '' : c)} />
+                        ))}
+                        <label className="color-plus-swatch">
+                          <PlusIcon size={12} />
+                          <input type="color" className="custom-color-input" value={customColors[0] || '#000000'}
+                            onChange={e => handlePickerChange(e.target.value, setEditStrokeColor)}
+                            onBlur={handlePickerClose} />
+                        </label>
+                      </div>
+                    </div>
+                    <div className="sidebar-footer-actions">
+                      <button className="popover-apply-btn" onClick={applyNodeEdit}><Check size={17} /> Update Node</button>
+                      <button className="popover-delete-btn" onClick={deleteNode} title="Delete Node">
+                        <Trash2 size={17} />
+                        <span>Delete</span>
+                      </button>
+                    </div>
+                  </>
+                )}
               </>
             )}
 
