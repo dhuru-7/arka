@@ -12,7 +12,7 @@ export const CLOUD_PROVIDERS = {
     name: 'Google AI',
     models: [
       { id: 'gemini-3.5-flash', label: 'Gemini 3.5 Flash', desc: 'Google\'s recommended flagship model for general task speed and capability.', suggestModel: 'gemini-3.5-flash', generateModel: 'gemini-3.5-flash', badge: 'Best' },
-      { id: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash Lite', desc: 'Google\'s highly cost-effective, ultra-fast model.', suggestModel: 'gemini-3.1-flash-lite', generateModel: 'gemini-3.1-flash-lite', badge: 'Best' }
+      { id: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash Lite', desc: 'Google\'s highly cost-effective, ultra-fast model.', suggestModel: 'gemini-3.1-flash-lite', generateModel: 'gemini-3.1-flash-lite' }
     ]
   },
   sarvam: {

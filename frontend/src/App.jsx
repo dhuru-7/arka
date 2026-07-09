@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, User, ArrowUp, Send, Layout, Zap, Boxes, Plus, Network, Layers, LineChart, PieChart, ChevronLeft, Grid, Paintbrush, Paperclip, GitBranch, Image as ImageIcon, PenTool, SlidersHorizontal, ArrowDown, History, X, MessageSquareDot, Table2, CalendarRange, Trash2, Info, Loader2 } from './googleIcons';
+import { Search, User, ArrowUp, Send, Layout, Zap, Boxes, Plus, Network, Layers, LineChart, PieChart, ChevronLeft, Grid, Paintbrush, Paperclip, GitBranch, Image as ImageIcon, PenTool, SlidersHorizontal, ArrowDown, History, X, MessageSquareDot, Table2, CalendarRange, Trash2, Info, Loader2, ScratchPad } from './googleIcons';
 import Arena from './Arena';
 import Auth from './Auth';
 import Settings from './Settings';
@@ -118,7 +118,7 @@ const DiagramsPage = () => {
     { id: 'pie', label: 'Pie Charts', icon: PieChart, color: '#000000' }
   ];
 
-  const isBetaDiagram = (id) => id !== 'flowchart' && id !== 'architecture' && id !== 'sequence';
+  const isBetaDiagram = (id) => id !== 'flowchart' && id !== 'architecture' && id !== 'sequence' && id !== 'erDiagram';
 
   const openPinNotice = () => {
     setShowPinNotice(true);
@@ -387,7 +387,7 @@ const DiagramsPage = () => {
       <aside className={`history-sidebar ${isSidebarOpen ? 'open' : ''}`}>
         <div className="history-header">
           <h3 className="history-title">
-            <History size={20} /> History
+            History
           </h3>
           <button onClick={() => setIsSidebarOpen(false)} className="close-sidebar-btn">
             <X size={20} />
@@ -397,7 +397,12 @@ const DiagramsPage = () => {
           {historyLoading ? (
             <div className="history-loading">Loading...</div>
           ) : historyItems.length === 0 ? (
-            <div className="history-empty">No diagrams saved yet.</div>
+            <div className="history-empty">
+              <div className="history-empty-icon">
+                <span className="material-symbols-outlined" style={{ fontSize: '38px', color: '#a1a1aa' }}>history</span>
+              </div>
+              <span>No diagrams generated yet.</span>
+            </div>
           ) : (
             historyItems.map(item => (
               <div key={item.id} className="history-item" onClick={() => loadHistoryItem(item)}>

@@ -127,11 +127,102 @@ def clean_mermaid_code(content, diagram_type):
         lines = content.splitlines()
         if lines and lines[0].strip() != "erDiagram":
             lines = ["erDiagram"] + [line for line in lines if line.strip() != "erDiagram"]
+
+        # --- ER-specific cleaning passes ---
+        # 1. Quote unquoted relationship labels
         fixed = []
         for line in lines:
             match = re.match(r'(\s*\w+\s+[|o}{]+--[|o}{]+\s+\w+\s*:\s*)([^"].*[^"]\s*)$', line)
             fixed.append(f'{match.group(1)}"{match.group(2).strip()}"' if match else line)
-        content = "\n".join(fixed)
+        lines = fixed
+
+        # 2. Remove invalid `enum` blocks
+        cleaned = []
+        in_enum = False
+        for line in lines:
+            stripped = line.strip()
+            if re.match(r'^enum\s+\w+\s*\{', stripped):
+                in_enum = True
+                continue
+            if in_enum:
+                if stripped == "}":
+                    in_enum = False
+                continue
+            cleaned.append(line)
+        lines = cleaned
+
+        # 3. Deduplicate entity definitions — keep only the FIRST occurrence of each entity block
+        deduped = []
+        seen_entities = set()
+        in_entity = False
+        current_entity_name = None
+        skip_block = False
+        for line in lines:
+            stripped = line.strip()
+            entity_open = re.match(r'^([A-Za-z]\w*)\s*\{', stripped)
+            if entity_open and not in_entity:
+                in_entity = True
+                current_entity_name = entity_open.group(1)
+                if current_entity_name in seen_entities:
+                    skip_block = True
+                else:
+                    seen_entities.add(current_entity_name)
+                    skip_block = False
+                    deduped.append(line)
+                continue
+            if in_entity:
+                if stripped == "}":
+                    in_entity = False
+                    if not skip_block:
+                        deduped.append(line)
+                    skip_block = False
+                else:
+                    if not skip_block:
+                        deduped.append(line)
+                continue
+            deduped.append(line)
+        lines = deduped
+
+        # 4. Deduplicate relationship lines (treat A->B and B->A with same pair as duplicates)
+        rel_seen = set()
+        deduped_rels = []
+        for line in lines:
+            stripped = line.strip()
+            rel_match = re.match(r'^([A-Za-z]\w*)\s+[|o}{]+--[|o}{]+\s+([A-Za-z]\w+)', stripped)
+            if rel_match:
+                pair = tuple(sorted([rel_match.group(1), rel_match.group(2)]))
+                if pair in rel_seen:
+                    continue
+                rel_seen.add(pair)
+            deduped_rels.append(line)
+        lines = deduped_rels
+
+        # 5. Remove truncated/incomplete relationship lines
+        final = []
+        for line in lines:
+            stripped = line.strip()
+            # Detect lines like "Notification ||--" with no target entity
+            if re.match(r'^[A-Za-z]\w*\s+[|o}{]+--\s*$', stripped):
+                continue
+            final.append(line)
+        lines = final
+
+        # 6. Remove relationships that reference enum entities (which were stripped)
+        rel_final = []
+        for line in lines:
+            stripped = line.strip()
+            rel_match = re.match(r'^([A-Za-z]\w*)\s+[|o}{]+--[|o}{]+\s+([A-Za-z]\w+)', stripped)
+            if rel_match:
+                # Skip relationships to entities that look like enums (common patterns)
+                target = rel_match.group(2)
+                if target.endswith("Status") or target.endswith("Method") or target == "Rating":
+                    # Check if this entity was never defined
+                    if target not in seen_entities:
+                        continue
+            rel_final.append(line)
+        lines = rel_final
+
+        content = "\n".join(lines)
 
     if diagram_type == "gantt":
         lines = content.splitlines()
@@ -317,40 +408,138 @@ def _validate_sequence(lines, issues):
 
 
 def _validate_er(lines, issues):
+    entity_defs = {}  # entity_name -> first line number
+    entity_has_attrs = {}  # entity_name -> bool
+    rel_pairs = {}  # sorted (A, B) pair -> first line number
+    rel_count = 0
+    in_entity = False
+    current_entity = None
+    current_entity_line = 0
+    has_attrs = False
+
     for idx, line in enumerate(lines, start=1):
         stripped = line.strip()
         if not stripped or stripped in ("erDiagram", "{", "}"):
+            if stripped == "}" and in_entity:
+                entity_has_attrs[current_entity] = has_attrs
+                if not has_attrs:
+                    issues.append({"line": current_entity_line, "severity": "error", "message": f"Entity '{current_entity}' has no attributes. Add at least a primary key."})
+                in_entity = False
             continue
-        if re.match(r"[A-Za-z]\w*\s+[|o}{]+--[|o}{]+\s+[A-Za-z]\w+\s*:", stripped):
+
+        # Detect enum blocks (invalid syntax)
+        if re.match(r'^enum\s+\w+\s*\{', stripped):
+            issues.append({"line": idx, "severity": "error", "message": "Mermaid ER diagrams do not support 'enum' blocks. Use a string attribute instead."})
+            continue
+
+        # Detect entity opening
+        entity_open = re.match(r'^([A-Za-z]\w*)\s*\{', stripped)
+        if entity_open:
+            entity_name = entity_open.group(1)
+            in_entity = True
+            current_entity = entity_name
+            current_entity_line = idx
+            has_attrs = False
+            if not re.match(r'^[A-Z][A-Za-z0-9]*$', entity_name):
+                issues.append({"line": idx, "severity": "error", "message": "ER entity names should be PascalCase without spaces."})
+            if entity_name in entity_defs:
+                issues.append({"line": idx, "severity": "error", "message": f"Duplicate entity definition for '{entity_name}' (first defined on line {entity_defs[entity_name]})."})
+            else:
+                entity_defs[entity_name] = idx
+            continue
+
+        # Inside an entity block — count attributes
+        if in_entity:
+            if stripped == "}":
+                entity_has_attrs[current_entity] = has_attrs
+                if not has_attrs and current_entity not in [e for e in entity_defs if entity_defs[e] != current_entity_line]:
+                    issues.append({"line": current_entity_line, "severity": "error", "message": f"Entity '{current_entity}' has no attributes. Add at least a primary key."})
+                in_entity = False
+            else:
+                has_attrs = True
+            continue
+
+        # Detect relationship lines
+        rel_match = re.match(r'^([A-Za-z]\w*)\s+([|o}{]+--[|o}{]+)\s+([A-Za-z]\w+)\s*:', stripped)
+        if rel_match:
+            rel_count += 1
+            src = rel_match.group(1)
+            tgt = rel_match.group(3)
+
+            # Check for quoted label
             if not re.search(r':\s*"[^"]+"$', stripped):
                 issues.append({"line": idx, "severity": "error", "message": "ER relationship label must be quoted."})
-        elif re.match(r"[A-Za-z]\w*\s*[{]", stripped):
-            entity = stripped.split("{", 1)[0].strip()
-            if not re.match(r"^[A-Z][A-Za-z0-9]*$", entity):
-                issues.append({"line": idx, "severity": "error", "message": "ER entity names should be PascalCase without spaces."})
+
+            # Check for self-referencing
+            if src == tgt:
+                issues.append({"line": idx, "severity": "warning", "message": f"Self-referencing relationship on '{src}'. Ensure this is intentional (e.g., hierarchical data)."})
+
+            # Check for duplicate relationship pairs (including bidirectional)
+            pair = tuple(sorted([src, tgt]))
+            if pair in rel_pairs:
+                issues.append({"line": idx, "severity": "error", "message": f"Duplicate relationship between '{src}' and '{tgt}' (first on line {rel_pairs[pair]}). State each relationship only once."})
+            else:
+                rel_pairs[pair] = idx
+            continue
+
+        # Detect truncated relationship lines (no target entity)
+        trunc_match = re.match(r'^[A-Za-z]\w*\s+[|o}{]+--\s*$', stripped)
+        if trunc_match:
+            issues.append({"line": idx, "severity": "error", "message": "Truncated relationship line — missing target entity and label."})
+            continue
+
+    # Check entity count
+    if len(entity_defs) > 10:
+        issues.append({"line": 1, "severity": "warning", "message": f"Diagram has {len(entity_defs)} entities. Keep to 10 or fewer for readability."})
+
+    # Check relationship count
+    if rel_count > 15:
+        issues.append({"line": 1, "severity": "warning", "message": f"Diagram has {rel_count} relationships. Keep to 15 or fewer for readability."})
 
 
 def _validate_gantt(lines, issues):
     if not any("dateFormat YYYY-MM-DD" in line for line in lines):
         issues.append({"line": 1, "severity": "error", "message": "Gantt chart must include dateFormat YYYY-MM-DD."})
+        
     task_ids = set()
+    
+    def is_date(s):
+        return bool(re.match(r'^\d{4}-\d{2}-\d{2}(?:\s+\d{2}:\d{2})?$', s))
+
+    def is_duration(s):
+        return bool(re.match(r'^\d+[wdhms]$', s))
+
+    def is_dependency(s):
+        return s.startswith('after ')
+
+    def is_status(s):
+        return s in {'done', 'active', 'crit', 'milestone'}
+
     for idx, line in enumerate(lines, start=1):
         stripped = line.strip()
-        if not stripped or stripped.startswith(("gantt", "title", "dateFormat", "axisFormat", "section")):
+        if not stripped or stripped.startswith(("gantt", "title", "dateFormat", "axisFormat", "section", "excludes", "todayMarker")):
             continue
         if ":" not in stripped:
-            issues.append({"line": idx, "severity": "error", "message": "Gantt task line must contain a colon."})
+            issues.append({"line": idx, "severity": "error", "message": "Gantt task line must contain a colon separating task name and metadata."})
             continue
+            
         meta = stripped.split(":", 1)[1]
         parts = [part.strip() for part in meta.split(",")]
-        if len(parts) < 3:
-            issues.append({"line": idx, "severity": "error", "message": "Gantt task needs an id and timing fields."})
-        elif not re.match(r"^[A-Za-z][A-Za-z0-9_]*$", parts[1] if parts[0] in {"done", "active", "crit", "milestone"} else parts[0]):
-            issues.append({"line": idx, "severity": "error", "message": "Gantt task id must be alphanumeric."})
-        task_id = parts[1] if parts and parts[0] in {"done", "active", "crit", "milestone"} and len(parts) > 1 else parts[0]
-        if task_id in task_ids:
-            issues.append({"line": idx, "severity": "error", "message": f"Duplicate Gantt task id '{task_id}'."})
-        task_ids.add(task_id)
+        
+        # Extract taskId (first part that is not status, date, duration, or dependency)
+        task_id = None
+        for part in parts:
+            if not is_status(part) and not is_date(part) and not is_duration(part) and not is_dependency(part):
+                task_id = part
+                break
+                
+        if task_id:
+            if not re.match(r"^[A-Za-z][A-Za-z0-9_]*$", task_id):
+                issues.append({"line": idx, "severity": "error", "message": f"Gantt task id '{task_id}' must be alphanumeric without spaces."})
+            elif task_id in task_ids:
+                issues.append({"line": idx, "severity": "error", "message": f"Duplicate Gantt task id '{task_id}'."})
+            else:
+                task_ids.add(task_id)
 
 
 def _validate_pie(lines, issues):

@@ -43,6 +43,77 @@ const TEMPLATES = {
 };
 
 /* ─── Node colors for editing ─── */
+const GANTT_PASTEL_COLORS = [
+  '#F3E8FF',
+  '#E0F7FA',
+  '#FFF3E0',
+  '#E8F5E9',
+  '#E3F2FD',
+  '#FFFDE7',
+  '#FCE4EC',
+  '#EDE7F6',
+];
+
+const GANTT_PASTEL_THEME = {
+  themeVariables: {
+    sectionBkgColor: GANTT_PASTEL_COLORS[0],
+    altSectionBkgColor: GANTT_PASTEL_COLORS[1],
+    sectionBkgColor2: GANTT_PASTEL_COLORS[2],
+    taskBkgColor: GANTT_PASTEL_COLORS[3],
+    taskBorderColor: '#6b7280',
+    activeTaskBkgColor: GANTT_PASTEL_COLORS[4],
+    activeTaskBorderColor: '#3b82f6',
+    doneTaskBkgColor: GANTT_PASTEL_COLORS[5],
+    doneTaskBorderColor: '#ca8a04',
+    critBkgColor: GANTT_PASTEL_COLORS[6],
+    critBorderColor: '#db2777',
+    taskTextColor: '#111827',
+    taskTextDarkColor: '#111827',
+    taskTextOutsideColor: '#111827',
+    gridColor: '#d1d5db',
+    todayLineColor: '#ef4444',
+  },
+  themeCSS: `
+    .section { opacity: 0.58 !important; }
+    .section0 { fill: #F3E8FF !important; }
+    .section1 { fill: #E0F7FA !important; opacity: 0.58 !important; }
+    .section2 { fill: #FFF3E0 !important; }
+    .section3 { fill: #E8F5E9 !important; opacity: 0.58 !important; }
+    .section4 { fill: #E3F2FD !important; }
+    .section5 { fill: #FFFDE7 !important; }
+    .section6 { fill: #FCE4EC !important; }
+    .section7 { fill: #EDE7F6 !important; }
+    .sectionTitle0, .sectionTitle1, .sectionTitle2, .sectionTitle3,
+    .sectionTitle4, .sectionTitle5, .sectionTitle6, .sectionTitle7 {
+      fill: #111827 !important;
+      font-weight: 700 !important;
+    }
+    .task0 { fill: #F3E8FF !important; stroke: #A855F7 !important; }
+    .task1 { fill: #E0F7FA !important; stroke: #06B6D4 !important; }
+    .task2 { fill: #FFF3E0 !important; stroke: #F59E0B !important; }
+    .task3 { fill: #E8F5E9 !important; stroke: #22C55E !important; }
+    .task4 { fill: #E3F2FD !important; stroke: #3B82F6 !important; }
+    .task5 { fill: #FFFDE7 !important; stroke: #EAB308 !important; }
+    .task6 { fill: #FCE4EC !important; stroke: #EC4899 !important; }
+    .task7 { fill: #EDE7F6 !important; stroke: #8B5CF6 !important; }
+    .active0, .done0, .crit0, .activeCrit0, .doneCrit0 { fill: #F3E8FF !important; }
+    .active1, .done1, .crit1, .activeCrit1, .doneCrit1 { fill: #E0F7FA !important; }
+    .active2, .done2, .crit2, .activeCrit2, .doneCrit2 { fill: #FFF3E0 !important; }
+    .active3, .done3, .crit3, .activeCrit3, .doneCrit3 { fill: #E8F5E9 !important; }
+    .active4, .done4, .crit4, .activeCrit4, .doneCrit4 { fill: #E3F2FD !important; }
+    .active5, .done5, .crit5, .activeCrit5, .doneCrit5 { fill: #FFFDE7 !important; }
+    .active6, .done6, .crit6, .activeCrit6, .doneCrit6 { fill: #FCE4EC !important; }
+    .active7, .done7, .crit7, .activeCrit7, .doneCrit7 { fill: #EDE7F6 !important; }
+    .taskText, .taskText0, .taskText1, .taskText2, .taskText3,
+    .taskText4, .taskText5, .taskText6, .taskText7,
+    .taskTextOutside0, .taskTextOutside1, .taskTextOutside2, .taskTextOutside3,
+    .taskTextOutside4, .taskTextOutside5, .taskTextOutside6, .taskTextOutside7 {
+      fill: #111827 !important;
+      font-weight: 600 !important;
+    }
+  `,
+};
+
 const NODE_COLORS = [
   '#7c3aed', '#3b82f6', '#10b981', '#f59e0b', '#ef4444',
   '#ec4899', '#8b5cf6', '#06b6d4', '#84cc16', '#f97316',
@@ -389,6 +460,16 @@ const Arena = ({ prompt, diagramType, diagramId, onBack, onShowHistory, isTutori
   const [pngBgChoice, setPngBgChoice] = useState(null);
 
   const [activeTemplate, setActiveTemplate] = useState('paper');
+  const [bgStyle, setBgStyle] = useState(() => localStorage.getItem('arka-bg-style') || 'dotted');
+  const [bgColor, setBgColor] = useState(() => localStorage.getItem('arka-bg-color') || '#f5f5f5');
+
+  useEffect(() => {
+    localStorage.setItem('arka-bg-style', bgStyle);
+  }, [bgStyle]);
+
+  useEffect(() => {
+    localStorage.setItem('arka-bg-color', bgColor);
+  }, [bgColor]);
 
   const [showTemplates, setShowTemplates] = useState(false);
   const [activeTool, setActiveTool] = useState('select');
@@ -1178,12 +1259,24 @@ User's latest message: ${userText}`;
           startOnLoad: false,
           securityLevel: 'loose',
           ...tmpl.config,
+          ...(diagramType === 'erDiagram' ? { layout: 'elk' } : {}),
           flowchart: { htmlLabels: false, defaultRenderer: diagramType === 'flowchart' ? flowchartRenderer : 'elk', curve: (diagramType === 'flowchart' && flowchartRenderer === 'dagre') ? 'linear' : 'step', padding: 15, nodeSpacing: 60, rankSpacing: 80, useMaxWidth: true },
           pie: { useMaxWidth: false, textPosition: 0.75 },
-          sequence: { useMaxWidth: false, showSequenceNumbers: false, actorMargin: 80, mirrorActors: false, messageAlign: 'center', messageFontSize: 13, noteFontSize: 12, wrap: true },
+          sequence: { useMaxWidth: false, showSequenceNumbers: false, actorMargin: 80, mirrorActors: true, messageAlign: 'center', messageFontSize: 13, noteFontSize: 12, wrap: true },
           er: { useMaxWidth: false, layoutDirection: 'TB', entityPadding: 15, fontSize: 13 },
-          gantt: { useMaxWidth: false, fontSize: 12, barHeight: 24, barGap: 6, topPadding: 50, sidePadding: 100, gridLineStartPadding: 35, numberSectionStyles: 4 },
+          gantt: { useMaxWidth: false, fontSize: 12, barHeight: 24, barGap: 6, topPadding: 50, sidePadding: 100, gridLineStartPadding: 35, numberSectionStyles: 8 },
         };
+
+        if (diagramType === 'gantt') {
+          mermaidConfig.themeVariables = {
+            ...(mermaidConfig.themeVariables || {}),
+            ...GANTT_PASTEL_THEME.themeVariables,
+          };
+          mermaidConfig.themeCSS = [
+            mermaidConfig.themeCSS,
+            GANTT_PASTEL_THEME.themeCSS,
+          ].filter(Boolean).join('\n');
+        }
 
         if (diagramType === 'sequence') {
           mermaidConfig.theme = 'default';
@@ -1279,7 +1372,35 @@ User's latest message: ${userText}`;
                 }
               });
 
-              // 4. Mark parent groups of all participant shapes for hover/click targeting.
+              // 4. Map sequence diagram participant lifeline names to their corresponding shape group elements
+              //    (since Mermaid doesn't add the name attribute to custom shapes like databases or queues).
+              svgEl.querySelectorAll('line[id^="actor"]').forEach(line => {
+                const name = line.getAttribute('name');
+                if (!name) return;
+                const idMatch = line.id.match(/^actor(\d+)$/);
+                if (idMatch) {
+                  const num = idMatch[1];
+                  const group = svgEl.querySelector(`#root-${num}`);
+                  if (group) {
+                    const participantInfo = findParticipantInfoFromCode(name);
+                    const label = participantInfo ? participantInfo.label : name;
+                    
+                    // Add name attribute to all child elements so they match color rules in Arena.css
+                    group.querySelectorAll('.actor, rect, circle, path, polygon, text').forEach(el => {
+                      if (!el.getAttribute('name')) {
+                        el.setAttribute('name', `${name} ${label}`);
+                      }
+                    });
+                    
+                    // Also copy name to the root group itself for standard matching
+                    if (!group.getAttribute('name')) {
+                      group.setAttribute('name', name);
+                    }
+                  }
+                }
+              });
+
+              // 5. Mark parent groups of all participant shapes for hover/click targeting.
               //    Mermaid wraps each participant's shape+text in a <g> group.
               //    For standard boxes: rect.actor[name] is inside the group.
               //    For control/entity: g with class actor and name attribute IS the group.
@@ -1288,11 +1409,20 @@ User's latest message: ${userText}`;
               
               // Standard rect/path-based participants (participant, database, queue, boundary, collections)
               svgEl.querySelectorAll('.actor[name]').forEach(shape => {
-                // Walk up to find the parent <g> that wraps shape + text
-                let parentG = shape.closest('g');
+                // Walk up to find the root-level parent <g> that wraps shape + text
+                let parentG = shape.closest('g[id^="root-"]') || shape.closest('g.actor-man');
+                if (!parentG) {
+                  let curr = shape.closest('g');
+                  while (curr && curr.parentElement && curr.parentElement.tagName.toLowerCase() === 'g') {
+                    curr = curr.parentElement;
+                  }
+                  parentG = curr;
+                }
                 if (parentG && !markedGroups.has(parentG)) {
                   parentG.classList.add('seq-participant-group');
-                  parentG.setAttribute('data-participant-name', shape.getAttribute('name'));
+                  const nameAttr = shape.getAttribute('name') || '';
+                  const alias = nameAttr.split(' ')[0]; // Extract alias only (ignoring label suffix)
+                  parentG.setAttribute('data-participant-name', alias);
                   markedGroups.add(parentG);
                 }
               });
@@ -1301,9 +1431,57 @@ User's latest message: ${userText}`;
               svgEl.querySelectorAll('g.actor-man[name]').forEach(g => {
                 if (!markedGroups.has(g)) {
                   g.classList.add('seq-participant-group');
-                  g.setAttribute('data-participant-name', g.getAttribute('name'));
+                  const nameAttr = g.getAttribute('name') || '';
+                  const alias = nameAttr.split(' ')[0]; // Extract alias only
+                  g.setAttribute('data-participant-name', alias);
                   markedGroups.add(g);
                 }
+              });
+            }
+
+            if (diagramType === 'erDiagram') {
+              const colors = [
+                { bg: '#F3E8FF', border: '#D8B4FE' }, // Soft Purple
+                { bg: '#E0F7FA', border: '#80DEEA' }, // Soft Cyan
+                { bg: '#FFF3E0', border: '#FFB74D' }, // Soft Orange
+                { bg: '#E8F5E9', border: '#A5D6A7' }, // Soft Green
+                { bg: '#E3F2FD', border: '#90CAF9' }, // Soft Blue
+                { bg: '#FFFDE7', border: '#FFF59D' }, // Soft Yellow
+                { bg: '#FCE4EC', border: '#F48FB1' }, // Soft Pink
+                { bg: '#EDE7F6', border: '#B39DDB' }  // Soft Lavender
+              ];
+
+              const entities = svgEl.querySelectorAll('g[id^="entity-"]');
+              entities.forEach((entity, idx) => {
+                const color = colors[idx % colors.length];
+
+                // 1. Color first child group (table base and border)
+                const mainGroup = entity.children[0];
+                if (mainGroup) {
+                  const paths = mainGroup.querySelectorAll('path');
+                  if (paths.length >= 1) {
+                    // Path 0: Main background (Header area)
+                    paths[0].style.setProperty('fill', color.bg, 'important');
+                  }
+                  if (paths.length >= 2) {
+                    // Path 1: Outer border
+                    paths[1].style.setProperty('stroke', color.border, 'important');
+                    paths[1].style.setProperty('stroke-width', '1.5px', 'important');
+                  }
+                }
+
+                // 2. Color divider paths
+                entity.querySelectorAll('g.divider path').forEach(path => {
+                  path.style.setProperty('stroke', color.border, 'important');
+                  path.style.setProperty('stroke-width', '1px', 'important');
+                });
+
+                // 3. Color row border paths (odd/even)
+                entity.querySelectorAll('.row-rect-odd path, .row-rect-even path').forEach(path => {
+                  path.style.setProperty('fill', '#ffffff', 'important');
+                  path.style.setProperty('stroke', color.border, 'important');
+                  path.style.setProperty('stroke-width', '1px', 'important');
+                });
               });
             }
           }
@@ -1453,6 +1631,18 @@ User's latest message: ${userText}`;
       return;
     }
 
+    // Clusters/Layers (Subgraphs)
+    canvasRef.current.querySelectorAll('.cluster').forEach(cluster => {
+      cluster.style.cursor = activeTool === 'select' ? 'pointer' : 'default';
+      cluster.style.pointerEvents = activeTool === 'select' ? 'auto' : 'none';
+      cluster.onclick = (e) => {
+        if (activeTool !== 'select') return;
+        if (e.target.closest('.node') || e.target.closest('.edgePath') || e.target.closest('.node-add-btn')) return;
+        e.stopPropagation();
+        handleClusterClick(cluster, e);
+      };
+    });
+
     // Nodes
     canvasRef.current.querySelectorAll('.node').forEach(node => {
       node.style.cursor = 'pointer';
@@ -1515,7 +1705,10 @@ User's latest message: ${userText}`;
           e.stopPropagation();
           handleEdgeClick(pathEl, e);
         };
-        nextSib.onmouseenter = () => pathEl.classList.add('edge-hover');
+        nextSib.onmouseenter = () => {
+          if (canvasRef.current?.classList.contains('is-dragging-edge')) return;
+          pathEl.classList.add('edge-hover');
+        };
         nextSib.onmouseleave = () => pathEl.classList.remove('edge-hover');
         return;
       }
@@ -1547,7 +1740,10 @@ User's latest message: ${userText}`;
       };
 
       // Forward hover from invisible overlay to visible path for highlight effect
-      overlay.onmouseenter = () => pathEl.classList.add('edge-hover');
+      overlay.onmouseenter = () => {
+        if (canvasRef.current?.classList.contains('is-dragging-edge')) return;
+        pathEl.classList.add('edge-hover');
+      };
       overlay.onmouseleave = () => pathEl.classList.remove('edge-hover');
 
       pathEl.parentNode.insertBefore(overlay, pathEl.nextSibling);
@@ -2129,6 +2325,33 @@ User's latest message: ${userText}`;
     });
   };
 
+  const handleClusterClick = (cluster, e) => {
+    clearSelection();
+
+    const labelEl = cluster.querySelector('text.titleText') || cluster.querySelector('.label') || cluster.querySelector('text');
+    const label = labelEl ? labelEl.textContent.trim() : '';
+    const rawId = cluster.id || '';
+    let nodeId = rawId;
+    const match = rawId.match(/flowchart-(.+?)-\d+/);
+    if (match) nodeId = match[1];
+
+    cluster.classList.add('node-selected');
+    const containerRect = containerRef.current?.getBoundingClientRect() || { left: 0, top: 0 };
+
+    const { fill: existingFill, stroke: existingStroke } = getExistingNodeStyles(nodeId);
+
+    setSelectedNode({ id: nodeId, rawId: rawId, label, element: cluster, isSubgraph: true });
+    setEditText(label);
+    setEditColor(existingFill);
+    setEditStrokeColor(existingStroke);
+    setEditShape('rect');
+    setEditPopover({
+      type: 'node',
+      x: Math.min(e.clientX - containerRect.left + 16, window.innerWidth - 300),
+      y: Math.min(e.clientY - containerRect.top, window.innerHeight - 450),
+    });
+  };
+
   const findParticipantInfoFromCode = (name) => {
     const lines = mermaidCode.split('\n');
     const nameLower = name.trim().toLowerCase();
@@ -2210,8 +2433,7 @@ User's latest message: ${userText}`;
     }
 
     const newCode = lines.join('\n');
-    setMermaidCode(newCode);
-    localStorage.setItem('arka_last_mermaid_code', newCode);
+    pushHistory(newCode);
     clearSelection();
   };
 
@@ -2233,8 +2455,7 @@ User's latest message: ${userText}`;
     });
 
     const newCode = filteredLines.join('\n');
-    setMermaidCode(newCode);
-    localStorage.setItem('arka_last_mermaid_code', newCode);
+    pushHistory(newCode);
     clearSelection();
   };
 
@@ -2463,21 +2684,31 @@ User's latest message: ${userText}`;
 
   const applyNodeEdit = () => {
     if (!selectedNode) return;
-    const { id: nodeId, label: oldLabel } = selectedNode;
+    const { id: nodeId, label: oldLabel, isSubgraph } = selectedNode;
     const newLabel = editText.trim() || oldLabel;
 
     let lines = mermaidCode.split('\n');
 
-    // Find the line that defines this node (could be at start or after an arrow)
+    // Find the line that defines this node/subgraph
     let targetIndex = -1;
     const escapedId = nodeId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    for (let i = 0; i < lines.length; i++) {
-      const trimmed = lines[i].trim();
-      // Match nodeId followed by a shape bracket - at line start or after arrow
-      if (trimmed.match(new RegExp(`(?:^|-->\\s*|---\\s*|==>\\s*)${escapedId}\\s*[\\(\\[\\{]`)) ||
-        trimmed.match(new RegExp(`^${escapedId}\\s*$`))) {
-        targetIndex = i;
-        break;
+
+    if (isSubgraph) {
+      const subgraphRegex = new RegExp(`^\\s*subgraph\\s+${escapedId}\\b`, 'i');
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].match(subgraphRegex)) {
+          targetIndex = i;
+          break;
+        }
+      }
+    } else {
+      for (let i = 0; i < lines.length; i++) {
+        const trimmed = lines[i].trim();
+        if (trimmed.match(new RegExp(`(?:^|-->\\s*|---\\s*|==>\\s*)${escapedId}\\s*[\\(\\[\\{]`)) ||
+          trimmed.match(new RegExp(`^${escapedId}\\s*$`))) {
+          targetIndex = i;
+          break;
+        }
       }
     }
 
@@ -2485,7 +2716,13 @@ User's latest message: ${userText}`;
     const quotedLabel = `"${newLabel.replace(/"/g, '#quot;')}"`;
     const newWrap = shapeObj.wrap(quotedLabel);
 
-    if (targetIndex >= 0) {
+    if (isSubgraph) {
+      if (targetIndex >= 0) {
+        const line = lines[targetIndex];
+        const indent = line.match(/^\s*/)[0];
+        lines[targetIndex] = `${indent}subgraph ${nodeId} ["${newLabel.replace(/"/g, '#quot;')}"]`;
+      }
+    } else if (targetIndex >= 0) {
       const line = lines[targetIndex];
       
       // Find the EXACT position of nodeId followed by bracket(s) in the line
@@ -2764,21 +3001,55 @@ User's latest message: ${userText}`;
 
   const deleteNode = () => {
     if (!selectedNode) return;
-    const { id: nodeId } = selectedNode;
+    const { id: nodeId, isSubgraph } = selectedNode;
 
     let lines = mermaidCode.split('\n');
     const escapedId = nodeId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-    const nodeRefRegex = new RegExp(`(?:^|[^a-zA-Z0-9_-])${escapedId}(?:$|[^a-zA-Z0-9_-])`);
+    let filteredLines;
+    if (isSubgraph) {
+      const subgraphRegex = new RegExp(`^\\s*subgraph\\s+${escapedId}\\b`, 'i');
+      let subgraphIndex = -1;
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].match(subgraphRegex)) {
+          subgraphIndex = i;
+          break;
+        }
+      }
 
-    const filteredLines = lines.filter(line => {
-      const trimmed = line.trim();
-      if (!trimmed) return true;
+      if (subgraphIndex >= 0) {
+        let nesting = 0;
+        let endIndex = -1;
+        for (let i = subgraphIndex; i < lines.length; i++) {
+          const trimmed = lines[i].trim();
+          if (trimmed.match(/^\s*subgraph\b/i)) {
+            nesting++;
+          } else if (trimmed === 'end') {
+            nesting--;
+            if (nesting === 0) {
+              endIndex = i;
+              break;
+            }
+          }
+        }
 
-      if (trimmed.startsWith(`style ${nodeId} `)) return false;
-
-      return !nodeRefRegex.test(trimmed);
-    });
+        filteredLines = lines.filter((line, index) => {
+          if (line.trim().startsWith(`style ${nodeId} `)) return false;
+          if (index === subgraphIndex || index === endIndex) return false;
+          return true;
+        });
+      } else {
+        filteredLines = lines;
+      }
+    } else {
+      const nodeRefRegex = new RegExp(`(?:^|[^a-zA-Z0-9_-])${escapedId}(?:$|[^a-zA-Z0-9_-])`);
+      filteredLines = lines.filter(line => {
+        const trimmed = line.trim();
+        if (!trimmed) return true;
+        if (trimmed.startsWith(`style ${nodeId} `)) return false;
+        return !nodeRefRegex.test(trimmed);
+      });
+    }
 
     const newCode = filteredLines.join('\n');
     if (newCode !== mermaidCode) {
@@ -2793,6 +3064,7 @@ User's latest message: ${userText}`;
       e.target.closest('.edge-edit-popover') || 
       e.target.closest('.node-edit-sidebar') ||
       e.target.closest('.node') || 
+      e.target.closest('.cluster') || 
       e.target.closest('.edgePath') ||
       e.target.closest('.edgePaths') ||
       e.target.closest('.edgeLabel') ||
@@ -2947,10 +3219,11 @@ User's latest message: ${userText}`;
       data-theme={activeTemplate}
       style={{
         '--label-bkg': TEMPLATES[activeTemplate]?.config?.themeVariables?.edgeLabelBackground,
-        '--label-color': TEMPLATES[activeTemplate]?.config?.themeVariables?.textColor
+        '--label-color': TEMPLATES[activeTemplate]?.config?.themeVariables?.textColor,
+        backgroundColor: bgColor
       }}
     >
-      <div className="arena-dot-grid" />
+      {bgStyle === 'dotted' && <div className="arena-dot-grid" />}
 
       {/* ─── Navbar ─── */}
       <div className="arena-navbar">
@@ -3220,18 +3493,20 @@ User's latest message: ${userText}`;
                   </>
                 ) : (
                   <>
-                    <div className="popover-section">
-                      <label className="popover-label-mini">Shape</label>
-                      <div className="sidebar-shapes-grid">
-                        {SHAPES.map(s => (
-                          <button key={s.id} className={`shape-btn-sidebar ${editShape === s.id ? 'active' : ''}`}
-                            onClick={() => setEditShape(s.id)} title={s.label}>
-                            <s.icon size={16} />
-                            <span>{s.label}</span>
-                          </button>
-                        ))}
+                    {!selectedNode.isSubgraph && (
+                      <div className="popover-section">
+                        <label className="popover-label-mini">Shape</label>
+                        <div className="sidebar-shapes-grid">
+                          {SHAPES.map(s => (
+                            <button key={s.id} className={`shape-btn-sidebar ${editShape === s.id ? 'active' : ''}`}
+                              onClick={() => setEditShape(s.id)} title={s.label}>
+                              <s.icon size={16} />
+                              <span>{s.label}</span>
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    )}
                     <div className="popover-section">
                       <label className="popover-label-mini">Fill Color</label>
                       <div className="popover-colors">

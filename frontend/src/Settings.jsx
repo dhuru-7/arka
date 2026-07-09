@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, Database, Cloud, Zap, Eye, EyeOff, Check, X } from './googleIcons';
 import { auth } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -13,12 +14,16 @@ const Settings = () => {
   const [cloudProvider, setCloudProvider] = useState('');
   const [cloudModel, setCloudModel] = useState('');
   const [apiKey, setApiKey] = useState('');
+  const [showUnsavedModal, setShowUnsavedModal] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const [localUrl, setLocalUrl] = useState('http://localhost:11434');
   const [localModel, setLocalModel] = useState('');
   const [saved, setSaved] = useState(false);
   const [savedModel, setSavedModel] = useState(null);
   const [inTrial, setInTrial] = useState(false);
+  const [initialSettings, setInitialSettings] = useState(null);
+  const [bgStyle, setBgStyle] = useState('dotted');
+  const [bgColor, setBgColor] = useState('#f5f5f5');
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -33,15 +38,26 @@ const Settings = () => {
 
   useEffect(() => {
     const s = getSettings();
+    const loadedStyle = localStorage.getItem('arka-bg-style') || 'dotted';
+    const loadedColor = localStorage.getItem('arka-bg-color') || '#f5f5f5';
+
     setProviderType(s.providerType);
     setCloudProvider(s.cloudProvider);
     setCloudModel(s.cloudModel);
     setApiKey(s.apiKey);
     setLocalUrl(s.localUrl);
     setLocalModel(s.localModel);
+    setBgStyle(loadedStyle);
+    setBgColor(loadedColor);
+
     if (s.providerType === 'cloud') setSavedModel(s.cloudModel);
     else if (s.providerType === 'local') setSavedModel(s.localModel);
     setInTrial(isTrialMode());
+    setInitialSettings({
+      ...s,
+      bgStyle: loadedStyle,
+      bgColor: loadedColor
+    });
   }, []);;
 
 
@@ -59,11 +75,38 @@ const Settings = () => {
       alert('Select a local AI model.');
       return;
     }
-    saveSettings({ providerType, cloudProvider, cloudModel, apiKey, localUrl, localModel });
+    const newSettings = { providerType, cloudProvider, cloudModel, apiKey, localUrl, localModel };
+    saveSettings(newSettings);
+
+    // Save background preferences
+    localStorage.setItem('arka-bg-style', bgStyle);
+    localStorage.setItem('arka-bg-color', bgColor);
+
     setSavedModel(providerType === 'cloud' ? cloudModel : localModel);
     setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setTimeout(() => {
+      setInitialSettings({
+        ...newSettings,
+        bgStyle,
+        bgColor
+      });
+      setSaved(false);
+    }, 1000);
   };
+
+  const isProviderDirty = initialSettings && (
+    providerType !== initialSettings.providerType ||
+    cloudProvider !== initialSettings.cloudProvider ||
+    cloudModel !== initialSettings.cloudModel ||
+    apiKey !== initialSettings.apiKey ||
+    localUrl !== initialSettings.localUrl ||
+    localModel !== initialSettings.localModel
+  );
+
+  const isBgDirty = initialSettings && (
+    bgStyle !== initialSettings.bgStyle ||
+    bgColor !== initialSettings.bgColor
+  );
 
   const cardStyle = {
     background: '#ffffff',
@@ -84,12 +127,20 @@ const Settings = () => {
 
   const activeProviderModels = CLOUD_PROVIDERS[cloudProvider]?.models || [];
 
+  const handleBackClick = () => {
+    if (isProviderDirty || isBgDirty) {
+      setShowUnsavedModal(true);
+    } else {
+      navigate(-1);
+    }
+  };
+
   return (
     <div style={{ height: '100vh', background: '#f5f5f5', overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '4rem', paddingBottom: '4rem' }}>
       <div style={{ width: '100%', maxWidth: '640px', padding: '0 1rem' }}>
 
         {/* Back */}
-        <button onClick={() => navigate(-1)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'transparent', border: 'none', fontFamily: 'var(--font-sans)', fontWeight: 600, cursor: 'pointer', marginBottom: '1.5rem', color: '#6b7280', fontSize: '0.9rem' }}>
+        <button onClick={handleBackClick} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'transparent', border: 'none', fontFamily: 'var(--font-sans)', fontWeight: 600, cursor: 'pointer', marginBottom: '1.5rem', color: '#6b7280', fontSize: '0.9rem' }}>
           <ChevronLeft size={18} /> Back
         </button>
 
@@ -296,26 +347,186 @@ const Settings = () => {
               </div>
             </>
           )}
+
+          {/* Local Save Button for AI Provider */}
+          <div style={{
+            height: isProviderDirty ? '52px' : '0px',
+            marginTop: isProviderDirty ? '1.5rem' : '0px',
+            opacity: isProviderDirty ? 1 : 0,
+            transform: isProviderDirty ? 'scale(1)' : 'scale(0.85)',
+            transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+            overflow: 'hidden',
+            pointerEvents: isProviderDirty ? 'auto' : 'none',
+            width: '100%'
+          }}>
+            <button
+              onClick={handleSave}
+              style={{
+                width: '100%', padding: '0.9rem', borderRadius: '0.75rem', fontWeight: 700, fontSize: '0.95rem',
+                background: '#000', color: '#fff', border: 'none', cursor: 'pointer',
+                fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                transition: 'all 0.2s', opacity: saved ? 0.7 : 1,
+              }}
+            >
+              {saved ? <><Check size={18} /> Saved!</> : (inTrial ? '🔒 Complete tutorial to unlock' : 'Save AI Provider Settings')}
+            </button>
+          </div>
         </div>
 
-        {/* ─── Save Button ─── */}
-        <button
-          onClick={handleSave}
-          style={{
-            width: '100%', padding: '0.9rem', borderRadius: '0.75rem', fontWeight: 700, fontSize: '0.95rem',
-            background: '#000', color: '#fff', border: 'none', cursor: 'pointer',
-            fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-            transition: 'all 0.2s', opacity: saved ? 0.7 : 1,
-          }}
-        >
-          {saved ? <><Check size={18} /> Saved!</> : (inTrial ? '🔒 Complete tutorial to unlock' : 'Save Settings')}
-        </button>
+        {/* ─── Canvas Background ─── */}
+        <div style={cardStyle}>
+          <h2 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.5rem' }}>Canvas Background</h2>
+          <p style={{ color: '#9ca3af', fontSize: '0.8rem', marginBottom: '1.25rem', fontFamily: 'var(--font-mono)', lineHeight: 1.6 }}>
+            Customize the look of the drawing workspace to suit your preferences.
+          </p>
+
+          {/* Background Style */}
+          <div style={{ marginBottom: '1.5rem' }}>
+            <label style={labelStyle}>Background Style</label>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                onClick={() => {
+                  setBgStyle('dotted');
+                  if (bgColor === '#d9d9d9') {
+                    setBgColor('#f5f5f5');
+                  }
+                }}
+                style={tabBtn(bgStyle === 'dotted')}
+              >
+                Dotted
+              </button>
+              <button onClick={() => setBgStyle('plain')} style={tabBtn(bgStyle === 'plain')}>
+                Plain
+              </button>
+            </div>
+          </div>
+
+          {/* Background Color */}
+          <div>
+            <label style={labelStyle}>Background Color</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {[
+                { val: '#ffffff', name: 'Pure White' },
+                { val: '#f5f5f5', name: 'Cool Off-White' },
+                ...(bgStyle === 'plain' ? [{ val: '#d9d9d9', name: 'Light Silver' }] : [])
+              ].map(color => {
+                const active = bgColor === color.val;
+                return (
+                  <button key={color.val} onClick={() => setBgColor(color.val)} style={{
+                    display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.6rem 0.85rem',
+                    borderRadius: '0.6rem', textAlign: 'left', cursor: 'pointer', transition: 'all 0.15s',
+                    border: active ? '2px solid #000' : '1px solid #e5e7eb',
+                    background: active ? '#f8fafc' : '#fff', fontFamily: 'var(--font-sans)',
+                    outline: 'none', width: '100%'
+                  }}>
+                    <div style={{ width: 16, height: 16, borderRadius: '50%', border: '1px solid #d1d5db', backgroundColor: color.val, flexShrink: 0 }} />
+                    <span style={{ fontSize: '0.8rem', fontWeight: active ? 700 : 600, color: active ? '#000' : '#475569', flex: 1 }}>{color.name}</span>
+                    {active && <Check size={16} style={{ color: '#000' }} />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Local Save Button for Canvas Background */}
+          <div style={{
+            height: isBgDirty ? '52px' : '0px',
+            marginTop: isBgDirty ? '1.5rem' : '0px',
+            opacity: isBgDirty ? 1 : 0,
+            transform: isBgDirty ? 'scale(1)' : 'scale(0.85)',
+            transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+            overflow: 'hidden',
+            pointerEvents: isBgDirty ? 'auto' : 'none',
+            width: '100%'
+          }}>
+            <button
+              onClick={handleSave}
+              style={{
+                width: '100%', padding: '0.9rem', borderRadius: '0.75rem', fontWeight: 700, fontSize: '0.95rem',
+                background: '#000', color: '#fff', border: 'none', cursor: 'pointer',
+                fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                transition: 'all 0.2s', opacity: saved ? 0.7 : 1,
+              }}
+            >
+              {saved ? <><Check size={18} /> Saved!</> : 'Save Background Settings'}
+            </button>
+          </div>
+        </div>
 
         <div style={{ display: 'flex', justifyContent: 'center', gap: '1.5rem', marginTop: '1.5rem' }}>
           <button onClick={() => navigate('/help')} style={{ background: 'none', border: 'none', color: '#6b7280', fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontWeight: 600, textDecoration: 'underline' }}>Setup Guide</button>
           <button onClick={() => navigate('/docs')} style={{ background: 'none', border: 'none', color: '#6b7280', fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontWeight: 600, textDecoration: 'underline' }}>Documentation</button>
         </div>
       </div>
+
+      {/* Unsaved Changes Modal */}
+      <AnimatePresence>
+        {showUnsavedModal && (
+          <motion.div
+            style={{
+              position: 'fixed', inset: 0, zIndex: 6000,
+              background: 'rgba(0, 0, 0, 0.4)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              backdropFilter: 'blur(4px)'
+            }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowUnsavedModal(false)}
+          >
+            <motion.div
+              style={{
+                background: '#fff', borderRadius: '1.25rem', padding: '2rem',
+                width: '100%', maxWidth: '400px', margin: '0 1.5rem',
+                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                border: '1px solid #e5e7eb'
+              }}
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              onClick={e => e.stopPropagation()}
+            >
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, marginBottom: '0.75rem', color: '#000', fontFamily: 'var(--font-sans)' }}>
+                Unsaved Changes
+              </h3>
+              <p style={{ fontSize: '0.875rem', color: '#4b5563', lineHeight: 1.6, marginBottom: '1.5rem', fontFamily: 'var(--font-sans)' }}>
+                You have unsaved changes. Would you like to save them before leaving?
+              </p>
+              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                <button
+                  onClick={() => {
+                    setShowUnsavedModal(false);
+                    navigate(-1);
+                  }}
+                  style={{
+                    flex: 1, padding: '0.75rem', borderRadius: '0.75rem', fontWeight: 700, fontSize: '0.9rem',
+                    background: '#fff', color: '#dc2626', border: '1px solid #fecaca', cursor: 'pointer', fontFamily: 'var(--font-sans)',
+                    textAlign: 'center', transition: 'all 0.15s'
+                  }}
+                >
+                  Discard
+                </button>
+                <button
+                  onClick={() => {
+                    handleSave();
+                    setShowUnsavedModal(false);
+                    setTimeout(() => {
+                      navigate(-1);
+                    }, 1100);
+                  }}
+                  style={{
+                    flex: 1, padding: '0.75rem', borderRadius: '0.75rem', fontWeight: 700, fontSize: '0.9rem',
+                    background: '#000', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)',
+                    textAlign: 'center', transition: 'all 0.15s'
+                  }}
+                >
+                  Save Changes
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

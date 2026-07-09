@@ -87,7 +87,12 @@
 .mermaid-render-target .node:hover { filter: brightness(0.95) drop-shadow(0 4px 6px rgba(0,0,0,0.1)); }
 .mermaid-render-target .edgePath path { stroke-width: 1.8; }
 .mermaid-render-target .edgeLabel { font-size: 12px; font-family: 'Space Grotesk', sans-serif; }
-.mermaid-render-target .cluster rect { rx: 14 !important; ry: 14 !important; stroke-dasharray: 5 4; }
+.mermaid-render-target .cluster rect { rx: 14 !important; ry: 14 !important; stroke-dasharray: 5 4; transition: stroke 0.2s ease, stroke-width 0.2s ease, filter 0.2s ease; }
+.mermaid-render-target .cluster:hover rect,
+.mermaid-render-target .cluster:hover > rect {
+  stroke-width: 2.2px !important;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.06));
+}
 .mermaid-render-target text { font-family: 'Space Grotesk', sans-serif !important; }
 
 @keyframes marching-ants { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -16; } }
@@ -146,14 +151,20 @@
 }
 
 /* Prevent hover highlight and pointer events on all other edges and drag handles when dragging an edge */
-.arena-canvas-wrapper.is-dragging-edge .edge-hitbox-overlay {
+.mermaid-render-target.is-dragging-edge .edge-hitbox-overlay {
   pointer-events: none !important;
 }
-.arena-canvas-wrapper.is-dragging-edge path.flowchart-link {
+.mermaid-render-target.is-dragging-edge path.flowchart-link {
   filter: none !important;
   stroke-width: inherit !important;
 }
-.arena-canvas-wrapper.is-dragging-edge .edge-drag-handle {
+.mermaid-render-target.is-dragging-edge path.edge-selected,
+.mermaid-render-target.is-dragging-edge .edge-selected path {
+  stroke: #10b981 !important;
+  stroke-width: 4px !important;
+  filter: drop-shadow(0 0 12px rgba(16, 185, 129, 0.85)) !important;
+}
+.mermaid-render-target.is-dragging-edge .edge-drag-handle {
   pointer-events: none !important;
 }
 
@@ -1516,24 +1527,14 @@ g.actor-man path {
 
 /* ── Hover: applied to .seq-participant-group so shape + text move together ── */
 .seq-participant-group {
-  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), filter 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition: translate 0.2s cubic-bezier(0.4, 0, 0.2, 1), filter 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
   transform-origin: center center;
   cursor: pointer;
 }
 
 .seq-participant-group:hover {
-  transform: translateY(-1.5px) !important;
+  translate: 0 -1.5px !important;
   filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.12)) !important;
-}
-
-/* Reset any old individual shape hovers so they don't double-transform */
-rect.actor:hover,
-circle.actor:hover,
-path.actor:hover,
-polygon.actor:hover,
-g.actor-man:hover {
-  transform: none !important;
-  filter: none !important;
 }
 
 /* 1. Processing / Domain / Notification Services (Green) */
@@ -1670,21 +1671,170 @@ g.actor-man:hover {
 
 /* Highlight style for selected sequence diagram participants (static black outline) */
 .seq-participant-selected .actor,
-.seq-participant-selected path.actor,
-.seq-participant-selected rect.actor,
-.seq-participant-selected circle.actor,
-.seq-participant-selected polygon.actor {
+.seq-participant-selected path,
+.seq-participant-selected rect,
+.seq-participant-selected circle,
+.seq-participant-selected line,
+.seq-participant-selected polygon {
   stroke: #000000 !important;
   stroke-width: 3px !important;
   stroke-dasharray: none !important;
   animation: none !important;
 }
 
-g.actor-man.node-selected circle,
-g.actor-man.node-selected line,
-g.actor-man.node-selected path {
+g.actor-man.seq-participant-selected circle,
+g.actor-man.seq-participant-selected line,
+g.actor-man.seq-participant-selected path {
   stroke: #000000 !important;
   stroke-width: 3px !important;
   stroke-dasharray: none !important;
   animation: none !important;
 }
+
+/* Prevent thick outline on control arrow components when selected */
+g.actor-man.seq-participant-selected line[marker-end*="control"],
+g.actor-man.seq-participant-selected [id*="control"] path,
+g.actor-man.seq-participant-selected marker[id*="control"] path {
+  stroke-dasharray: none !important;
+  animation: none !important;
+  stroke-width: 2px !important;
+  stroke: #000000 !important;
+  fill: #000000 !important;
+}
+
+/* ─── Sequence Diagram Pitch Black Lines & White Alt/Loop Blocks ─── */
+
+/* 1. Vertical Lifelines connecting top and bottom participants */
+.mermaid-render-target .actor-line {
+  stroke: #000000 !important;
+  stroke-width: 1.5px !important;
+  stroke-opacity: 1 !important;
+}
+
+/* 2. Horizontal Message Lines / Arrows (solid and dotted) */
+.mermaid-render-target .messageLine0,
+.mermaid-render-target .messageLine1 {
+  stroke: #000000 !important;
+  stroke-width: 2px !important;
+  stroke-opacity: 1 !important;
+}
+
+/* 3. Arrowheads */
+.mermaid-render-target #arrowhead,
+.mermaid-render-target #arrowhead path,
+.mermaid-render-target #arrowhead-reverse,
+.mermaid-render-target #arrowhead-reverse path,
+.mermaid-render-target .arrowheadPath {
+  fill: #000000 !important;
+  stroke: #000000 !important;
+}
+
+/* 4. Alt / Loop Box Borders and dashed divider lines */
+.mermaid-render-target .loopLine {
+  stroke: #000000 !important;
+  stroke-width: 1.5px !important;
+  stroke-opacity: 1 !important;
+}
+
+/* 5. Alt / Loop Box Backgrounds (forced to solid white) */
+.mermaid-render-target .loopBox,
+.mermaid-render-target rect[class*="loop"],
+.mermaid-render-target path[class*="loop"] {
+  fill: #ffffff !important;
+  fill-opacity: 1 !important;
+}
+
+/* 6. Alt / Loop Label Badges (e.g. alt, else, opt, loop text boxes) */
+.mermaid-render-target .labelBox {
+  fill: #ffffff !important;
+  stroke: #000000 !important;
+  stroke-width: 1.5px !important;
+}
+.mermaid-render-target .labelText,
+.mermaid-render-target .loopText {
+  fill: #000000 !important;
+  color: #000000 !important;
+  font-weight: 600 !important;
+}
+
+/* ─── Arena Background Selector ─── */
+
+.bg-style-tabs {
+  display: flex;
+  gap: 0.5rem;
+  background: #f3f4f6;
+  padding: 0.25rem;
+  border-radius: 0.5rem;
+  margin-bottom: 1rem;
+}
+.bg-style-tab {
+  flex: 1;
+  padding: 0.45rem;
+  border: none;
+  background: transparent;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #4b5563;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+}
+.bg-style-tab.active {
+  background: #ffffff;
+  color: #000000;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+}
+
+.bg-color-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.bg-color-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  width: 100%;
+  text-align: left;
+}
+.bg-color-option:hover {
+  border-color: #000000;
+}
+.bg-color-option.active {
+  border-color: #10b981;
+  background: #f0fdf4;
+}
+.bg-color-circle {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid #d1d5db;
+  flex-shrink: 0;
+}
+.bg-color-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #374151;
+  flex: 1;
+}
+.bg-color-option.active .bg-color-name {
+  color: #000000;
+}
+.bg-color-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #10b981;
+}
+
+

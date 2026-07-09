@@ -195,6 +195,52 @@ const Tutorial = ({ step, onGotIt }) => {
         exit={{ opacity: 0 }}
         transition={{ duration: 0.35 }}
       >
+        {/* Skip Tutorial Button */}
+        <button
+          onClick={onGotIt}
+          style={{
+            position: 'fixed',
+            top: '1.5rem',
+            right: '1.5rem',
+            zIndex: 10002,
+            background: 'rgba(255, 255, 255, 0.12)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255, 255, 255, 0.25)',
+            color: '#ffffff',
+            padding: '0.55rem 1.15rem',
+            borderRadius: '99rem',
+            fontFamily: 'var(--font-sans)',
+            fontSize: '0.8rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            transition: 'all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)',
+            outline: 'none',
+            pointerEvents: 'auto',
+            display: 'flex',
+            alignItems: 'center',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.22)';
+            e.currentTarget.style.transform = 'translateY(-1px) scale(1.04)';
+            e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.15)';
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)';
+            e.currentTarget.style.transform = 'translateY(0) scale(1)';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
+          }}
+          onMouseDown={e => {
+            e.currentTarget.style.transform = 'translateY(1px) scale(0.97)';
+          }}
+          onMouseUp={e => {
+            e.currentTarget.style.transform = 'translateY(-1px) scale(1.04)';
+          }}
+        >
+          Skip Tutorial
+        </button>
+
         {/* SVG Mask Backdrop */}
         <svg
           className="tutorial-svg-mask"
