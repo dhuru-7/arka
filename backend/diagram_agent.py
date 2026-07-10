@@ -510,7 +510,14 @@ def build_generation_prompt(diagram_type, knowledge):
             "(3) Category labels in 'x-axis' must be enclosed in double quotes if they contain spaces. "
             "(4) Ensure the number of elements in your bar/line series matches the number of x-axis categories exactly."
         ),
-        "cynefin": "Start with flowchart TD. Create 4 subgraphs representing domains (Complex, Complicated, Chaotic, Clear/Obvious) with a central Disorder node. Map typical actions (Probe-Sense-Respond, Sense-Analyze-Respond, Act-Sense-Respond, Sense-Categorize-Respond).",
+        "cynefin": (
+            "Start with flowchart TD. Create 4 flat subgraphs for domains: complex, complicated, chaotic, clear (and one for disorder). "
+            "CRITICAL RULES: "
+            "(1) Style domains using style statements with exact colors: complex (fill:#F3E8FF, stroke:#D8B4FE), complicated (fill:#E3F2FD, stroke:#90CAF9), clear (fill:#E8F5E9, stroke:#A5D6A7), chaotic (fill:#FFF3E0, stroke:#FFB74D), disorder (fill:#FCE4EC, stroke:#F48FB1). "
+            "(2) Define classDefs for nodes: action (fill:#FFFDE7, stroke:#FFF59D), scenario (fill:#EDE7F6, stroke:#B39DDB), info (fill:#E0F7FA, stroke:#80DEEA). Apply them to nodes. "
+            "(3) Keep subgraphs flat — NEVER nest subgraphs inside other subgraphs. "
+            "(4) NEVER create self-loops (e.g. Node --> Node) as they crash rendering."
+        ),
         "ishikawa": "Start with flowchart RL. Define central Effect node on the far right, a main backbone, and 6 primary cause branches (People, Methods, Machines, Materials, Measurements, Environment) with sub-branch root causes pointing right/inward.",
         "treemap": "Start with flowchart TD. Model hierarchical categories using nested subgraphs and leaf nodes inside. Use classDefs and semantic coloring to show proportions.",
         "eventModeling": "Start with flowchart LR. Create 4 horizontal swimlane subgraphs from top to bottom (userSwimlane, commandSwimlane, eventSwimlane, viewSwimlane) and connect elements sequentially from left to right. Style events orange and views green.",

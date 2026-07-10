@@ -605,14 +605,21 @@ ${shared}- Start with 'xychart-beta'.
 
 CRITICAL INSTRUCTIONS:
 ${shared}- Start with 'flowchart TD'.
-- Create 4 major subgraphs representing the Cynefin domains: Complex (top-left), Complicated (top-right), Chaotic (bottom-left), Clear/Obvious (bottom-right).
-- Place a central "Disorder" node in the center of the domains.
-- Map the typical actions for each domain:
-  * Complex: "Probe-Sense-Respond"
-  * Complicated: "Sense-Analyze-Respond"
-  * Chaotic: "Act-Sense-Respond"
-  * Clear/Obvious: "Sense-Categorize-Respond"
-- Use simple and clear connections showing how items shift between domains.`,
+- Create 4 flat subgraphs representing the Cynefin domains: complex ("Complex"), complicated ("Complicated"), chaotic ("Chaotic"), and clear ("Clear/Obvious"). Also create a subgraph for disorder ("Disorder").
+- Place a central "Disorder" node/subgraph in the center of the domains.
+- Style domains using style statements with exact colors:
+  * complex: fill:#F3E8FF, stroke:#D8B4FE, stroke-width:2px, color:#000000 (Soft Purple)
+  * complicated: fill:#E3F2FD, stroke:#90CAF9, stroke-width:2px, color:#000000 (Soft Blue)
+  * clear: fill:#E8F5E9, stroke:#A5D6A7, stroke-width:2px, color:#000000 (Soft Green)
+  * chaotic: fill:#FFF3E0, stroke:#FFB74D, stroke-width:2px, color:#000000 (Soft Orange)
+  * disorder: fill:#FCE4EC, stroke:#F48FB1, stroke-width:2px, color:#000000 (Soft Pink)
+- Define classDefs for nodes:
+  * action: fill:#FFFDE7, stroke:#FFF59D, color:#000000 (Soft Yellow)
+  * scenario: fill:#EDE7F6, stroke:#B39DDB, color:#000000 (Soft Lavender)
+  * info: fill:#E0F7FA, stroke:#80DEEA, color:#000000 (Soft Cyan)
+- Apply these classes to the nodes.
+- Keep subgraphs flat — NEVER nest subgraphs inside other subgraphs.
+- NEVER create self-loops (e.g. Node --> Node) as they crash rendering.`,
     ishikawa: `You are an expert quality control engineer generating Ishikawa (Fishbone) diagrams in Mermaid JS.
 
 CRITICAL INSTRUCTIONS:
