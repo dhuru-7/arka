@@ -296,14 +296,14 @@ Output: A flow diagram showing user login logic. The user enters their username 
  * Returns { category: string } or null if using free tier (caller uses backend).
  */
 export async function suggestDiagramType(prompt, signal) {
-  const systemPrompt = `You are Arka's diagram selection agent. Analyze the user's communication goal semantically. Allowed types: flowchart, architecture, sequence, erDiagram, gantt, xy, pie. Return one or more genuinely suitable types ranked best first. Return ONLY JSON: {"suggestions":[{"type":"flowchart","confidence":0.9,"reason":"..."}]}. Do not include weak options.`;
+  const systemPrompt = `You are Arka's diagram selection agent. Analyze the user's communication goal semantically. Allowed types: flowchart, architecture, sequence, erDiagram, gantt, xy, pie, cynefin, ishikawa, treemap, eventModeling, radar, kanban, packet. Return one or more genuinely suitable types ranked best first. Return ONLY JSON: {"suggestions":[{"type":"flowchart","confidence":0.9,"reason":"..."}]}. Do not include weak options.`;
   const result = await callModel('suggest', systemPrompt, prompt, { temperature: 0.1, maxTokens: 2500, signal });
   const fenced = result?.match(/```(?:json)?\s*([\s\S]*?)```/i);
   const match = fenced?.[1] || result?.match(/[\{\[][\s\S]*[\}\]]/)?.[0];
   if (!match) throw new Error('The selected AI model did not return diagram suggestions.');
   const parsed = JSON.parse(match);
   const data = Array.isArray(parsed) ? { suggestions: parsed } : parsed;
-  const typeMap = { flowchart: 'flowchart', architecture: 'architecture', sequence: 'sequence', erdiagram: 'erDiagram', gantt: 'gantt', xy: 'xy', pie: 'pie' };
+  const typeMap = { flowchart: 'flowchart', architecture: 'architecture', sequence: 'sequence', erdiagram: 'erDiagram', gantt: 'gantt', xy: 'xy', pie: 'pie', cynefin: 'cynefin', ishikawa: 'ishikawa', treemap: 'treemap', eventmodeling: 'eventModeling', radar: 'radar', kanban: 'kanban', packet: 'packet' };
   const seenTypes = new Set();
   const suggestions = (Array.isArray(data.suggestions) ? data.suggestions : [])
     .map(item => ({
@@ -601,6 +601,69 @@ ${shared}- Start with 'xychart-beta'.
 - NEVER use 'legend', 'annotate', or 'grid' directives as they are completely unsupported by xychart-beta syntax.
 - Category labels in 'x-axis' must be enclosed in double quotes if they contain spaces.
 - Ensure the number of elements in your bar/line series matches the number of x-axis categories exactly.`,
+    cynefin: `You are an expert Cynefin framework designer generating Mermaid JS diagrams.
+
+CRITICAL INSTRUCTIONS:
+${shared}- Start with 'flowchart TD'.
+- Create 4 major subgraphs representing the Cynefin domains: Complex (top-left), Complicated (top-right), Chaotic (bottom-left), Clear/Obvious (bottom-right).
+- Place a central "Disorder" node in the center of the domains.
+- Map the typical actions for each domain:
+  * Complex: "Probe-Sense-Respond"
+  * Complicated: "Sense-Analyze-Respond"
+  * Chaotic: "Act-Sense-Respond"
+  * Clear/Obvious: "Sense-Categorize-Respond"
+- Use simple and clear connections showing how items shift between domains.`,
+    ishikawa: `You are an expert quality control engineer generating Ishikawa (Fishbone) diagrams in Mermaid JS.
+
+CRITICAL INSTRUCTIONS:
+${shared}- Start with 'flowchart RL'.
+- Define a central "Effect/Problem Statement" node on the far right.
+- Create a backbone leading to the Effect node.
+- Define 6 primary branches (subgraphs or main nodes) connecting to the backbone representing: People, Methods, Machines, Materials, Measurements, and Environment.
+- Connect sub-branches representing secondary and root causes to the primary branches.
+- Direct all arrows rightward/inward towards the backbone and the main effect.`,
+    treemap: `You are an expert data visualizer generating Treemap-style diagrams in Mermaid JS.
+
+CRITICAL INSTRUCTIONS:
+${shared}- Start with 'flowchart TD'.
+- Model hierarchical treemaps using nested subgraphs representing parent categories.
+- Within each subgraph, define leaf nodes representing individual items.
+- Style nodes in different categories using classDefs to show proportions or groups.
+- Keep the structure clean with minimal cross-links.`,
+    eventModeling: `You are an expert software architect generating Event Modeling timelines in Mermaid JS.
+
+CRITICAL INSTRUCTIONS:
+${shared}- Start with 'flowchart LR'.
+- Organize the layout horizontally into 4 swimlane subgraphs from top to bottom:
+  * userSwimlane ("Users / UI / Inputs")
+  * commandSwimlane ("Commands / Actions")
+  * eventSwimlane ("Events / Facts (Orange)")
+  * viewSwimlane ("Views / Read Models (Green)")
+- Connect commands, events, and views sequentially left-to-right to show state progression over time.
+- Color events using orange styles and views using green styles.`,
+    radar: `You are an expert data analyst generating Radar Chart profiles in Mermaid JS.
+
+CRITICAL INSTRUCTIONS:
+${shared}- Start with 'xychart-beta'.
+- Since radar charts compare multiple dimensions, represent the dimensions/axes as categories on the 'x-axis' inside brackets.
+- Define a 'y-axis' showing the score range (usually 0 --> 10 or 0 --> 100).
+- Use 'line' series to show the profiles/series values.`,
+    kanban: `You are an expert agile project manager generating Kanban boards in Mermaid JS.
+
+CRITICAL INSTRUCTIONS:
+${shared}- Start with 'flowchart LR'.
+- Create 4-5 column subgraphs: Backlog, To Do, In Progress, Review, Done.
+- Define nodes inside each subgraph to represent task cards.
+- Add style definitions to make columns look like columns and task cards look like cards.
+- Use links sparingly only to show dependencies between tasks, not flow between columns.`,
+    packet: `You are an expert network engineer generating Packet Header diagrams in Mermaid JS.
+
+CRITICAL INSTRUCTIONS:
+${shared}- Start with 'flowchart TD'.
+- Model packet layout as horizontal rows (usually 32-bit words).
+- Each word is a subgraph (e.g. "Word 0 (0-31)").
+- Inside each subgraph, define sequence nodes representing fields (e.g. Version, Header Length, Total Length) and link them left-to-right.
+- Style fields to show their bit-widths proportionally.`,
   };
   return prompts[diagramType] || prompts.flowchart;
 }

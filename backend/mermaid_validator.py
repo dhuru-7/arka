@@ -9,6 +9,13 @@ HEADER_BY_TYPE = {
     "gantt": ("gantt",),
     "pie": ("pie",),
     "xy": ("xychart-beta",),
+    "cynefin": ("flowchart ", "graph "),
+    "ishikawa": ("flowchart ", "graph "),
+    "treemap": ("flowchart ", "graph "),
+    "eventModeling": ("flowchart ", "graph "),
+    "radar": ("xychart-beta",),
+    "kanban": ("flowchart ", "graph "),
+    "packet": ("flowchart ", "graph "),
 }
 
 
@@ -407,7 +414,7 @@ def validate_mermaid_code(content, diagram_type):
         for line_no in header_hits[1:]:
             issues.append({"line": line_no, "severity": "error", "message": "Duplicate diagram header."})
 
-    if diagram_type in ("flowchart", "architecture"):
+    if diagram_type in ("flowchart", "architecture", "cynefin", "ishikawa", "treemap", "eventModeling", "kanban", "packet"):
         _validate_flowchart(lines, issues)
     elif diagram_type == "sequence":
         _validate_sequence(lines, issues)
@@ -417,7 +424,7 @@ def validate_mermaid_code(content, diagram_type):
         _validate_gantt(lines, issues)
     elif diagram_type == "pie":
         _validate_pie(lines, issues)
-    elif diagram_type == "xy":
+    elif diagram_type in ("xy", "radar"):
         _validate_xy(lines, issues)
 
     return {"valid": not any(issue["severity"] == "error" for issue in issues), "issues": issues}

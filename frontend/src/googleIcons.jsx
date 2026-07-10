@@ -140,3 +140,14 @@ export const ScratchPad = googleIcon(MdEditNote);
 export const ErrorOutline = googleIcon(MdErrorOutline);
 export const SwitchLeft = googleIcon(MdSwitchLeft);
 export const SwitchRight = googleIcon(MdSwitchRight);
+
+import { MdCategory, MdBubbleChart, MdGridView, MdEventNote, MdRadar, MdViewKanban, MdFilterFrames } from 'react-icons/md';
+
+export const Category = googleIcon(MdCategory);
+export const BubbleChart = googleIcon(MdBubbleChart);
+export const GridView = googleIcon(MdGridView);
+export const EventNote = googleIcon(MdEventNote);
+export const Radar = googleIcon(MdRadar);
+export const ViewKanban = googleIcon(MdViewKanban);
+export const FilterFrames = googleIcon(MdFilterFrames);
+

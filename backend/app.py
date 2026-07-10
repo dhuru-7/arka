@@ -43,7 +43,14 @@ KNOWLEDGE_FILES = {
     "pie": "pie_chart.md",
     "sequence": "sequence.md",
     "erDiagram": "er_diagram.md",
-    "gantt": "gantt.md"
+    "gantt": "gantt.md",
+    "cynefin": "cynefin.md",
+    "ishikawa": "ishikawa.md",
+    "treemap": "treemap.md",
+    "eventModeling": "event_modeling.md",
+    "radar": "radar.md",
+    "kanban": "kanban.md",
+    "packet": "packet.md"
 }
 
 

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, User, ArrowUp, Send, Layout, Zap, Boxes, Plus, Network, Layers, LineChart, PieChart, ChevronLeft, Grid, Paintbrush, Paperclip, GitBranch, Image as ImageIcon, PenTool, SlidersHorizontal, ArrowDown, History, X, MessageSquareDot, Table2, CalendarRange, Trash2, Info, Loader2, ScratchPad } from './googleIcons';
+import { Search, User, ArrowUp, Send, Layout, Zap, Boxes, Plus, Network, Layers, LineChart, PieChart, ChevronLeft, Grid, Paintbrush, Paperclip, GitBranch, Image as ImageIcon, PenTool, SlidersHorizontal, ArrowDown, History, X, MessageSquareDot, Table2, CalendarRange, Trash2, Info, Loader2, ScratchPad, Category, BubbleChart, GridView, EventNote, Radar, ViewKanban, FilterFrames } from './googleIcons';
 import Arena from './Arena';
 import Auth from './Auth';
 import Settings from './Settings';
@@ -115,10 +115,17 @@ const DiagramsPage = () => {
     { id: 'erDiagram', label: 'ER Diagrams', icon: Table2, color: '#000000' },
     { id: 'gantt', label: 'Gantt Charts', icon: CalendarRange, color: '#000000' },
     { id: 'xy', label: 'XY Charts', icon: LineChart, color: '#000000' },
-    { id: 'pie', label: 'Pie Charts', icon: PieChart, color: '#000000' }
+    { id: 'pie', label: 'Pie Charts', icon: PieChart, color: '#000000' },
+    { id: 'cynefin', label: 'Cynefin', icon: Category, color: '#000000' },
+    { id: 'ishikawa', label: 'Ishikawa', icon: BubbleChart, color: '#000000' },
+    { id: 'treemap', label: 'Treemap', icon: GridView, color: '#000000' },
+    { id: 'eventModeling', label: 'Event Modeling', icon: EventNote, color: '#000000' },
+    { id: 'radar', label: 'Radar Charts', icon: Radar, color: '#000000' },
+    { id: 'kanban', label: 'Kanban Boards', icon: ViewKanban, color: '#000000' },
+    { id: 'packet', label: 'Packet Diagrams', icon: FilterFrames, color: '#000000' }
   ];
 
-  const isBetaDiagram = (id) => id === 'pie';
+  const isBetaDiagram = (id) => ['pie', 'cynefin', 'ishikawa', 'treemap', 'eventModeling', 'radar', 'kanban', 'packet'].includes(id);
 
   const openPinNotice = () => {
     setShowPinNotice(true);

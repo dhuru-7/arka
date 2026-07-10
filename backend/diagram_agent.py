@@ -124,7 +124,7 @@ class DiagramAgent:
     def suggest_type(self, prompt):
         system_prompt = (
             "You are Arka's diagram selection agent. Analyze the user's intent semantically. "
-            "Allowed types: flowchart, architecture, sequence, erDiagram, gantt, xy, pie. "
+            "Allowed types: flowchart, architecture, sequence, erDiagram, gantt, xy, pie, cynefin, ishikawa, treemap, eventModeling, radar, kanban, packet. "
             "Return one or more genuinely suitable diagram types, ranked best first. "
             "Do not use keyword matching. Consider what information the user wants to communicate. "
             "Return ONLY JSON with a suggestions array. Every item must contain type, confidence, and reason. "
@@ -510,6 +510,13 @@ def build_generation_prompt(diagram_type, knowledge):
             "(3) Category labels in 'x-axis' must be enclosed in double quotes if they contain spaces. "
             "(4) Ensure the number of elements in your bar/line series matches the number of x-axis categories exactly."
         ),
+        "cynefin": "Start with flowchart TD. Create 4 subgraphs representing domains (Complex, Complicated, Chaotic, Clear/Obvious) with a central Disorder node. Map typical actions (Probe-Sense-Respond, Sense-Analyze-Respond, Act-Sense-Respond, Sense-Categorize-Respond).",
+        "ishikawa": "Start with flowchart RL. Define central Effect node on the far right, a main backbone, and 6 primary cause branches (People, Methods, Machines, Materials, Measurements, Environment) with sub-branch root causes pointing right/inward.",
+        "treemap": "Start with flowchart TD. Model hierarchical categories using nested subgraphs and leaf nodes inside. Use classDefs and semantic coloring to show proportions.",
+        "eventModeling": "Start with flowchart LR. Create 4 horizontal swimlane subgraphs from top to bottom (userSwimlane, commandSwimlane, eventSwimlane, viewSwimlane) and connect elements sequentially from left to right. Style events orange and views green.",
+        "radar": "Start with xychart-beta. Categories on x-axis represent dimensions, score range (0-10 or 0-100) on y-axis, and profiles/series plotted as lines.",
+        "kanban": "Start with flowchart LR. Create column subgraphs for columns (Backlog, Todo, In Progress, Review, Done). Tasks are card-like nodes inside columns. Use links only for task dependencies.",
+        "packet": "Start with flowchart TD. Model rows as horizontal subgraphs representing 32-bit words, containing sequential fields inside linked left-to-right. Style widths proportionally.",
     }
     return base + "\n" + rules.get(diagram_type, rules["flowchart"])
 
@@ -564,6 +571,13 @@ def normalize_type(value):
         "entityrelationship": "erDiagram",
         "gantt": "gantt",
         "ganttchart": "gantt",
+        "cynefin": "cynefin",
+        "ishikawa": "ishikawa",
+        "treemap": "treemap",
+        "eventmodeling": "eventModeling",
+        "radar": "radar",
+        "kanban": "kanban",
+        "packet": "packet",
     }
     return mapping.get(lower)
 
@@ -577,6 +591,13 @@ def readable_type(diagram_type):
         "gantt": "Gantt chart",
         "xy": "XY chart",
         "pie": "pie chart",
+        "cynefin": "Cynefin framework",
+        "ishikawa": "Ishikawa diagram",
+        "treemap": "Treemap diagram",
+        "eventModeling": "Event modeling timeline",
+        "radar": "Radar chart",
+        "kanban": "Kanban board",
+        "packet": "Packet diagram",
     }.get(diagram_type, diagram_type)
 
 
