@@ -502,7 +502,14 @@ def build_generation_prompt(diagram_type, knowledge):
             "(7) Use milestones (0d duration) for key checkpoints."
         ),
         "pie": 'Start with pie showData. Include title. Slices use "Label" : value.',
-        "xy": "Start with xychart-beta. Include title, x-axis, y-axis, and at least one bar or line series.",
+        "xy": (
+            "Start with xychart-beta. Include title, x-axis, y-axis, and at least one bar or line series. "
+            "CRITICAL RULES: "
+            "(1) NEVER put string labels after line or bar statements — e.g. use 'line [1, 2]', NEVER 'line [1, 2] \"Label\"'. "
+            "(2) NEVER use 'legend', 'annotate', or 'grid' directives as they are completely unsupported by xychart-beta syntax. "
+            "(3) Category labels in 'x-axis' must be enclosed in double quotes if they contain spaces. "
+            "(4) Ensure the number of elements in your bar/line series matches the number of x-axis categories exactly."
+        ),
     }
     return base + "\n" + rules.get(diagram_type, rules["flowchart"])
 

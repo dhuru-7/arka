@@ -3422,7 +3422,7 @@ User's latest message: ${userText}`;
             <div ref={canvasRef} className="mermaid-render-target" />
           </div>
           {renderError && (
-            <div className="render-error-badge" style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px 20px', borderRadius: '16px', maxWidth: '300px' }}>
+            <div className="render-error-badge" style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px 20px', borderRadius: '16px', maxWidth: '320px', backdropFilter: 'blur(8px)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <X size={18} /> <span>{diagramType === 'xy' ? 'Modern Browser Required' : 'Render Error'}</span>
               </div>
@@ -3431,6 +3431,9 @@ User's latest message: ${userText}`;
                   This feature uses <b>xychart-beta</b>. For best results, use <b>Google Chrome</b> or <b>Microsoft Edge</b>.
                 </span>
               )}
+              <div style={{ fontSize: '0.65rem', opacity: 0.7, borderTop: '1px solid rgba(255,255,255,0.15)', paddingTop: '6px', wordBreak: 'break-word', fontFamily: 'monospace', lineHeight: 1.3 }}>
+                Details: {typeof renderError === 'string' ? renderError.slice(0, 150) : JSON.stringify(renderError)}
+              </div>
             </div>
           )}
         </div>

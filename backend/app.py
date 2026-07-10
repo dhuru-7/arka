@@ -563,9 +563,17 @@ def generate_diagram():
             else:
                 x_line = ""
 
-            # 3. Extract Y-Axis configuration
-            y_match = re.search(r'y-axis\s*["\']?([^"\']+)["\']?\s*([^\]\n]+)', content)
-            y_line = f'    y-axis "{y_match.group(1).strip()}" {y_match.group(2).strip()}\n' if y_match else ""
+            # 3. Extract Y-Axis configuration (robust matching for optional range)
+            y_match = re.search(r'y-axis\s*["\']?([^"\']+)["\']?\s*([^\]\n]*)', content)
+            if y_match:
+                y_title = y_match.group(1).strip()
+                y_range = y_match.group(2).strip()
+                if y_range:
+                    y_line = f'    y-axis "{y_title}" {y_range}\n'
+                else:
+                    y_line = f'    y-axis "{y_title}"\n'
+            else:
+                y_line = ""
 
             # 4. Extract Data Series (Bar and Line)
             series_matches = re.findall(r'(bar|line)\s*\[([^\]]+)\]', content)

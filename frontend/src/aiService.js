@@ -592,7 +592,15 @@ function buildGeneratePrompt(diagramType) {
     erDiagram: `You are an expert database architect generating Mermaid JS ER diagrams.\n\nCRITICAL INSTRUCTIONS:\n${shared}- First line MUST be 'erDiagram'.\n- Entity names MUST be single PascalCase words.\n- 3-6 attributes per entity.\n- Every relationship MUST have a quoted label.\n- Use proper cardinality notation.`,
     gantt: `You are an expert generating Mermaid JS Gantt charts.\n\nCRITICAL INSTRUCTIONS:\n${shared}- First line MUST be 'gantt'.\n- Include 'dateFormat YYYY-MM-DD'.\n- Group tasks into 3-5 sections.\n- Every task MUST have a unique alphanumeric ID.\n- Keep 10-25 tasks for readability.`,
     pie: `You are an expert generating Mermaid JS pie charts.\n\nCRITICAL INSTRUCTIONS:\n${shared}- Start with 'pie showData'.\n- Include a title.\n- Each slice: "Label" : value\n- Keep 3-8 categories.`,
-    xy: `You are an expert generating Mermaid JS XY charts.\n\nCRITICAL INSTRUCTIONS:\n${shared}- Start with 'xychart-beta'.\n- Include title, x-axis, y-axis, and at least one data series.\n- X-axis labels in brackets.\n- Values in brackets.`,
+    xy: `You are an expert generating Mermaid JS XY charts.
+
+CRITICAL INSTRUCTIONS:
+${shared}- Start with 'xychart-beta'.
+- Include title, x-axis, y-axis, and at least one data series.
+- NEVER put string labels after line or bar statements — e.g. use 'line [1, 2]', NEVER 'line [1, 2] "Label"'.
+- NEVER use 'legend', 'annotate', or 'grid' directives as they are completely unsupported by xychart-beta syntax.
+- Category labels in 'x-axis' must be enclosed in double quotes if they contain spaces.
+- Ensure the number of elements in your bar/line series matches the number of x-axis categories exactly.`,
   };
   return prompts[diagramType] || prompts.flowchart;
 }

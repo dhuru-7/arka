@@ -303,6 +303,41 @@ def clean_mermaid_code(content, diagram_type):
 
         content = "\n".join(lines)
 
+    if diagram_type == "xy":
+        lines = content.splitlines()
+        if lines and lines[0].strip() != "xychart-beta":
+            lines = ["xychart-beta"] + [line for line in lines if line.strip() != "xychart-beta"]
+        
+        fixed = []
+        for line in lines:
+            stripped = line.strip()
+            # 1. Skip legend, annotate, grid lines
+            if stripped.startswith(("legend ", "legend[", "annotate ", "grid ")):
+                continue
+            
+            # 2. Fix x-axis labels (quote them if they contain spaces)
+            if stripped.startswith("x-axis"):
+                x_match = re.search(r'x-axis\s*\[([^\]]+)\]', line)
+                if x_match:
+                    raw_labels = x_match.group(1).split(',')
+                    clean_labels = []
+                    for lbl in raw_labels:
+                        lbl_stripped = lbl.strip().strip('"\'')
+                        clean_labels.append(f'"{lbl_stripped}"')
+                    indent = line[:len(line) - len(line.lstrip())]
+                    fixed.append(f'{indent}x-axis [{", ".join(clean_labels)}]')
+                    continue
+            
+            # 3. Strip inline series labels (e.g. line [1, 2] "Math" -> line [1, 2])
+            if stripped.startswith(("line ", "line[", "bar ", "bar[")):
+                series_match = re.match(r'^(\s*(?:line|bar)\s*\[[^\]]+\])\s*["\']([^"\']+)["\']\s*$', line)
+                if series_match:
+                    fixed.append(series_match.group(1).rstrip())
+                    continue
+            
+            fixed.append(line)
+        content = "\n".join(fixed)
+
     return content.strip()
 
 
@@ -693,3 +728,43 @@ def _validate_xy(lines, issues):
             issues.append({"line": 1, "severity": "error", "message": f"XY chart is missing '{key}'."})
     if "bar [" not in joined and "line [" not in joined:
         issues.append({"line": 1, "severity": "error", "message": "XY chart needs at least one bar or line data series."})
+
+    x_labels_count = 0
+    # Find x-axis labels count
+    for idx, line in enumerate(lines, start=1):
+        stripped = line.strip()
+        if stripped.startswith("x-axis"):
+            x_match = re.search(r'x-axis\s*\[([^\]]+)\]', stripped)
+            if x_match:
+                x_labels_count = len([lbl.strip() for lbl in x_match.group(1).split(',') if lbl.strip()])
+            else:
+                issues.append({"line": idx, "severity": "error", "message": "x-axis must define labels in square brackets, e.g. x-axis [Jan, Feb]"})
+
+    for idx, line in enumerate(lines, start=1):
+        stripped = line.strip()
+        
+        if stripped.startswith("legend"):
+            issues.append({"line": idx, "severity": "error", "message": "legend is not supported in xychart-beta syntax. Omit the legend directive."})
+            
+        elif stripped.startswith("annotate"):
+            issues.append({"line": idx, "severity": "error", "message": "annotate is not supported in xychart-beta syntax."})
+            
+        elif stripped.startswith("grid"):
+            issues.append({"line": idx, "severity": "error", "message": "grid is not supported in xychart-beta syntax."})
+            
+        elif stripped.startswith(("line ", "line[", "bar ", "bar[")):
+            # Check for inline series label
+            series_match = re.match(r'^(line|bar)\s*\[([^\]]+)\]\s*["\']([^"\']+)["\']\s*$', stripped)
+            if series_match:
+                issues.append({"line": idx, "severity": "error", "message": f"Do not put inline labels like \"{series_match.group(3)}\" after {series_match.group(1)} series."})
+            
+            # Check data points count against x-axis labels count
+            data_match = re.search(r'(?:line|bar)\s*\[([^\]]+)\]', stripped)
+            if data_match:
+                data_vals = [val.strip() for val in data_match.group(1).split(',') if val.strip()]
+                if x_labels_count > 0 and len(data_vals) != x_labels_count:
+                    issues.append({
+                        "line": idx, 
+                        "severity": "warning", 
+                        "message": f"Data series has {len(data_vals)} values, but x-axis has {x_labels_count} categories. They must match."
+                    })
