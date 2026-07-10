@@ -491,7 +491,15 @@ def build_generation_prompt(diagram_type, knowledge):
             "Start with erDiagram. Entity names must be PascalCase. Relationship labels must be quoted."
         ),
         "gantt": (
-            "Start with gantt, include title and dateFormat YYYY-MM-DD. Use section groups and unique alphanumeric ids."
+            "Start with gantt, include title and dateFormat YYYY-MM-DD. Use section groups and unique alphanumeric ids. "
+            "CRITICAL RULES: "
+            "(1) axisFormat must NOT have spaces between tokens — use %b-%d, NEVER %b %d. "
+            "(2) When using 'after taskId', provide ONLY duration (e.g., 14d) — NEVER add explicit start/end dates alongside after. "
+            "(3) Every 'after taskId' MUST reference an existing task id — verify spelling matches exactly. "
+            "(4) Section names must NOT contain '&' — use 'and' instead. "
+            "(5) NEVER create bare dependency-only lines like 'Task : after id1' without a duration or dates. "
+            "(6) Keep tasks to 10-25 total and sections to 3-6 for readability. "
+            "(7) Use milestones (0d duration) for key checkpoints."
         ),
         "pie": 'Start with pie showData. Include title. Slices use "Label" : value.',
         "xy": "Start with xychart-beta. Include title, x-axis, y-axis, and at least one bar or line series.",

@@ -235,6 +235,72 @@ def clean_mermaid_code(content, diagram_type):
                     insert_at = idx + 1
                     break
             lines.insert(insert_at, "    dateFormat YYYY-MM-DD")
+
+        # Ensure a title line exists
+        if not any(line.strip().startswith("title") for line in lines):
+            lines.insert(1, "    title Project Timeline")
+
+        # Fix axisFormat with spaces between tokens (e.g., "%b %d" -> "%b-%d")
+        fixed = []
+        for line in lines:
+            if line.strip().startswith("axisFormat"):
+                # Replace space-separated format tokens with dash-separated
+                line = re.sub(r'(axisFormat\s+%[a-zA-Z])\s+(%[a-zA-Z])', r'\1-\2', line)
+            fixed.append(line)
+        lines = fixed
+
+        # Replace '&' with 'and' in section names
+        fixed = []
+        for line in lines:
+            if line.strip().startswith("section "):
+                line = line.replace(" & ", " and ")
+            fixed.append(line)
+        lines = fixed
+
+        # Remove bare dependency-only task lines (e.g., "Task Name : after id1" with no duration/dates)
+        fixed = []
+        for line in lines:
+            stripped = line.strip()
+            if ":" in stripped and not stripped.startswith(("gantt", "title", "dateFormat", "axisFormat", "section", "excludes", "todayMarker")):
+                meta = stripped.split(":", 1)[1].strip()
+                parts = [p.strip() for p in meta.split(",")]
+                # Check if line is ONLY "after id" with no date or duration
+                non_empty = [p for p in parts if p]
+                if len(non_empty) == 1 and non_empty[0].startswith("after "):
+                    continue  # Skip bare dependency-only lines
+            fixed.append(line)
+        lines = fixed
+
+        # Fix redundant explicit dates alongside 'after' dependency
+        # Pattern: "Task : id, after prev, 2024-01-07, 2024-01-14" -> "Task : id, after prev, Nd"
+        fixed = []
+        date_re = re.compile(r'^\d{4}-\d{2}-\d{2}$')
+        for line in lines:
+            stripped = line.strip()
+            if ":" in stripped and not stripped.startswith(("gantt", "title", "dateFormat", "axisFormat", "section", "excludes", "todayMarker")):
+                meta = stripped.split(":", 1)[1].strip()
+                parts = [p.strip() for p in meta.split(",")]
+                has_after = any(p.startswith("after ") for p in parts)
+                dates_found = [p for p in parts if date_re.match(p)]
+                if has_after and len(dates_found) == 2:
+                    # Convert two explicit dates to a duration
+                    try:
+                        from datetime import datetime
+                        d1 = datetime.strptime(dates_found[0], "%Y-%m-%d")
+                        d2 = datetime.strptime(dates_found[1], "%Y-%m-%d")
+                        days = max((d2 - d1).days, 1)
+                        # Rebuild the line without the two dates, adding duration
+                        task_name = stripped.split(":", 1)[0].strip()
+                        new_parts = [p for p in parts if not date_re.match(p)]
+                        new_parts.append(f"{days}d")
+                        indent = line[:len(line) - len(line.lstrip())]
+                        fixed.append(f"{indent}{task_name} : {', '.join(new_parts)}")
+                        continue
+                    except (ValueError, ImportError):
+                        pass
+            fixed.append(line)
+        lines = fixed
+
         content = "\n".join(lines)
 
     return content.strip()
@@ -500,9 +566,14 @@ def _validate_er(lines, issues):
 def _validate_gantt(lines, issues):
     if not any("dateFormat YYYY-MM-DD" in line for line in lines):
         issues.append({"line": 1, "severity": "error", "message": "Gantt chart must include dateFormat YYYY-MM-DD."})
-        
+
+    # Check for title
+    if not any(line.strip().startswith("title") for line in lines):
+        issues.append({"line": 1, "severity": "warning", "message": "Gantt chart should include a title line."})
+
     task_ids = set()
-    
+    section_count = 0
+
     def is_date(s):
         return bool(re.match(r'^\d{4}-\d{2}-\d{2}(?:\s+\d{2}:\d{2})?$', s))
 
@@ -517,22 +588,60 @@ def _validate_gantt(lines, issues):
 
     for idx, line in enumerate(lines, start=1):
         stripped = line.strip()
-        if not stripped or stripped.startswith(("gantt", "title", "dateFormat", "axisFormat", "section", "excludes", "todayMarker")):
+        if not stripped or stripped == "gantt":
             continue
+
+        # Check axisFormat for space-separated tokens
+        if stripped.startswith("axisFormat"):
+            fmt = stripped[len("axisFormat"):].strip()
+            if re.search(r'%[a-zA-Z]\s+%[a-zA-Z]', fmt):
+                issues.append({"line": idx, "severity": "error", "message": "axisFormat must not have spaces between format tokens. Use '%b-%d' instead of '%b %d'."})
+            continue
+
+        # Check section names for special characters
+        if stripped.startswith("section "):
+            section_count += 1
+            section_name = stripped[len("section "):].strip()
+            if "&" in section_name:
+                issues.append({"line": idx, "severity": "warning", "message": f"Section name contains '&'. Use 'and' instead for compatibility."})
+            continue
+
+        if stripped.startswith(("title", "dateFormat", "excludes", "todayMarker")):
+            continue
+
+        # Everything below is a task line
         if ":" not in stripped:
             issues.append({"line": idx, "severity": "error", "message": "Gantt task line must contain a colon separating task name and metadata."})
             continue
-            
+
         meta = stripped.split(":", 1)[1]
         parts = [part.strip() for part in meta.split(",")]
-        
+        non_empty_parts = [p for p in parts if p]
+
+        # Check for bare dependency-only lines (no dates or duration)
+        if len(non_empty_parts) == 1 and non_empty_parts[0].startswith("after "):
+            issues.append({"line": idx, "severity": "error", "message": "Task has only a dependency and no duration or dates. Add a duration like '7d'."})
+            continue
+
+        # Check for redundant explicit dates alongside 'after' dependency
+        has_after = any(p.startswith("after ") for p in parts)
+        dates_found = [p for p in parts if is_date(p)]
+        if has_after and len(dates_found) >= 2:
+            issues.append({"line": idx, "severity": "warning", "message": "Task uses 'after' dependency with explicit start/end dates. Use duration instead (e.g., '14d')."})
+
+        # Check task has at least dates or duration
+        has_dates = len(dates_found) >= 1
+        has_duration = any(is_duration(p) for p in parts)
+        if not has_dates and not has_duration and not has_after:
+            issues.append({"line": idx, "severity": "error", "message": "Task must have dates, a duration, or a dependency."})
+
         # Extract taskId (first part that is not status, date, duration, or dependency)
         task_id = None
         for part in parts:
-            if not is_status(part) and not is_date(part) and not is_duration(part) and not is_dependency(part):
+            if not is_status(part) and not is_date(part) and not is_duration(part) and not is_dependency(part) and part:
                 task_id = part
                 break
-                
+
         if task_id:
             if not re.match(r"^[A-Za-z][A-Za-z0-9_]*$", task_id):
                 issues.append({"line": idx, "severity": "error", "message": f"Gantt task id '{task_id}' must be alphanumeric without spaces."})
@@ -540,6 +649,28 @@ def _validate_gantt(lines, issues):
                 issues.append({"line": idx, "severity": "error", "message": f"Duplicate Gantt task id '{task_id}'."})
             else:
                 task_ids.add(task_id)
+
+    # Check dependency IDs reference existing task IDs
+    for idx, line in enumerate(lines, start=1):
+        stripped = line.strip()
+        if ":" not in stripped or stripped.startswith(("gantt", "title", "dateFormat", "axisFormat", "section", "excludes", "todayMarker")):
+            continue
+        meta = stripped.split(":", 1)[1]
+        parts = [part.strip() for part in meta.split(",")]
+        for part in parts:
+            if part.startswith("after "):
+                dep_ids = part[len("after "):].strip().split()
+                for dep_id in dep_ids:
+                    if dep_id and dep_id not in task_ids:
+                        issues.append({"line": idx, "severity": "warning", "message": f"Dependency 'after {dep_id}' references unknown task id '{dep_id}'."})
+
+    # Section count check
+    if section_count > 8:
+        issues.append({"line": 1, "severity": "warning", "message": f"Gantt chart has {section_count} sections. Keep to 6 or fewer for readability."})
+
+    # Total task count check
+    if len(task_ids) > 30:
+        issues.append({"line": 1, "severity": "warning", "message": f"Gantt chart has {len(task_ids)} tasks. Keep to 25 or fewer for readability."})
 
 
 def _validate_pie(lines, issues):

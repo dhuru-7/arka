@@ -677,6 +677,35 @@ def generate_diagram():
                         insert_idx = i + 1
                         break
                 lines.insert(insert_idx, '    dateFormat YYYY-MM-DD')
+            # Ensure title line exists
+            if not any(l.strip().startswith('title') for l in lines):
+                lines.insert(1, '    title Project Timeline')
+            # Fix axisFormat with spaces between tokens ("%b %d" -> "%b-%d")
+            fixed_lines = []
+            for line in lines:
+                if line.strip().startswith('axisFormat'):
+                    line = re.sub(r'(axisFormat\s+%[a-zA-Z])\s+(%[a-zA-Z])', r'\1-\2', line)
+                fixed_lines.append(line)
+            lines = fixed_lines
+            # Replace '&' with 'and' in section names
+            fixed_lines = []
+            for line in lines:
+                if line.strip().startswith('section '):
+                    line = line.replace(' & ', ' and ')
+                fixed_lines.append(line)
+            lines = fixed_lines
+            # Remove bare dependency-only task lines (no dates or duration)
+            fixed_lines = []
+            for line in lines:
+                stripped = line.strip()
+                if ':' in stripped and not stripped.startswith(('gantt', 'title', 'dateFormat', 'axisFormat', 'section', 'excludes', 'todayMarker')):
+                    meta = stripped.split(':', 1)[1].strip()
+                    parts = [p.strip() for p in meta.split(',')]
+                    non_empty = [p for p in parts if p]
+                    if len(non_empty) == 1 and non_empty[0].startswith('after '):
+                        continue  # Skip bare dependency-only lines
+                fixed_lines.append(line)
+            lines = fixed_lines
             # Fix colons in task names (replace with dashes)
             fixed_lines = []
             for line in lines:

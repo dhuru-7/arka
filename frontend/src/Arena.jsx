@@ -96,14 +96,14 @@ const GANTT_PASTEL_THEME = {
     .task5 { fill: #FFFDE7 !important; stroke: #EAB308 !important; }
     .task6 { fill: #FCE4EC !important; stroke: #EC4899 !important; }
     .task7 { fill: #EDE7F6 !important; stroke: #8B5CF6 !important; }
-    .active0, .done0, .crit0, .activeCrit0, .doneCrit0 { fill: #F3E8FF !important; }
-    .active1, .done1, .crit1, .activeCrit1, .doneCrit1 { fill: #E0F7FA !important; }
-    .active2, .done2, .crit2, .activeCrit2, .doneCrit2 { fill: #FFF3E0 !important; }
-    .active3, .done3, .crit3, .activeCrit3, .doneCrit3 { fill: #E8F5E9 !important; }
-    .active4, .done4, .crit4, .activeCrit4, .doneCrit4 { fill: #E3F2FD !important; }
-    .active5, .done5, .crit5, .activeCrit5, .doneCrit5 { fill: #FFFDE7 !important; }
-    .active6, .done6, .crit6, .activeCrit6, .doneCrit6 { fill: #FCE4EC !important; }
-    .active7, .done7, .crit7, .activeCrit7, .doneCrit7 { fill: #EDE7F6 !important; }
+    .active0, .done0, .crit0, .activeCrit0, .doneCrit0 { fill: #F3E8FF !important; stroke: #A855F7 !important; }
+    .active1, .done1, .crit1, .activeCrit1, .doneCrit1 { fill: #E0F7FA !important; stroke: #06B6D4 !important; }
+    .active2, .done2, .crit2, .activeCrit2, .doneCrit2 { fill: #FFF3E0 !important; stroke: #F59E0B !important; }
+    .active3, .done3, .crit3, .activeCrit3, .doneCrit3 { fill: #E8F5E9 !important; stroke: #22C55E !important; }
+    .active4, .done4, .crit4, .activeCrit4, .doneCrit4 { fill: #E3F2FD !important; stroke: #3B82F6 !important; }
+    .active5, .done5, .crit5, .activeCrit5, .doneCrit5 { fill: #FFFDE7 !important; stroke: #EAB308 !important; }
+    .active6, .done6, .crit6, .activeCrit6, .doneCrit6 { fill: #FCE4EC !important; stroke: #EC4899 !important; }
+    .active7, .done7, .crit7, .activeCrit7, .doneCrit7 { fill: #EDE7F6 !important; stroke: #8B5CF6 !important; }
     .taskText, .taskText0, .taskText1, .taskText2, .taskText3,
     .taskText4, .taskText5, .taskText6, .taskText7,
     .taskTextOutside0, .taskTextOutside1, .taskTextOutside2, .taskTextOutside3,
