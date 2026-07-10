@@ -738,24 +738,6 @@ def generate_diagram():
                         fixed_lines.append(line)
                 else:
                     fixed_lines.append(line)
-        # CYNEFIN DIAGRAM SYNTAX FIXES
-        if diagram_type == 'cynefin':
-            lines = content.split('\n')
-            fixed_lines = []
-            for line in lines:
-                stripped = line.strip()
-                if stripped.startswith(('style ', 'classDef ')):
-                    fixed_lines.append(line)
-                    continue
-                # Strip leaked style declarations inside labels
-                line = re.sub(r'\s+fill:\s*#[a-fA-F0-9]{3,8},?', '', line)
-                line = re.sub(r'\s+stroke:\s*#[a-fA-F0-9]{3,8},?', '', line)
-                line = re.sub(r'\s+stroke-width:\s*\d+px,?', '', line)
-                line = re.sub(r'\s+color:\s*#[a-fA-F0-9]{3,8},?', '', line)
-                line = line.replace(",]", "]").replace(",\"", "\"").replace(",)", ")")
-                # Strip trailing spaces inside quotes/brackets
-                line = re.sub(r'\s+(?=["\']\]|["\']\)|["\'])', '', line)
-                fixed_lines.append(line)
             content = '\n'.join(fixed_lines)
 
         return jsonify({"mermaid_code": content, "diagram_type": diagram_type})

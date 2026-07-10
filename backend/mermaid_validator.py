@@ -345,25 +345,6 @@ def clean_mermaid_code(content, diagram_type):
             fixed.append(line)
         content = "\n".join(fixed)
 
-    if diagram_type == "cynefin":
-        lines = content.splitlines()
-        fixed = []
-        for line in lines:
-            stripped = line.strip()
-            if stripped.startswith(('style ', 'classDef ')):
-                fixed.append(line)
-                continue
-            # Strip leaked style declarations inside labels
-            line = re.sub(r'\s+fill:\s*#[a-fA-F0-9]{3,8},?', '', line)
-            line = re.sub(r'\s+stroke:\s*#[a-fA-F0-9]{3,8},?', '', line)
-            line = re.sub(r'\s+stroke-width:\s*\d+px,?', '', line)
-            line = re.sub(r'\s+color:\s*#[a-fA-F0-9]{3,8},?', '', line)
-            line = line.replace(",]", "]").replace(",\"", "\"").replace(",)", ")")
-            # Strip trailing spaces inside quotes/brackets
-            line = re.sub(r'\s+(?=["\']\]|["\']\)|["\'])', '', line)
-            fixed.append(line)
-        content = "\n".join(fixed)
-
     return content.strip()
 
 

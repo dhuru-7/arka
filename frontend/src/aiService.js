@@ -604,29 +604,24 @@ ${shared}- Start with 'xychart-beta'.
     cynefin: `You are an expert Cynefin framework designer generating Mermaid JS diagrams.
 
 CRITICAL INSTRUCTIONS:
-${shared}- Start with 'flowchart TD'.
-- Create 5 flat subgraphs representing the Cynefin domains: complex ("Complex"), complicated ("Complicated"), chaotic ("Chaotic"), clear ("Clear/Obvious"), and disorder ("Disorder").
-- NEVER put styling text like fill/stroke inside subgraph names, brackets, or titles (e.g. use complex ["Complex"], NEVER complex ["Complex fill:#F3E8FF"]).
-- Style domains using style statements on separate lines at the bottom:
-  * style complex fill:#F3E8FF,stroke:#D8B4FE,stroke-width:2px,color:#000000 (Soft Purple)
-  * style complicated fill:#E3F2FD,stroke:#90CAF9,stroke-width:2px,color:#000000 (Soft Blue)
-  * style clear fill:#E8F5E9,stroke:#A5D6A7,stroke-width:2px,color:#000000 (Soft Green)
-  * style chaotic fill:#FFF3E0,stroke:#FFB74D,stroke-width:2px,color:#000000 (Soft Orange)
-  * style disorder fill:#FCE4EC,stroke:#F48FB1,stroke-width:2px,color:#000000 (Soft Pink)
-- Define classDefs for nodes:
-  * action: fill:#FFFDE7, stroke:#FFF59D, color:#000000 (Soft Yellow)
-  * scenario: fill:#EDE7F6, stroke:#B39DDB, color:#000000 (Soft Lavender)
-  * info: fill:#E0F7FA, stroke:#80DEEA, color:#000000 (Soft Cyan)
-- Apply these classes to the nodes.
-- Force a 2x2 grid layout by adding these alignment links at the bottom (right before styling declarations):
-  * complex ~~~ complicated
-  * complex --> disorder
-  * complicated --> disorder
-  * disorder --> chaotic
-  * disorder --> clear
-  * chaotic ~~~ clear
-- Keep subgraphs flat — NEVER nest subgraphs inside other subgraphs.
-- NEVER create self-loops (e.g. Node --> Node) as they crash rendering.`,
+${shared}- Start with 'flowchart LR' or 'flowchart TB'.
+- Create a central node at the top representing the overall scenario (e.g. A["🏢 Startup Preparing to Launch a New Product"]).
+- Create 4 flat subgraphs for domains: CLEAR ("🟢 CLEAR (Simple)"), COMPLICATED ("🔵 COMPLICATED"), COMPLEX ("🟡 COMPLEX"), and CHAOTIC ("🔴 CHAOTIC").
+- Every situation node inside a domain subgraph MUST have a multiline label inside double quotes detailing:
+  * Title with emoji (e.g. 🔐 Routine User Authentication Requests)
+  * Domain: domain name
+  * Why: 2-3 bulleted reasons explaining the classification
+  * Decision Approach: approach details (e.g. Sense → Categorize → Respond)
+  * Leadership Action: action details
+- Connect the central node to every situation node inside the subgraphs (e.g. A --> C1).
+- Add dotted transition links showing shifts between domains (e.g. X1 -. Transition Name .-> P2).
+- Define and assign these exact styling classes at the bottom:
+  * classDef clear fill:#C8E6C9,stroke:#2E7D32,color:#000,stroke-width:2px;
+  * classDef complicated fill:#BBDEFB,stroke:#1565C0,color:#000,stroke-width:2px;
+  * classDef complex fill:#FFF9C4,stroke:#F9A825,color:#000,stroke-width:2px;
+  * classDef chaotic fill:#FFCDD2,stroke:#C62828,color:#000,stroke-width:2px;
+  * classDef center fill:#ECEFF1,stroke:#455A64,color:#000,stroke-width:3px;
+- Assign classes to nodes: 'class A center;', 'class C1 clear;', etc.`,
     ishikawa: `You are an expert quality control engineer generating Ishikawa (Fishbone) diagrams in Mermaid JS.
 
 CRITICAL INSTRUCTIONS:

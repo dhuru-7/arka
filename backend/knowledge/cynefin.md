@@ -1,126 +1,160 @@
 # Cynefin Framework Diagram Rules & Standards for Mermaid JS
 
-The Cynefin framework helps decision-makers identify how they perceive situations and make sense of organizational behavior. It classifies problems into 5 domains: Complex, Complicated, Chaotic, Clear (Obvious), and Disorder.
+Cynefin is a decision-making framework that helps classify situations into domains to guide leadership responses. This document outlines the standard flowchart structure, multiline text format, and color rules for generating Cynefin diagrams in Arka.
 
-## Syntax
-- Always start with `flowchart TD`.
-- Represent domains using subgraphs.
-- Represent scenario items, decision steps, or actions using nodes.
-- Style subgraphs using `style subgraphId fill:#HEX,stroke:#HEX,stroke-width:2px,color:#000000` statements at the bottom of the diagram.
+## Syntax & Layout
+- Always start with `flowchart LR` or `flowchart TB`.
+- Define a **Central Theme Node** at the top/center (e.g. `A["🏢 AI Startup Preparing to Launch a New Product"]`).
+- Group situation nodes inside 4 distinct domain subgraphs representing the quadrants:
+  - `subgraph CLEAR["🟢 CLEAR (Simple)"]`
+  - `subgraph COMPLICATED["🔵 COMPLICATED"]`
+  - `subgraph COMPLEX["🟡 COMPLEX"]`
+  - `subgraph CHAOTIC["🔴 CHAOTIC"]`
+- Connect the Central Theme Node to every situation node inside the subgraphs (e.g. `A --> C1`, `A --> P1`).
+- Add **dotted links** to show domain transitions (e.g. `X1 -. Learning & Validation .-> P2`).
 
-## Color Palette Rules (MANDATORY)
-You MUST apply these exact colors to subgraphs and elements in every Cynefin diagram:
+## Rich Multiline Nodes
+Every situation node inside a domain MUST use a multiline label enclosed in double quotes containing:
+1. An emoji + situation title
+2. **Domain**: name
+3. **Why**: 2-3 bulleted reasons explaining the classification
+4. **Decision Approach**: (e.g. `Sense → Categorize → Respond`)
+5. **Leadership Action**: action details
 
-| Element / Domain | Color Name | Hex Code | Purpose / Styling |
-|---|---|---|---|
-| **Complex Domain** | Soft Purple | `#F3E8FF` | `style complex fill:#F3E8FF,stroke:#D8B4FE,stroke-width:2px,color:#000000` |
-| **Complicated Domain** | Soft Blue | `#E3F2FD` | `style complicated fill:#E3F2FD,stroke:#90CAF9,stroke-width:2px,color:#000000` |
-| **Clear/Obvious Domain** | Soft Green | `#E8F5E9` | `style clear fill:#E8F5E9,stroke:#A5D6A7,stroke-width:2px,color:#000000` |
-| **Chaotic Domain** | Soft Orange | `#FFF3E0` | `style chaotic fill:#FFF3E0,stroke:#FFB74D,stroke-width:2px,color:#000000` |
-| **Disorder Domain** | Soft Pink | `#FCE4EC` | `style disorder fill:#FCE4EC,stroke:#F48FB1,stroke-width:2px,color:#000000` |
-| **Actions/Decision Nodes** | Soft Yellow | `#FFFDE7` | Applied via `classDef action fill:#FFFDE7,stroke:#FFF59D,color:#000000;` |
-| **Scenario Nodes** | Soft Lavender | `#EDE7F6` | Applied via `classDef scenario fill:#EDE7F6,stroke:#B39DDB,color:#000000;` |
-| **Additional/Info Nodes** | Soft Cyan | `#E0F7FA` | Applied via `classDef info fill:#E0F7FA,stroke:#80DEEA,color:#000000;` |
+### Example Node Format
+```
+C1["🔐 Routine User Authentication Requests
 
-## 2x2 Quadrant Structure (MANDATORY)
-A proper Cynefin diagram must be rendered in a 2x2 grid layout (quadrants) with Disorder in the center:
-- **Top-Left**: Complex
-- **Top-Right**: Complicated
-- **Center**: Disorder
-- **Bottom-Left**: Chaotic
-- **Bottom-Right**: Clear
+Domain: Clear
 
-To force Mermaid to render this 2x2 grid correctly, you MUST append these layout alignment links at the bottom of the diagram (right before styling declarations):
-```mermaid
-    %% Force 2x2 Layout Structure
-    complex ~~~ complicated
-    complex --> disorder
-    complicated --> disorder
-    disorder --> chaotic
-    disorder --> clear
-    chaotic ~~~ clear
+Why:
+• Standardized and repeatable
+• Well-known best practices
+• Predictable outcomes
+
+Decision Approach:
+Sense → Categorize → Respond
+
+Leadership Action:
+Automate, monitor, and optimize using SOPs."]
 ```
 
-## CRITICAL Anti-Patterns — NEVER DO THESE
+## Color Scheme Class Definitions
+You must define and apply the following exact classDefs at the bottom of the diagram code:
 
-### 1. NEVER Put Styling Parameters in Subgraph Titles
-Do not include text like `fill:#...` or `stroke:#...` in the subgraph labels or title string. Styling statements must be declared on their own lines at the very bottom of the code.
-- **WRONG**: `subgraph complex ["Complex fill:#F3E8FF"]`
-- **CORRECT**: `subgraph complex ["Complex Domain"]` and then `style complex fill:#F3E8FF` at the bottom of the file.
-
-### 2. NEVER Use Self-Loop Links
-Do not create links pointing a node back to itself (e.g. `node1 --> node1`). This is invalid syntax and crashes the Mermaid engine.
-- **WRONG**: `B1 -->|Sense-Analyze-Respond| B1`
-- **CORRECT**: Map a clear progression or omit self-loops entirely.
-
-### 3. NEVER Nest Domain Subgraphs
-Keep subgraphs flat. Putting subgraphs inside other subgraphs for domains causes unpredictable layout issues.
-- **WRONG**:
 ```mermaid
-subgraph Cynefin Framework
-    subgraph Clear/Obvious
-        node1
-    end
-end
+classDef clear fill:#C8E6C9,stroke:#2E7D32,color:#000,stroke-width:2px;
+classDef complicated fill:#BBDEFB,stroke:#1565C0,color:#000,stroke-width:2px;
+classDef complex fill:#FFF9C4,stroke:#F9A825,color:#000,stroke-width:2px;
+classDef chaotic fill:#FFCDD2,stroke:#C62828,color:#000,stroke-width:2px;
+classDef center fill:#ECEFF1,stroke:#455A64,color:#000,stroke-width:3px;
 ```
-- **CORRECT**: Keep each domain subgraph flat at the top-level of the diagram.
+
+And assign them to their respective nodes:
+```mermaid
+class A center;
+class C1 clear;
+class P1,P2 complicated;
+class X1,X2 complex;
+class H1 chaotic;
+```
 
 ---
 
-## Example Cynefin Framework Diagram
+## Complete Example Diagram
 ```mermaid
-flowchart TD
-    %% 1. Define Nodes inside flat subgraphs
-    subgraph complex ["Complex (Probe-Sense-Respond)"]
-        cx_desc["Emergent Practice"]
-        cx_act["Developing customer satisfaction strategy"]
+flowchart LR
+    %% Central Theme Node
+    A["🏢 AI Startup Preparing to Launch a New Product"]
+
+    subgraph CLEAR["🟢 CLEAR (Simple)"]
+        C1["🔐 Routine User Authentication Requests
+
+Domain: Clear
+
+Why:
+• Standardized and repeatable
+• Well-known best practices
+• Predictable outcomes
+
+Decision Approach:
+Sense → Categorize → Respond
+
+Leadership Action:
+Automate, monitor, and optimize using SOPs."]
     end
 
-    subgraph complicated ["Complicated (Sense-Analyze-Respond)"]
-        co_desc["Good Practice"]
-        co_act["Troubleshooting software installation"]
+    subgraph COMPLICATED["🔵 COMPLICATED"]
+        P1["☁️ Scaling Cloud Infrastructure
+
+Domain: Complicated
+
+Why:
+• Requires technical expertise
+• Multiple valid solutions
+• Cause and effect are knowable
+
+Decision Approach:
+Sense → Analyze → Respond
+
+Leadership Action:
+Consult architects, benchmark performance, implement scaling strategy."]
     end
 
-    subgraph chaotic ["Chaotic (Act-Sense-Respond)"]
-        ch_desc["Novel Practice"]
-        ch_act["Responding to critical server outage"]
+    subgraph COMPLEX["🟡 COMPLEX"]
+        X1["✨ Building a New AI Feature
+
+Domain: Complex
+
+Why:
+• User demand is uncertain
+• Outcomes emerge through experimentation
+• No proven solution
+
+Decision Approach:
+Probe → Sense → Respond
+
+Leadership Action:
+Build MVP, run pilots, collect feedback, iterate."]
     end
 
-    subgraph clear ["Clear / Obvious (Sense-Categorize-Respond)"]
-        cl_desc["Best Practice"]
-        cl_act["Resetting a forgotten password"]
+    subgraph CHAOTIC["🔴 CHAOTIC"]
+        H1["🚨 Major Data Breach
+
+Domain: Chaotic
+
+Why:
+• Immediate crisis
+• No time for analysis
+• High business impact
+
+Decision Approach:
+Act → Sense → Respond
+
+Leadership Action:
+Contain breach, secure systems, notify customers/regulators, then investigate."]
     end
 
-    subgraph disorder ["Disorder"]
-        d_desc["Unclassified Issues"]
-    end
+    %% Connections
+    A --> C1
+    A --> P1
+    A --> X1
+    A --> H1
 
-    %% 2. Define Relationships
-    d_desc --> cx_act
-    d_desc --> co_act
-    d_desc --> ch_act
-    d_desc --> cl_act
+    %% Transitions
+    X1 -. Learning & Validation .-> P1
+    H1 -. Crisis Stabilized .-> X1
 
-    %% 3. Force 2x2 Quadrant Structure
-    complex ~~~ complicated
-    complex --> disorder
-    complicated --> disorder
-    disorder --> chaotic
-    disorder --> clear
-    chaotic ~~~ clear
+    %% Styling
+    classDef clear fill:#C8E6C9,stroke:#2E7D32,color:#000,stroke-width:2px;
+    classDef complicated fill:#BBDEFB,stroke:#1565C0,color:#000,stroke-width:2px;
+    classDef complex fill:#FFF9C4,stroke:#F9A825,color:#000,stroke-width:2px;
+    classDef chaotic fill:#FFCDD2,stroke:#C62828,color:#000,stroke-width:2px;
+    classDef center fill:#ECEFF1,stroke:#455A64,color:#000,stroke-width:3px;
 
-    %% 4. Apply Subgraph Styling (on separate lines at the bottom)
-    style complex fill:#F3E8FF,stroke:#D8B4FE,stroke-width:2px,color:#000000
-    style complicated fill:#E3F2FD,stroke:#90CAF9,stroke-width:2px,color:#000000
-    style clear fill:#E8F5E9,stroke:#A5D6A7,stroke-width:2px,color:#000000
-    style chaotic fill:#FFF3E0,stroke:#FFB74D,stroke-width:2px,color:#000000
-    style disorder fill:#FCE4EC,stroke:#F48FB1,stroke-width:2px,color:#000000
-
-    %% 5. Apply Class Definitions for nodes
-    classDef action fill:#FFFDE7,stroke:#FFF59D,color:#000000;
-    classDef scenario fill:#EDE7F6,stroke:#B39DDB,color:#000000;
-    classDef info fill:#E0F7FA,stroke:#80DEEA,color:#000000;
-
-    class cx_desc,co_desc,ch_desc,cl_desc action;
-    class cx_act,co_act,ch_act,cl_act,d_desc scenario;
+    class A center;
+    class C1 clear;
+    class P1 complicated;
+    class X1 complex;
+    class H1 chaotic;
 ```

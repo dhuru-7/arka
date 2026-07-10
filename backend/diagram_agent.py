@@ -511,13 +511,13 @@ def build_generation_prompt(diagram_type, knowledge):
             "(4) Ensure the number of elements in your bar/line series matches the number of x-axis categories exactly."
         ),
         "cynefin": (
-            "Start with flowchart TD. Create 4 flat subgraphs for domains: complex, complicated, chaotic, clear (and one for disorder). "
+            "Start with flowchart LR or flowchart TB. Create a central node at the top representing the overall scenario. "
+            "Create 4 flat subgraphs for domains: CLEAR, COMPLICATED, COMPLEX, CHAOTIC. "
             "CRITICAL RULES: "
-            "(1) Style domains using separate style statements at the bottom: 'style complex fill:#F3E8FF,stroke:#D8B4FE,stroke-width:2px,color:#000000', 'style complicated fill:#E3F2FD,stroke:#90CAF9,stroke-width:2px,color:#000000', 'style clear fill:#E8F5E9,stroke:#A5D6A7,stroke-width:2px,color:#000000', 'style chaotic fill:#FFF3E0,stroke:#FFB74D,stroke-width:2px,color:#000000', 'style disorder fill:#FCE4EC,stroke:#F48FB1,stroke-width:2px,color:#000000'. Declare each style on its own line. NEVER put styling text like fill/stroke inside subgraph names, brackets, or titles. "
-            "(2) Define classDefs for nodes: action (fill:#FFFDE7, stroke:#FFF59D), scenario (fill:#EDE7F6, stroke:#B39DDB), info (fill:#E0F7FA, stroke:#80DEEA). Apply them to nodes. "
-            "(3) Force a 2x2 grid layout by adding these alignment links at the bottom: complex ~~~ complicated, complex --> disorder, complicated --> disorder, disorder --> chaotic, disorder --> clear, chaotic ~~~ clear. "
-            "(4) Keep subgraphs flat — NEVER nest subgraphs inside other subgraphs. "
-            "(5) NEVER create self-loops (e.g. Node --> Node) as they crash rendering."
+            "(1) Every situation node inside a domain subgraph MUST have a multiline label inside double quotes detailing: Title with emoji, Domain name, bulleted 'Why' reasons, 'Decision Approach' (e.g. Sense -> Analyze -> Respond), and 'Leadership Action'. "
+            "(2) Connect the central node to every situation node inside the subgraphs. "
+            "(3) Define and assign the styling classes: clear (fill:#C8E6C9, stroke:#2E7D32), complicated (fill:#BBDEFB, stroke:#1565C0), complex (fill:#FFF9C4, stroke:#F9A825), chaotic (fill:#FFCDD2, stroke:#C62828), and center (fill:#ECEFF1, stroke:#455A64). "
+            "(4) Add dotted links showing transitions between domains (e.g. Node1 -. Transition Name .-> Node2)."
         ),
         "ishikawa": "Start with flowchart RL. Define central Effect node on the far right, a main backbone, and 6 primary cause branches (People, Methods, Machines, Materials, Measurements, Environment) with sub-branch root causes pointing right/inward.",
         "treemap": "Start with flowchart TD. Model hierarchical categories using nested subgraphs and leaf nodes inside. Use classDefs and semantic coloring to show proportions.",
