@@ -513,10 +513,11 @@ def build_generation_prompt(diagram_type, knowledge):
         "cynefin": (
             "Start with flowchart TD. Create 4 flat subgraphs for domains: complex, complicated, chaotic, clear (and one for disorder). "
             "CRITICAL RULES: "
-            "(1) Style domains using style statements with exact colors: complex (fill:#F3E8FF, stroke:#D8B4FE), complicated (fill:#E3F2FD, stroke:#90CAF9), clear (fill:#E8F5E9, stroke:#A5D6A7), chaotic (fill:#FFF3E0, stroke:#FFB74D), disorder (fill:#FCE4EC, stroke:#F48FB1). "
+            "(1) Style domains using style statements on separate lines at the bottom: style complex fill:#F3E8FF,stroke:#D8B4FE,complicated fill:#E3F2FD,stroke:#90CAF9,clear fill:#E8F5E9,stroke:#A5D6A7,chaotic fill:#FFF3E0,stroke:#FFB74D,disorder fill:#FCE4EC,stroke:#F48FB1. NEVER put styling text like fill/stroke inside subgraph names or titles. "
             "(2) Define classDefs for nodes: action (fill:#FFFDE7, stroke:#FFF59D), scenario (fill:#EDE7F6, stroke:#B39DDB), info (fill:#E0F7FA, stroke:#80DEEA). Apply them to nodes. "
-            "(3) Keep subgraphs flat — NEVER nest subgraphs inside other subgraphs. "
-            "(4) NEVER create self-loops (e.g. Node --> Node) as they crash rendering."
+            "(3) Force a 2x2 grid layout by adding these alignment links at the bottom: complex ~~~ complicated, complex --> disorder, complicated --> disorder, disorder --> chaotic, disorder --> clear, chaotic ~~~ clear. "
+            "(4) Keep subgraphs flat — NEVER nest subgraphs inside other subgraphs. "
+            "(5) NEVER create self-loops (e.g. Node --> Node) as they crash rendering."
         ),
         "ishikawa": "Start with flowchart RL. Define central Effect node on the far right, a main backbone, and 6 primary cause branches (People, Methods, Machines, Materials, Measurements, Environment) with sub-branch root causes pointing right/inward.",
         "treemap": "Start with flowchart TD. Model hierarchical categories using nested subgraphs and leaf nodes inside. Use classDefs and semantic coloring to show proportions.",
