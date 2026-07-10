@@ -513,7 +513,7 @@ def build_generation_prompt(diagram_type, knowledge):
         "cynefin": (
             "Start with flowchart TD. Create 4 flat subgraphs for domains: complex, complicated, chaotic, clear (and one for disorder). "
             "CRITICAL RULES: "
-            "(1) Style domains using style statements on separate lines at the bottom: style complex fill:#F3E8FF,stroke:#D8B4FE,complicated fill:#E3F2FD,stroke:#90CAF9,clear fill:#E8F5E9,stroke:#A5D6A7,chaotic fill:#FFF3E0,stroke:#FFB74D,disorder fill:#FCE4EC,stroke:#F48FB1. NEVER put styling text like fill/stroke inside subgraph names or titles. "
+            "(1) Style domains using separate style statements at the bottom: 'style complex fill:#F3E8FF,stroke:#D8B4FE,stroke-width:2px,color:#000000', 'style complicated fill:#E3F2FD,stroke:#90CAF9,stroke-width:2px,color:#000000', 'style clear fill:#E8F5E9,stroke:#A5D6A7,stroke-width:2px,color:#000000', 'style chaotic fill:#FFF3E0,stroke:#FFB74D,stroke-width:2px,color:#000000', 'style disorder fill:#FCE4EC,stroke:#F48FB1,stroke-width:2px,color:#000000'. Declare each style on its own line. NEVER put styling text like fill/stroke inside subgraph names, brackets, or titles. "
             "(2) Define classDefs for nodes: action (fill:#FFFDE7, stroke:#FFF59D), scenario (fill:#EDE7F6, stroke:#B39DDB), info (fill:#E0F7FA, stroke:#80DEEA). Apply them to nodes. "
             "(3) Force a 2x2 grid layout by adding these alignment links at the bottom: complex ~~~ complicated, complex --> disorder, complicated --> disorder, disorder --> chaotic, disorder --> clear, chaotic ~~~ clear. "
             "(4) Keep subgraphs flat — NEVER nest subgraphs inside other subgraphs. "

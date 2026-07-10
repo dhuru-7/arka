@@ -743,6 +743,10 @@ def generate_diagram():
             lines = content.split('\n')
             fixed_lines = []
             for line in lines:
+                stripped = line.strip()
+                if stripped.startswith(('style ', 'classDef ')):
+                    fixed_lines.append(line)
+                    continue
                 # Strip leaked style declarations inside labels
                 line = re.sub(r'\s+fill:\s*#[a-fA-F0-9]{3,8},?', '', line)
                 line = re.sub(r'\s+stroke:\s*#[a-fA-F0-9]{3,8},?', '', line)

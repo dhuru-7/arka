@@ -349,6 +349,10 @@ def clean_mermaid_code(content, diagram_type):
         lines = content.splitlines()
         fixed = []
         for line in lines:
+            stripped = line.strip()
+            if stripped.startswith(('style ', 'classDef ')):
+                fixed.append(line)
+                continue
             # Strip leaked style declarations inside labels
             line = re.sub(r'\s+fill:\s*#[a-fA-F0-9]{3,8},?', '', line)
             line = re.sub(r'\s+stroke:\s*#[a-fA-F0-9]{3,8},?', '', line)
